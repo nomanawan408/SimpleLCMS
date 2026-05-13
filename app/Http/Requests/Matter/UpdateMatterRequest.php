@@ -1,0 +1,25 @@
+<?php
+
+namespace App\Http\Requests\Matter;
+
+use Illuminate\Foundation\Http\FormRequest;
+
+class UpdateMatterRequest extends FormRequest
+{
+    public function authorize(): bool { return true; }
+
+    public function rules(): array
+    {
+        return [
+            'name'                => ['sometimes', 'string', 'max:255'],
+            'description'         => ['nullable', 'string'],
+            'status'              => ['sometimes', 'in:open,pending_court_date,awaiting_client,awaiting_opponent,on_hold,closed,archived'],
+            'practice_area'       => ['sometimes', 'in:conveyancing,family_law,litigation,employment,wills_probate,corporate,immigration,criminal,personal_injury,custom'],
+            'fee_arrangement'     => ['sometimes', 'in:hourly_rate,fixed_fee,contingency,retainer'],
+            'responsible_user_id' => ['sometimes', 'uuid'],
+            'court'               => ['nullable', 'string', 'max:255'],
+            'court_reference'     => ['nullable', 'string', 'max:100'],
+            'custom_fields'       => ['nullable', 'array'],
+        ];
+    }
+}

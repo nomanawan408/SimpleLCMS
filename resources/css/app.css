@@ -1,0 +1,106 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    :root {
+        /* User Color Scheme - Light Mode - #00b3a7 */
+        --background: 174 100% 97%;
+        --foreground: 178 92% 8%;
+        --card: 0 0% 100%;
+        --card-foreground: 178 92% 8%;
+        --popover: 0 0% 100%;
+        --popover-foreground: 178 92% 8%;
+        --primary: 176 100% 35%;
+        --primary-foreground: 0 0% 100%;
+        --secondary: 174 100% 92%;
+        --secondary-foreground: 178 92% 8%;
+        --muted: 174 100% 92%;
+        --muted-foreground: 177 71% 22%;
+        --accent: 176 100% 30%;
+        --accent-foreground: 0 0% 100%;
+        --destructive: 0 70% 50%;
+        --destructive-foreground: 0 0% 100%;
+        --border: 175 50% 88%;
+        --input: 175 50% 88%;
+        --ring: 176 100% 35%;
+        --radius: 0.5rem;
+        --warning: 48 100% 50%;
+        --success: 160 45% 40%;
+        --info: 175 95% 40%;
+    }
+
+    .dark {
+        /* User Color Scheme - Dark Mode - #00b3a7 */
+        --background: 178 92% 5%;
+        --foreground: 174 100% 95%;
+        --card: 178 92% 7%;
+        --card-foreground: 174 100% 95%;
+        --popover: 178 92% 7%;
+        --popover-foreground: 174 100% 95%;
+        --primary: 176 100% 35%;
+        --primary-foreground: 178 92% 5%;
+        --secondary: 178 45% 12%;
+        --secondary-foreground: 174 100% 95%;
+        --muted: 178 45% 12%;
+        --muted-foreground: 175 50% 75%;
+        --accent: 176 100% 30%;
+        --accent-foreground: 0 0% 100%;
+        --destructive: 0 60% 55%;
+        --destructive-foreground: 0 0% 100%;
+        --border: 178 45% 15%;
+        --input: 178 45% 15%;
+        --ring: 176 100% 35%;
+        --warning: 48 100% 55%;
+        --success: 160 40% 45%;
+        --info: 175 95% 40%;
+    }
+
+    * {
+        @apply border-border;
+    }
+
+    body {
+        @apply bg-background text-foreground antialiased;
+        font-feature-settings: 'rlig' 1, 'calt' 1;
+        background-color: hsl(174 100% 97%);
+        background-image:
+            radial-gradient(circle at 100% 0%, hsl(176 100% 35% / 0.08), transparent 50%),
+            radial-gradient(circle at 0% 100%, hsl(176 100% 35% / 0.05), transparent 45%),
+            radial-gradient(circle at 50% 50%, hsl(176 100% 35% / 0.02) 1px, transparent 1px);
+        background-size: 100% 100%, 100% 100%, 40px 40px;
+    }
+
+    ::selection {
+        background: hsl(var(--primary) / 0.2);
+        color: hsl(var(--foreground));
+    }
+}
+
+@layer components {
+    .surface-card {
+        @apply rounded-lg border bg-card shadow-sm;
+        box-shadow: 0 1px 3px hsl(180 100% 13% / 0.08), 0 4px 12px hsl(180 100% 13% / 0.04);
+    }
+
+    .surface-elevated {
+        @apply rounded-lg border bg-card;
+        box-shadow: 0 4px 6px -1px hsl(180 100% 13% / 0.06), 0 2px 4px -1px hsl(180 100% 13% / 0.04), 0 0 0 1px hsl(180 100% 13% / 0.02);
+    }
+
+    .flash-success {
+        @apply rounded-md border border-emerald-200/70 bg-emerald-50/80 px-4 py-3 text-sm text-emerald-900;
+    }
+
+    .flash-error {
+        @apply rounded-md border border-rose-200/70 bg-rose-50/80 px-4 py-3 text-sm text-rose-900;
+    }
+
+    .flash-warning {
+        @apply rounded-md border border-amber-200/70 bg-amber-50/80 px-4 py-3 text-sm text-amber-900;
+    }
+
+    .flash-info {
+        @apply rounded-md border border-violet-200/70 bg-violet-50/80 px-4 py-3 text-sm text-violet-900;
+    }
+}

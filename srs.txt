@@ -1,0 +1,255 @@
+Software Requirements Specification (SRS)
+Legal Practice Management System (LPM System)
+Version 1.0
+Date: 15 April 2026
+Prepared for: Awan (Client)
+Based on: Clio Manage (UK version) – Exact UI & Workflow from provided screenshot + YouTube walkthrough with specified exclusions
+
+1. Introduction
+1.1 Purpose
+This document specifies the functional and non-functional requirements for a web-based Legal Practice Management System that replicates the core user experience, UI layout, and workflow of Clio Manage (as shown in the uploaded screenshot and video walkthrough).
+The system is designed for small-to-medium law firms to manage clients, matters (cases), documents, time, billing, and daily operations in one centralized platform.
+Key constraint: The system must exactly match the visual layout, navigation, and user flow visible in the provided Matters list screenshot and the Clio walkthrough video, excluding:
+
+Automation & AI features (no workflows, no stage-change triggers, no AI assistant)
+App Integrations
+SSO logins (only standard email/password authentication)
+
+1.2 Scope
+In Scope (exact modules from Clio sidebar):
+
+Dashboard
+Calendar
+Tasks
+Matters (core hub – list view must match screenshot 100%)
+Contacts
+Activities
+Billing
+Online Payments
+Accounts
+Documents
+Communications
+Reports
+Settings
+
+Out of Scope:
+
+Any automation or AI
+Third-party app integrations
+SSO / enterprise login
+Advanced analytics or custom reporting engines beyond basic Clio-style reports
+Client portal (basic secure messaging only)
+
+1.3 Definitions, Acronyms & Abbreviations
+
+Matter = Case / File (e.g., “00075-Ryan: MVA Accident”)
+Practice Area = Type of law (Personal Injury, Family, Bankruptcy, etc.)
+360° View = Single matter detail page containing all linked data (tasks, documents, time, etc.)
+Inline Client Creation = Ability to create a new client directly inside the New Matter form
+
+1.4 References
+
+Uploaded screenshot (Matters list view)
+Clio UK product pages (provided links)
+YouTube video: “Clio Manage: Full Walkthrough & Deep Dive 2025”
+
+
+2. Overall Description
+2.1 Product Perspective
+This is a Clio Manage clone with reduced scope. The UI and workflow must feel identical to Clio for users who are already familiar with it.
+2.2 Product Functions (High-Level)
+
+Client → Matter Workflow (core)
+Centralized document, time, task, and billing management per matter
+Role-based access (Attorney, Staff, Admin)
+Standard authentication only
+
+2.3 User Classes
+
+Firm Admin – full access + Settings
+Attorney – can create/edit matters, time entries, documents
+Staff / Paralegal – limited editing rights (configurable in Settings)
+
+2.4 Operating Environment
+
+Web application (responsive – desktop first)
+Modern browser (Chrome, Edge, Firefox, Safari)
+Hosted on cloud (AWS / Azure / similar)
+
+2.5 Design & Implementation Constraints
+
+UI must be pixel-perfect match to the uploaded screenshot for the Matters list view (colors, layout, buttons, table columns, sidebar, top bar)
+Auto-numbering format for matters: 000XX-ClientLastName: Short Description
+Dynamic custom fields based on Practice Area (but no automation)
+
+
+3. Specific Requirements
+3.1 External Interface Requirements
+
+User Interface: Modern, clean, blue header (exactly as screenshot)
+Left Sidebar: Fixed navigation (exact icons + order as screenshot)
+Login: Simple email + password screen (no SSO)
+
+3.2 Functional Requirements
+3.2.1 Authentication & Settings
+
+Standard login / logout / password reset
+User management (add/edit users, roles)
+Practice Areas management
+Matter Templates (pre-filled fields + basic task list – no auto triggers)
+Custom fields configuration (per Practice Area)
+
+3.2.2 Dashboard
+
+Quick stats (Open Matters, Overdue Tasks, Unbilled Time, etc.)
+Recent Matters list
+Upcoming Calendar items
+Task summary
+
+3.2.3 Matters Module (Highest Priority – must match screenshot exactly)
+
+List View:
+Tabs: All | Open | Pending | Closed
+Table columns (exact order & names):
+Actions (Edit dropdown)
+Matter (clickable name + auto-number)
+Client (clickable)
+Responsible Attorney
+Originating Attorney
+Responsible Staff
+Practice Area
+Open Date
+Judicial District
+
+Controls: Filter by keyword, Columns dropdown, Filters button
+Bottom bar: Pagination + Expand rows toggle + Export button
+
+New Matter (big blue button – top right):
+Form fields (exact flow from video):
+Client field → searchable dropdown + “+ Create new client” inline popup
+Practice Area (dropdown – controls which custom fields appear)
+Matter Template selection
+Matter name / description
+Responsible Attorney, Originating Attorney, Responsible Staff
+Open date, Judicial District, other custom fields
+Billing settings (hourly / flat fee / contingency)
+
+Save → opens 360° Matter Detail View
+
+Matter Detail View (360°):
+Sub-tabs: Overview, Documents, Tasks, Calendar, Time & Expense, Billing, Communications, Activities, Notes
+All items created inside these tabs are automatically linked to the matter
+
+
+3.2.4 Contacts Module
+
+Full CRM-style contact list (Clients + Other Contacts)
+Search, filter, add new
+Inline creation from Matter form (as described by user)
+
+3.2.5 Calendar
+
+Events linked to specific Matters
+Monthly/weekly/daily view
+Basic Google/Outlook export (manual)
+
+3.2.6 Tasks
+
+Task list per matter
+Due dates, assignment to users
+Simple status (To Do / In Progress / Done)
+
+3.2.7 Documents
+
+Upload, organize by matter
+Basic folder structure
+Version history
+No e-sign or automation
+
+3.2.8 Time & Expense + Billing
+
+Timer (start/stop per matter)
+Manual time/expense entry
+Invoice creation from time entries
+Trust accounting (basic ledger)
+
+3.2.9 Online Payments
+
+Generate payment links
+Basic payment receipt recording
+
+3.2.10 Accounts
+
+Ledger / Trust account view
+
+3.2.11 Activities & Communications
+
+Activity feed (notes + logged emails)
+Secure internal messaging
+
+3.2.12 Reports
+
+Basic reports:
+Financial summary
+Time by matter / user
+Open matters by practice area
+Export to CSV/PDF
+
+
+
+4. Non-Functional Requirements
+4.1 Performance
+
+Page load < 2 seconds
+Matter list supports 10,000+ rows with pagination/filtering
+
+4.2 Security
+
+Role-based access control
+Data encrypted at rest & in transit
+Audit log for critical actions
+
+4.3 Usability
+
+UI must be identical to Clio Manage screenshot (colors, fonts, spacing, button styles)
+Mobile responsive (sidebar collapses on small screens)
+
+4.4 Scalability
+
+Support minimum 50 users and 5,000 matters initially
+
+4.5 Reliability
+
+99.5% uptime target
+Automatic backups
+
+
+5. Assumptions & Dependencies
+
+Development will use modern web stack (recommended: Next.js 15 + TypeScript + Tailwind CSS + PostgreSQL + Prisma)
+All data is owned by the law firm (multi-tenant ready for future)
+No external API dependencies except payment gateway (Stripe or similar for Online Payments)
+
+
+6. Appendices
+Appendix A – UI Reference
+
+Exact Matters list screenshot provided (image ID: JYfm7) must be matched for colors, layout, and controls.
+
+Appendix B – Priority Phases (Recommended Build Order)
+Phase 1 (MVP – 4–6 weeks): Authentication + Settings + Contacts + Matters (list + create + 360° view)
+Phase 2: Calendar + Tasks + Documents
+Phase 3: Time & Expense + Billing + Online Payments + Accounts
+Phase 4: Activities + Communications + Reports + Dashboard
+
+This SRS is complete, actionable, and ready for development.
+It captures every module, screen, button, and workflow shown in your screenshot and the Clio video, while strictly respecting your exclusions.
+Next Step?
+Reply with any changes or say “Approve SRS” and I will immediately deliver:
+
+Full Database Schema (PostgreSQL)
+Detailed Wireframes / Component Breakdown
+API Endpoint List
+Tech Stack + Project Structure
+
+Ready to move forward! 🚀
