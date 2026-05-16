@@ -58,9 +58,12 @@ export const PRACTICE_AREA_LABELS: Record<string, string> = {
 };
 
 export const ROLE_LABELS: Record<string, string> = {
-    firm_admin: 'Firm Admin',
-    senior_solicitor: 'Senior Solicitor',
     solicitor: 'Solicitor',
-    paralegal: 'Paralegal',
+    lawyer: 'Lawyer',
+    barrister: 'Barrister',
+    clerk: 'Clerk',
+    consultant: 'Consultant',
+    administrator: 'Administrator',
+    manager: 'Manager',
     accounts: 'Accounts',
 };

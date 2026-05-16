@@ -14,21 +14,25 @@ class ContactPolicy
 
     public function view(User $user, Contact $contact): bool
     {
-        return $contact->firm_id === $user->firm_id;
+        return $user->is_active && $contact->firm_id === $user->firm_id;
     }
 
     public function create(User $user): bool
     {
-        return $user->is_active && ! in_array($user->role, ['accounts']);
+        return $user->is_active && !in_array($user->role, ['accounts', 'clerk']);
     }
 
     public function update(User $user, Contact $contact): bool
     {
-        return $contact->firm_id === $user->firm_id && ! in_array($user->role, ['accounts']);
+        return $user->is_active
+            && $contact->firm_id === $user->firm_id
+            && !in_array($user->role, ['accounts', 'clerk']);
     }
 
     public function delete(User $user, Contact $contact): bool
     {
-        return $contact->firm_id === $user->firm_id && in_array($user->role, ['firm_admin', 'senior_solicitor']);
+        return $user->is_active
+            && $contact->firm_id === $user->firm_id
+            && in_array($user->role, ['administrator', 'manager']);
     }
 }

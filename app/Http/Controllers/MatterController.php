@@ -61,7 +61,7 @@ class MatterController extends Controller
         return Inertia::render('Matters/Create', [
             'users' => User::where('firm_id', $firmId)
                 ->where('is_active', true)
-                ->whereIn('role', ['firm_admin', 'senior_solicitor', 'solicitor'])
+                ->whereIn('role', ['administrator', 'manager', 'solicitor', 'lawyer', 'barrister', 'consultant'])
                 ->get(['id', 'full_name', 'role']),
             'contacts' => Contact::where('firm_id', $firmId)
                 ->orderBy('name')
@@ -115,6 +115,9 @@ class MatterController extends Controller
 
         return Inertia::render('Matters/Show', [
             'matter' => $matter,
+            'users'  => User::where('firm_id', $matter->firm_id)
+                ->where('is_active', true)
+                ->get(['id', 'full_name']),
         ]);
     }
 
@@ -130,7 +133,7 @@ class MatterController extends Controller
             'matter' => $matter,
             'users' => User::where('firm_id', $firmId)
                 ->where('is_active', true)
-                ->whereIn('role', ['firm_admin', 'senior_solicitor', 'solicitor'])
+                ->whereIn('role', ['administrator', 'manager', 'solicitor', 'lawyer', 'barrister', 'consultant'])
                 ->get(['id', 'full_name', 'role']),
             'contacts' => Contact::where('firm_id', $firmId)
                 ->orderBy('name')

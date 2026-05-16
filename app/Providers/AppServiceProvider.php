@@ -35,5 +35,18 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Firm::class, FirmPolicy::class);
         Gate::policy(User::class, UserPolicy::class);
         Gate::policy(Invoice::class, InvoicePolicy::class);
+
+        // Super-admin bypass: administrators can do anything within their firm
+        Gate::before(function (User $user, string $ability): ?bool {
+            if ($user->is_active && $user->role === 'administrator') {
+                return true;
+            }
+            return null;
+        });
+
+        // Admin panel access: administrator and manager
+        Gate::define('admin-panel', fn (User $user): bool =>
+            $user->is_active && in_array($user->role, ['administrator', 'manager'])
+        );
     }
 }

@@ -34,7 +34,7 @@ class RegisterController extends Controller
         $firm = Firm::create([
             'name'     => $request->firm_name,
             'slug'     => Str::slug($request->firm_name) . '-' . Str::random(6),
-            'timezone' => 'Europe/Dublin',
+            'timezone' => 'Europe/London',
         ]);
 
         $user = User::create([
@@ -42,7 +42,7 @@ class RegisterController extends Controller
             'full_name' => $request->full_name,
             'email'     => $request->email,
             'password'  => Hash::make($request->password),
-            'role'      => 'firm_admin',
+            'role'      => 'administrator',
         ]);
 
         event(new Registered($user));

@@ -8,17 +8,17 @@ class UserPolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->is_active && $user->role === 'firm_admin';
+        return $user->is_active && $user->role === 'administrator';
     }
 
     public function create(User $user): bool
     {
-        return $user->is_active && $user->role === 'firm_admin';
+        return $user->is_active && $user->role === 'administrator';
     }
 
     public function update(User $user, User $target): bool
     {
-        if (! $user->is_active || $user->role !== 'firm_admin') {
+        if (! $user->is_active || $user->role !== 'administrator') {
             return false;
         }
 

@@ -18,24 +18,26 @@ class MatterTimeEntryController extends Controller
             'duration_minutes' => ['required', 'integer', 'min:1'],
             'rate'             => ['nullable', 'numeric', 'min:0'],
             'billable'         => ['required', 'boolean'],
+            'activity_type'    => ['nullable', 'in:advising,drafting,research,court_attendance,travel,telephone,correspondence,meeting,other'],
             'description'      => ['nullable', 'string'],
         ]);
 
-        $rate = $validated['rate'] ?? ($request->user()->rate_per_hour ?? 0);
-        $amount = ((float) $rate) * ((int) $validated['duration_minutes'] / 60);
+        $user   = $request->user();
+        $rate   = $validated['rate'] ?? $user->rate_per_hour ?? $user->firm->default_hourly_rate ?? 0;
+        $amount = round(((float) $rate) * ((int) $validated['duration_minutes'] / 60), 2);
 
         $entry = TimeEntry::create([
-            'firm_id'          => $request->user()->firm_id,
+            'firm_id'          => $user->firm_id,
             'matter_id'        => $matter->id,
-            'user_id'          => $request->user()->id,
+            'user_id'          => $user->id,
             'invoice_id'       => null,
             'date'             => $validated['date'],
             'duration_minutes' => (int) $validated['duration_minutes'],
-            'rate'             => $rate,
+            'rate'             => (float) $rate,
             'amount'           => $amount,
             'billable'         => (bool) $validated['billable'],
             'billed'           => false,
-            'activity_type'    => null,
+            'activity_type'    => $validated['activity_type'] ?? 'other',
             'description'      => $validated['description'] ?? null,
             'is_locked'        => false,
         ]);

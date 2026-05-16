@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Models\Firm;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
@@ -12,34 +13,45 @@ use Illuminate\Support\Str;
  */
 class UserFactory extends Factory
 {
-    /**
-     * The current password being used by the factory.
-     */
     protected static ?string $password;
 
-    /**
-     * Define the model's default state.
-     *
-     * @return array<string, mixed>
-     */
     public function definition(): array
     {
         return [
-            'name' => fake()->name(),
-            'email' => fake()->unique()->safeEmail(),
+            'firm_id'           => Firm::factory(),
+            'full_name'         => fake()->name(),
+            'email'             => fake()->unique()->safeEmail(),
             'email_verified_at' => now(),
-            'password' => static::$password ??= Hash::make('password'),
-            'remember_token' => Str::random(10),
+            'password'          => static::$password ??= Hash::make('password'),
+            'role'              => 'solicitor',
+            'is_active'         => true,
+            'totp_enabled'      => false,
+            'remember_token'    => Str::random(10),
         ];
     }
 
-    /**
-     * Indicate that the model's email address should be unverified.
-     */
+    public function firmAdmin(): static
+    {
+        return $this->state(fn () => ['role' => 'firm_admin']);
+    }
+
+    public function accounts(): static
+    {
+        return $this->state(fn () => ['role' => 'accounts']);
+    }
+
+    public function seniorSolicitor(): static
+    {
+        return $this->state(fn () => ['role' => 'senior_solicitor']);
+    }
+
+    public function forFirm(Firm $firm): static
+    {
+        return $this->state(fn () => ['firm_id' => $firm->id]);
+    }
+
     public function unverified(): static
     {
-        return $this->state(fn (array $attributes) => [
-            'email_verified_at' => null,
-        ]);
+        return $this->state(fn () => ['email_verified_at' => null]);
     }
 }

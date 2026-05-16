@@ -19,7 +19,7 @@ class InvoiceController extends Controller
         $user = auth()->user();
         $firmId = $user->firm_id;
 
-        $query = Invoice::with(['matter', 'matter.responsible_user'])
+        $query = Invoice::with(['matter', 'matter.responsibleUser'])
             ->where('firm_id', $firmId)
             ->orderBy('created_at', 'desc');
 
@@ -66,26 +66,34 @@ class InvoiceController extends Controller
 
         $matters = Matter::where('firm_id', $firmId)
             ->where('status', 'open')
-            ->with('responsibleUser')
+            ->with(['responsibleUser', 'contacts'])
             ->orderBy('name')
-            ->get();
+            ->get()
+            ->each(fn ($m) => $m->setAppends([]));
 
-        // Get unbilled time and expenses
         $unbilledTime = TimeEntry::where('firm_id', $firmId)
-            ->where('is_billed', false)
+            ->where('billed', false)
+            ->where('billable', true)
             ->with(['matter', 'user'])
+            ->orderBy('date', 'desc')
             ->get();
 
         $unbilledExpenses = Expense::where('firm_id', $firmId)
-            ->where('is_billed', false)
+            ->where('billed', false)
             ->with('matter')
+            ->orderBy('date', 'desc')
             ->get();
 
+        $firmVatRate = (float) ($user->firm->vat_rate ?? 0);
+        $paymentTermsDays = (int) ($user->firm->payment_terms_days ?? 30);
+
         return Inertia::render('Billing/Create', [
-            'matters' => $matters,
-            'unbilledTime' => $unbilledTime,
-            'unbilledExpenses' => $unbilledExpenses,
+            'matters'           => $matters,
+            'unbilledTime'      => $unbilledTime,
+            'unbilledExpenses'  => $unbilledExpenses,
             'nextInvoiceNumber' => $this->getNextInvoiceNumber($firmId),
+            'firmVatRate'       => $firmVatRate,
+            'paymentTermsDays'  => $paymentTermsDays,
         ]);
     }
 
@@ -95,35 +103,46 @@ class InvoiceController extends Controller
         $firmId = $user->firm_id;
 
         $validated = $request->validate([
-            'matter_id' => 'required|uuid|exists:matters,id',
-            'invoice_number' => 'required|string|unique:invoices',
-            'due_date' => 'required|date',
-            'line_items' => 'required|array|min:1',
-            'line_items.*.description' => 'required|string',
-            'line_items.*.quantity' => 'required|numeric|min:0',
-            'line_items.*.unit_rate' => 'required|numeric|min:0',
-            'line_items.*.amount' => 'required|numeric|min:0',
+            'matter_id'               => 'required|uuid|exists:matters,id',
+            'invoice_number'          => 'required|string|unique:invoices',
+            'due_date'                => 'required|date',
+            'issue_date'              => 'nullable|date',
+            'line_items'              => 'required|array|min:1',
+            'line_items.*.description'=> 'required|string',
+            'line_items.*.quantity'   => 'required|numeric|min:0',
+            'line_items.*.unit_rate'  => 'required|numeric|min:0',
+            'line_items.*.amount'     => 'required|numeric|min:0',
             'line_items.*.vat_amount' => 'required|numeric|min:0',
-            'vat_rate' => 'required|numeric|min:0',
-            'notes' => 'nullable|string',
+            'vat_rate'                => 'required|numeric|min:0',
+            'discount_amount'         => 'nullable|numeric|min:0',
+            'discount_reason'         => 'nullable|string|max:500',
+            'notes'                   => 'nullable|string',
+            'action'                  => 'nullable|in:draft,send',
         ]);
 
-        DB::transaction(function () use ($validated, $firmId, $request) {
-            $subtotal = collect($validated['line_items'])->sum('amount');
-            $vatAmount = collect($validated['line_items'])->sum('vat_amount');
-            $total = $subtotal + $vatAmount;
+        $invoiceId = null;
+
+        DB::transaction(function () use ($validated, $firmId, $request, &$invoiceId) {
+            $subtotal       = collect($validated['line_items'])->sum('amount');
+            $vatAmount      = collect($validated['line_items'])->sum('vat_amount');
+            $discountAmount = (float) ($validated['discount_amount'] ?? 0);
+            $total          = $subtotal + $vatAmount - $discountAmount;
+            $action         = $validated['action'] ?? 'draft';
 
             $invoice = Invoice::create([
-                'firm_id' => $firmId,
-                'matter_id' => $validated['matter_id'],
-                'invoice_number' => $validated['invoice_number'],
-                'status' => 'draft',
-                'subtotal' => $subtotal,
-                'vat_amount' => $vatAmount,
-                'vat_rate' => $validated['vat_rate'],
-                'total' => $total,
-                'due_date' => $validated['due_date'],
-                'notes' => $validated['notes'] ?? null,
+                'firm_id'         => $firmId,
+                'matter_id'       => $validated['matter_id'],
+                'invoice_number'  => $validated['invoice_number'],
+                'status'          => $action === 'send' ? 'sent' : 'draft',
+                'subtotal'        => $subtotal,
+                'vat_amount'      => $vatAmount,
+                'vat_rate'        => $validated['vat_rate'],
+                'total'           => max(0, $total),
+                'discount_amount' => $discountAmount,
+                'discount_reason' => $validated['discount_reason'] ?? null,
+                'due_date'        => $validated['due_date'],
+                'sent_at'         => $action === 'send' ? now() : null,
+                'notes'           => $validated['notes'] ?? null,
             ]);
 
             foreach ($validated['line_items'] as $item) {
@@ -133,17 +152,19 @@ class InvoiceController extends Controller
             // Mark time entries as billed if selected
             if ($request->has('bill_time_entry_ids')) {
                 TimeEntry::whereIn('id', $request->bill_time_entry_ids)
-                    ->update(['is_billed' => true, 'invoice_id' => $invoice->id]);
+                    ->update(['billed' => true, 'invoice_id' => $invoice->id]);
             }
 
             // Mark expenses as billed if selected
             if ($request->has('bill_expense_ids')) {
                 Expense::whereIn('id', $request->bill_expense_ids)
-                    ->update(['is_billed' => true, 'invoice_id' => $invoice->id]);
+                    ->update(['billed' => true, 'invoice_id' => $invoice->id]);
             }
+
+            $invoiceId = $invoice->id;
         });
 
-        return redirect()->route('billing.index')
+        return redirect()->route('billing.show', $invoiceId)
             ->with('success', 'Invoice created successfully.');
     }
 
@@ -151,10 +172,15 @@ class InvoiceController extends Controller
     {
         $this->authorize('view', $invoice);
 
-        $invoice->load(['matter', 'matter.responsible_user', 'lineItems', 'payments']);
+        $invoice->load(['matter', 'matter.responsibleUser', 'matter.contacts', 'lineItems', 'payments']);
+
+        $invoiceArray = $invoice->toArray();
 
         return Inertia::render('Billing/Show', [
-            'invoice' => $invoice,
+            'invoice' => array_merge($invoiceArray, [
+                'lineItems' => $invoice->lineItems->values()->toArray(),
+                'payments'  => $invoice->payments->values()->toArray(),
+            ]),
         ]);
     }
 
@@ -163,8 +189,8 @@ class InvoiceController extends Controller
         $this->authorize('update', $invoice);
 
         $validated = $request->validate([
-            'status' => 'sometimes|in:draft,sent,paid,cancelled',
-            'notes' => 'nullable|string',
+            'status' => 'sometimes|in:draft,sent,partial,paid,written_off,cancelled',
+            'notes'  => 'nullable|string',
         ]);
 
         if ($request->status === 'sent' && $invoice->status === 'draft') {
@@ -185,10 +211,10 @@ class InvoiceController extends Controller
         $this->authorize('update', $invoice);
 
         $validated = $request->validate([
-            'amount' => 'required|numeric|min:0.01|max:' . $invoice->amount_outstanding,
-            'method' => 'required|in:cash,cheque,bank_transfer,credit_card,stripe',
+            'amount'  => 'required|numeric|min:0.01',
+            'method'  => 'required|in:cash,cheque,bank_transfer,stripe_card,stripe_sepa',
             'paid_at' => 'required|date',
-            'notes' => 'nullable|string',
+            'notes'   => 'nullable|string',
         ]);
 
         Payment::create([
@@ -200,9 +226,11 @@ class InvoiceController extends Controller
             'notes' => $validated['notes'] ?? null,
         ]);
 
-        // Auto-mark as paid if fully paid
-        if ($invoice->amount_outstanding <= $validated['amount']) {
+        $invoice->refresh();
+        if ($invoice->amount_outstanding <= 0.01) {
             $invoice->update(['status' => 'paid', 'paid_at' => $validated['paid_at']]);
+        } elseif ($invoice->amount_paid > 0) {
+            $invoice->update(['status' => 'partial']);
         }
 
         return redirect()->back()->with('success', 'Payment recorded successfully.');
@@ -213,8 +241,8 @@ class InvoiceController extends Controller
         $this->authorize('delete', $invoice);
 
         // Unlink time entries and expenses
-        TimeEntry::where('invoice_id', $invoice->id)->update(['is_billed' => false, 'invoice_id' => null]);
-        Expense::where('invoice_id', $invoice->id)->update(['is_billed' => false, 'invoice_id' => null]);
+        TimeEntry::where('invoice_id', $invoice->id)->update(['billed' => false, 'invoice_id' => null]);
+        Expense::where('invoice_id', $invoice->id)->update(['billed' => false, 'invoice_id' => null]);
 
         $invoice->delete();
 

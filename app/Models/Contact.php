@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -13,7 +14,7 @@ use Spatie\Activitylog\Models\Concerns\LogsActivity;
 
 class Contact extends Model
 {
-    use HasUuids, LogsActivity, SoftDeletes;
+    use HasFactory, HasUuids, LogsActivity, SoftDeletes;
 
     protected $keyType = 'string';
     public $incrementing = false;
@@ -21,7 +22,7 @@ class Contact extends Model
     protected $fillable = [
         'firm_id', 'type', 'name', 'email', 'phone', 'phone_secondary',
         'address', 'national_insurance_number', 'dob', 'company_number',
-        'id_verification_status', 'source', 'tags', 'gdpr_consent_at',
+        'id_verification_status', 'source', 'source_detail', 'tags', 'gdpr_consent_at',
         'gdpr_consent_version', 'marketing_consent', 'conflict_check_cleared_at',
         'lead_status',
     ];

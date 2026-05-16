@@ -9,6 +9,16 @@ import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, Trash2 } from 'lucide-react';
 import type { Contact } from '@/types';
 
+const SOURCE_DETAIL_LABELS: Record<string, { label: string; placeholder: string }> = {
+    social_media:  { label: 'Platform', placeholder: 'e.g. LinkedIn, Facebook, Instagram…' },
+    website:       { label: 'Landing page / campaign', placeholder: 'e.g. /contact, Google Ads campaign…' },
+    friend_refer:  { label: 'Referred by', placeholder: 'Name of the person who referred them' },
+    google:        { label: 'Search query / campaign', placeholder: 'e.g. "solicitor Dublin", Google Ads…' },
+    referral:      { label: 'Referred by', placeholder: 'Name or organisation that referred them' },
+    walk_in:       { label: 'Location / branch', placeholder: 'e.g. Main office, Cork branch…' },
+    other:         { label: 'Details', placeholder: 'Please describe how they found us…' },
+};
+
 interface Props {
     contact: Contact;
 }
@@ -31,6 +41,7 @@ export default function EditContact({ contact }: Props) {
         },
         lead_status: contact.lead_status || '',
         source: (contact as any).source || '',
+        source_detail: (contact as any).source_detail || '',
     });
 
     const submit = (e: React.FormEvent) => {
@@ -74,7 +85,7 @@ export default function EditContact({ contact }: Props) {
                         <form onSubmit={submit} className="space-y-6">
                             <div className="space-y-3">
                                 <Label className="text-sm font-medium">Contact Type *</Label>
-                                <Select value={data.type} onValueChange={(v) => setData('type', v)}>
+                                <Select value={data.type} onValueChange={(v) => setData('type', v as typeof data.type)}>
                                     <SelectTrigger className="h-11">
                                         <SelectValue placeholder="Select type" />
                                     </SelectTrigger>
@@ -134,23 +145,16 @@ export default function EditContact({ contact }: Props) {
                             )}
 
                             {data.type === 'individual' && (
-                                <>
-                                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                                        <div className="space-y-3">
-                                        </div>
-
-                                        <div className="space-y-3">
-                                            <Label htmlFor="dob" className="text-sm font-medium">Date of Birth</Label>
-                                            <Input
-                                                id="dob"
-                                                type="date"
-                                                value={data.dob}
-                                                onChange={(e) => setData('dob', e.target.value)}
-                                                className="h-11"
-                                            />
-                                        </div>
-                                    </div>
-                                </>
+                                <div className="space-y-3">
+                                    <Label htmlFor="dob" className="text-sm font-medium">Date of Birth</Label>
+                                    <Input
+                                        id="dob"
+                                        type="date"
+                                        value={data.dob}
+                                        onChange={(e) => setData('dob', e.target.value)}
+                                        className="h-11"
+                                    />
+                                </div>
                             )}
 
                             <div className="space-y-3">
@@ -207,20 +211,33 @@ export default function EditContact({ contact }: Props) {
 
                             <div className="space-y-3">
                                 <Label className="text-sm font-medium">Source</Label>
-                                <Select value={data.source} onValueChange={(v) => setData('source', v)}>
+                                <Select value={data.source} onValueChange={(v) => { setData('source', v); setData('source_detail', ''); }}>
                                     <SelectTrigger className="h-11">
                                         <SelectValue placeholder="Select source" />
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="social_media">Social Media</SelectItem>
                                         <SelectItem value="website">Website</SelectItem>
-                                        <SelectItem value="friend_refer">Friend Refer</SelectItem>
+                                        <SelectItem value="friend_refer">Friend Referral</SelectItem>
                                         <SelectItem value="google">Google</SelectItem>
                                         <SelectItem value="referral">Referral</SelectItem>
                                         <SelectItem value="walk_in">Walk-in</SelectItem>
                                         <SelectItem value="other">Other</SelectItem>
                                     </SelectContent>
                                 </Select>
+                                {data.source && SOURCE_DETAIL_LABELS[data.source] && (
+                                    <div className="space-y-1">
+                                        <Label className="text-sm font-medium">
+                                            {SOURCE_DETAIL_LABELS[data.source].label}
+                                        </Label>
+                                        <Input
+                                            value={data.source_detail}
+                                            onChange={(e) => setData('source_detail', e.target.value)}
+                                            placeholder={SOURCE_DETAIL_LABELS[data.source].placeholder}
+                                            className="h-10"
+                                        />
+                                    </div>
+                                )}
                             </div>
 
                             <Separator />

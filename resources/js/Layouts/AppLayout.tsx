@@ -3,7 +3,7 @@ import { Link, router, usePage } from '@inertiajs/react';
 import {
     LayoutDashboard, Briefcase, Users, FileText, Clock, Receipt,
     Calendar, CheckSquare, LogOut, Menu, Bell, Search,
-    Building2, Shield,
+    Building2, Shield, Activity, BarChart2, Landmark, CreditCard,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -24,10 +24,14 @@ const navItems: NavItem[] = [
     { label: 'Matters',    href: '/matters',      icon: Briefcase,       routeName: 'matters.index' },
     { label: 'Contacts',   href: '/contacts',     icon: Users,           routeName: 'contacts.index' },
     { label: 'Documents',  href: '/documents',    icon: FileText,        routeName: 'documents.index' },
-    { label: 'Time',       href: '/time',         icon: Clock,           routeName: 'time.index' },
-    { label: 'Billing',    href: '/billing',      icon: Receipt,         routeName: 'billing.index' },
-    { label: 'Calendar',   href: '/calendar',     icon: Calendar,        routeName: 'calendar.index' },
+    { label: 'Time',         href: '/time',         icon: Clock,       routeName: 'time.index' },
+    { label: 'Billing',      href: '/billing',      icon: Receipt,     routeName: 'billing.index' },
+    { label: 'Transactions', href: '/transactions', icon: CreditCard,  routeName: 'transactions.index' },
+    { label: 'Calendar',     href: '/calendar',     icon: Calendar,    routeName: 'calendar.index' },
     { label: 'Tasks',      href: '/tasks',        icon: CheckSquare,     routeName: 'tasks.index' },
+    { label: 'Activities', href: '/activities',   icon: Activity,        routeName: 'activities.index' },
+    { label: 'Reports',    href: '/reports',      icon: BarChart2,       routeName: 'reports.index' },
+    { label: 'Accounts',   href: '/accounts',     icon: Landmark,        routeName: 'accounts.index' },
 ];
 
 const adminItems: NavItem[] = [
@@ -98,7 +102,7 @@ export default function AppLayout({ children, title }: AppLayoutProps) {
                     </Link>
                 ))}
 
-                {(user.role === 'administrator') && (
+                {(['administrator', 'manager'] as string[]).includes(user.role) && (
                     <>
                         <div className="pt-5 pb-2">
                             <p className="px-3 text-[11px] font-semibold text-white/40 uppercase tracking-[0.15em]">Admin</p>

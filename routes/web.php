@@ -7,13 +7,21 @@ use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Auth\SocialiteController;
 use App\Http\Controllers\Auth\TwoFactorController;
+use App\Http\Controllers\AccountController;
+use App\Http\Controllers\ActivityController;
+use App\Http\Controllers\CalendarController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\MatterExpenseController;
 use App\Http\Controllers\MatterController;
 use App\Http\Controllers\MatterNoteController;
 use App\Http\Controllers\MatterTimeEntryController;
+use App\Http\Controllers\ReportController;
+use App\Http\Controllers\TaskController;
+use App\Http\Controllers\TimeController;
+use App\Http\Controllers\TransactionController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', fn () => redirect()->route('dashboard'));
@@ -66,8 +74,52 @@ Route::middleware(['auth', 'set.tenant', 'requires.two.factor'])->group(function
     Route::delete('/billing/{invoice}', [InvoiceController::class, 'destroy'])->name('billing.destroy');
     Route::post('/billing/{invoice}/payments', [InvoiceController::class, 'recordPayment'])->name('billing.payments.store');
 
+    // Time Tracking / Check-in & Check-out
+    Route::post('/time/checkin',  [TimeController::class, 'checkIn'])->name('time.checkin');
+    Route::post('/time/checkout', [TimeController::class, 'checkOut'])->name('time.checkout');
+    Route::post('/time/discard',  [TimeController::class, 'discardSession'])->name('time.discard');
+    Route::post('/time/timer/start', [TimeController::class, 'startTimer'])->name('time.timer.start');
+    Route::post('/time/timer/stop',  [TimeController::class, 'stopTimer'])->name('time.timer.stop');
+    Route::post('/time/invoice', [TimeController::class, 'createInvoice'])->name('time.invoice');
+    Route::get('/time', [TimeController::class, 'index'])->name('time.index');
+    Route::post('/time', [TimeController::class, 'store'])->name('time.store');
+    Route::put('/time/{entry}', [TimeController::class, 'update'])->name('time.update');
+    Route::delete('/time/{entry}', [TimeController::class, 'destroy'])->name('time.destroy');
+
+    // Transactions
+    Route::get('/transactions',  [TransactionController::class, 'index'])->name('transactions.index');
+    Route::post('/transactions', [TransactionController::class, 'store'])->name('transactions.store');
+
+    // Tasks
+    Route::get('/tasks', [TaskController::class, 'index'])->name('tasks.index');
+    Route::post('/tasks', [TaskController::class, 'store'])->name('tasks.store');
+    Route::put('/tasks/{task}', [TaskController::class, 'update'])->name('tasks.update');
+    Route::delete('/tasks/{task}', [TaskController::class, 'destroy'])->name('tasks.destroy');
+
+    // Calendar
+    Route::get('/calendar', [CalendarController::class, 'index'])->name('calendar.index');
+    Route::post('/calendar', [CalendarController::class, 'store'])->name('calendar.store');
+    Route::put('/calendar/{event}', [CalendarController::class, 'update'])->name('calendar.update');
+    Route::delete('/calendar/{event}', [CalendarController::class, 'destroy'])->name('calendar.destroy');
+
+    // Documents
+    Route::get('/documents', [DocumentController::class, 'index'])->name('documents.index');
+    Route::post('/documents', [DocumentController::class, 'store'])->name('documents.store');
+    Route::get('/documents/{document}/view', [DocumentController::class, 'view'])->name('documents.view');
+    Route::get('/documents/{document}/download', [DocumentController::class, 'download'])->name('documents.download');
+    Route::delete('/documents/{document}', [DocumentController::class, 'destroy'])->name('documents.destroy');
+
+    // Accounts
+    Route::get('/accounts', [AccountController::class, 'index'])->name('accounts.index');
+
+    // Activities
+    Route::get('/activities', [ActivityController::class, 'index'])->name('activities.index');
+
+    // Reports
+    Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
+
     // Admin
-    Route::middleware('role:firm_admin')->prefix('admin')->name('admin.')->group(function () {
+    Route::middleware('can:admin-panel')->prefix('admin')->name('admin.')->group(function () {
         Route::get('/firm/setup', [FirmController::class, 'setup'])->name('firm.setup');
         Route::put('/firm', [FirmController::class, 'update'])->name('firm.update');
 

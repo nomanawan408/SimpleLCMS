@@ -21,17 +21,21 @@ interface Props {
 }
 
 const statusVariant: Record<string, 'default' | 'success' | 'warning' | 'destructive' | 'secondary'> = {
-    draft: 'secondary',
-    sent: 'warning',
-    paid: 'success',
-    cancelled: 'destructive',
+    draft:       'secondary',
+    sent:        'warning',
+    partial:     'warning',
+    paid:        'success',
+    written_off: 'secondary',
+    cancelled:   'destructive',
 };
 
 const statusLabel: Record<string, string> = {
-    draft: 'Draft',
-    sent: 'Sent',
-    paid: 'Paid',
-    cancelled: 'Cancelled',
+    draft:       'Draft',
+    sent:        'Sent',
+    partial:     'Partial',
+    paid:        'Paid',
+    written_off: 'Written Off',
+    cancelled:   'Cancelled',
 };
 
 export default function BillingIndex({ invoices, stats, filters }: Props) {

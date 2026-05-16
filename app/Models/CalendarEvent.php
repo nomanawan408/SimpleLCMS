@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -11,7 +12,7 @@ use Spatie\Activitylog\Models\Concerns\LogsActivity;
 
 class CalendarEvent extends Model
 {
-    use HasUuids, LogsActivity, SoftDeletes;
+    use HasFactory, HasUuids, LogsActivity, SoftDeletes;
 
     protected $keyType = 'string';
     public $incrementing = false;

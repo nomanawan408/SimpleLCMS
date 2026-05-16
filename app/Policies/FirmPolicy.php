@@ -16,6 +16,6 @@ class FirmPolicy
     {
         return $user->is_active
             && $user->firm_id === $firm->id
-            && $user->role === 'firm_admin';
+            && $user->role === 'administrator';
     }
 }

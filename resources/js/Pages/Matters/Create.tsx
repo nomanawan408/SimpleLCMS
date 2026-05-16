@@ -8,7 +8,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ArrowLeft, Plus } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
+import { ArrowLeft, Plus, Info } from 'lucide-react';
 import type { User, Contact } from '@/types';
 
 interface Props {
@@ -16,6 +17,13 @@ interface Props {
     contacts: Contact[];
     prefill_contact_id?: string | null;
 }
+
+const FEE_ARRANGEMENT_HINTS: Record<string, string> = {
+    hourly_rate: 'Work is billed at an agreed rate per hour. Set the default rate below.',
+    fixed_fee:   'A single agreed fee for the entire matter regardless of time spent.',
+    contingency: 'No fee unless successful. Set the percentage of the recovered amount.',
+    retainer:    'Client pays an upfront amount held on account, topped up as required.',
+};
 
 export default function CreateMatter({ users, contacts, prefill_contact_id }: Props) {
     const [contactList, setContactList] = useState<Contact[]>(contacts);
@@ -37,7 +45,20 @@ export default function CreateMatter({ users, contacts, prefill_contact_id }: Pr
         fee_arrangement: '',
         responsible_user_id: '',
         contact_ids: (prefill_contact_id ? [prefill_contact_id] : []) as string[],
+        court: '',
+        court_reference: '',
+        custom_fields: {
+            hourly_rate: '',
+            fixed_amount: '',
+            contingency_percentage: '',
+            retainer_amount: '',
+            retainer_replenish: '',
+            fee_notes: '',
+        } as Record<string, string>,
     });
+
+    const setCustomField = (key: string, value: string) =>
+        setData('custom_fields', { ...data.custom_fields, [key]: value });
 
     const selectedClientId = data.contact_ids?.[0] ?? '';
     const selectedClient = useMemo(
@@ -118,6 +139,8 @@ export default function CreateMatter({ users, contacts, prefill_contact_id }: Pr
                     </CardHeader>
                     <CardContent className="space-y-8">
                         <form onSubmit={submit} className="space-y-6">
+
+                            {/* ── Matter basics ── */}
                             <div className="space-y-3">
                                 <Label htmlFor="name" className="text-sm font-medium">Matter name *</Label>
                                 <Input
@@ -156,7 +179,7 @@ export default function CreateMatter({ users, contacts, prefill_contact_id }: Pr
                                 </Select>
                                 {errors.contact_ids && <p className="text-xs text-destructive mt-1">{errors.contact_ids}</p>}
                                 {!errors.contact_ids && !selectedClient && (
-                                    <p className="text-xs text-muted-foreground">Select the customer/client for this matter.</p>
+                                    <p className="text-xs text-muted-foreground">Select the client/customer for this matter.</p>
                                 )}
                             </div>
 
@@ -167,7 +190,7 @@ export default function CreateMatter({ users, contacts, prefill_contact_id }: Pr
                                     value={data.description}
                                     onChange={(e) => setData('description', e.target.value)}
                                     placeholder="Brief description of this matter…"
-                                    rows={4}
+                                    rows={3}
                                     className="resize-none"
                                 />
                             </div>
@@ -187,7 +210,7 @@ export default function CreateMatter({ users, contacts, prefill_contact_id }: Pr
                                             <SelectItem value="family_law">Family Law</SelectItem>
                                             <SelectItem value="litigation">Litigation</SelectItem>
                                             <SelectItem value="employment">Employment</SelectItem>
-                                            <SelectItem value="wills_probate">Wills & Probate</SelectItem>
+                                            <SelectItem value="wills_probate">Wills &amp; Probate</SelectItem>
                                             <SelectItem value="corporate">Corporate</SelectItem>
                                             <SelectItem value="immigration">Immigration</SelectItem>
                                             <SelectItem value="criminal">Criminal</SelectItem>
@@ -199,7 +222,32 @@ export default function CreateMatter({ users, contacts, prefill_contact_id }: Pr
                                 </div>
 
                                 <div className="space-y-3">
-                                    <Label className="text-sm font-medium">Fee arrangement *</Label>
+                                    <Label className="text-sm font-medium">Responsible solicitor *</Label>
+                                    <Select
+                                        value={data.responsible_user_id}
+                                        onValueChange={(v) => setData('responsible_user_id', v)}
+                                    >
+                                        <SelectTrigger className="h-11">
+                                            <SelectValue placeholder="Assign to…" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {users.map((u) => (
+                                                <SelectItem key={u.id} value={u.id}>{u.full_name}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    {errors.responsible_user_id && <p className="text-xs text-destructive mt-1">{errors.responsible_user_id}</p>}
+                                </div>
+                            </div>
+
+                            <Separator />
+
+                            {/* ── Fee Arrangement ── */}
+                            <div className="space-y-4">
+                                <h3 className="text-sm font-semibold text-foreground">Fee Arrangement</h3>
+
+                                <div className="space-y-3">
+                                    <Label className="text-sm font-medium">Billing type *</Label>
                                     <Select
                                         value={data.fee_arrangement}
                                         onValueChange={(v) => setData('fee_arrangement', v)}
@@ -215,28 +263,175 @@ export default function CreateMatter({ users, contacts, prefill_contact_id }: Pr
                                         </SelectContent>
                                     </Select>
                                     {errors.fee_arrangement && <p className="text-xs text-destructive mt-1">{errors.fee_arrangement}</p>}
+                                    {data.fee_arrangement && FEE_ARRANGEMENT_HINTS[data.fee_arrangement] && (
+                                        <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                                            <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                                            {FEE_ARRANGEMENT_HINTS[data.fee_arrangement]}
+                                        </p>
+                                    )}
+                                </div>
+
+                                {/* Hourly Rate sub-fields */}
+                                {data.fee_arrangement === 'hourly_rate' && (
+                                    <div className="rounded-lg border bg-muted/30 p-4 space-y-4">
+                                        <div className="space-y-2">
+                                            <Label className="text-sm font-medium">Default hourly rate (£)</Label>
+                                            <Input
+                                                type="number"
+                                                min="0"
+                                                step="0.01"
+                                                placeholder="e.g. 250.00"
+                                                value={data.custom_fields.hourly_rate}
+                                                onChange={(e) => setCustomField('hourly_rate', e.target.value)}
+                                                className="h-10"
+                                            />
+                                            <p className="text-xs text-muted-foreground">This rate will be pre-filled when logging time for this matter.</p>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label className="text-sm font-medium">Fee notes</Label>
+                                            <Textarea
+                                                rows={2}
+                                                placeholder="e.g. Senior partner rate applies for court hearings…"
+                                                value={data.custom_fields.fee_notes}
+                                                onChange={(e) => setCustomField('fee_notes', e.target.value)}
+                                                className="resize-none text-sm"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Fixed Fee sub-fields */}
+                                {data.fee_arrangement === 'fixed_fee' && (
+                                    <div className="rounded-lg border bg-muted/30 p-4 space-y-4">
+                                        <div className="space-y-2">
+                                            <Label className="text-sm font-medium">Agreed fixed fee (£)</Label>
+                                            <Input
+                                                type="number"
+                                                min="0"
+                                                step="0.01"
+                                                placeholder="e.g. 1500.00"
+                                                value={data.custom_fields.fixed_amount}
+                                                onChange={(e) => setCustomField('fixed_amount', e.target.value)}
+                                                className="h-10"
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label className="text-sm font-medium">Fee notes</Label>
+                                            <Textarea
+                                                rows={2}
+                                                placeholder="e.g. Excludes disbursements and VAT…"
+                                                value={data.custom_fields.fee_notes}
+                                                onChange={(e) => setCustomField('fee_notes', e.target.value)}
+                                                className="resize-none text-sm"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Contingency sub-fields */}
+                                {data.fee_arrangement === 'contingency' && (
+                                    <div className="rounded-lg border bg-muted/30 p-4 space-y-4">
+                                        <div className="space-y-2">
+                                            <Label className="text-sm font-medium">Contingency percentage (%)</Label>
+                                            <Input
+                                                type="number"
+                                                min="0"
+                                                max="100"
+                                                step="0.1"
+                                                placeholder="e.g. 25"
+                                                value={data.custom_fields.contingency_percentage}
+                                                onChange={(e) => setCustomField('contingency_percentage', e.target.value)}
+                                                className="h-10"
+                                            />
+                                            <p className="text-xs text-muted-foreground">Percentage of the recovered amount payable as fee.</p>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label className="text-sm font-medium">Fee notes</Label>
+                                            <Textarea
+                                                rows={2}
+                                                placeholder="e.g. No win, no fee — CFA terms apply…"
+                                                value={data.custom_fields.fee_notes}
+                                                onChange={(e) => setCustomField('fee_notes', e.target.value)}
+                                                className="resize-none text-sm"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Retainer sub-fields */}
+                                {data.fee_arrangement === 'retainer' && (
+                                    <div className="rounded-lg border bg-muted/30 p-4 space-y-4">
+                                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                            <div className="space-y-2">
+                                                <Label className="text-sm font-medium">Initial retainer amount (£)</Label>
+                                                <Input
+                                                    type="number"
+                                                    min="0"
+                                                    step="0.01"
+                                                    placeholder="e.g. 2000.00"
+                                                    value={data.custom_fields.retainer_amount}
+                                                    onChange={(e) => setCustomField('retainer_amount', e.target.value)}
+                                                    className="h-10"
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label className="text-sm font-medium">Replenishment threshold (£)</Label>
+                                                <Input
+                                                    type="number"
+                                                    min="0"
+                                                    step="0.01"
+                                                    placeholder="e.g. 500.00"
+                                                    value={data.custom_fields.retainer_replenish}
+                                                    onChange={(e) => setCustomField('retainer_replenish', e.target.value)}
+                                                    className="h-10"
+                                                />
+                                                <p className="text-xs text-muted-foreground">Top up retainer when balance falls below this amount.</p>
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label className="text-sm font-medium">Fee notes</Label>
+                                            <Textarea
+                                                rows={2}
+                                                placeholder="e.g. Monthly retainer reviewed quarterly…"
+                                                value={data.custom_fields.fee_notes}
+                                                onChange={(e) => setCustomField('fee_notes', e.target.value)}
+                                                className="resize-none text-sm"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            <Separator />
+
+                            {/* ── Court / Case details ── */}
+                            <div className="space-y-4">
+                                <h3 className="text-sm font-semibold text-foreground">Court &amp; Case Details <span className="font-normal text-muted-foreground">(optional)</span></h3>
+                                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="court" className="text-sm font-medium">Court / Tribunal</Label>
+                                        <Input
+                                            id="court"
+                                            value={data.court}
+                                            onChange={(e) => setData('court', e.target.value)}
+                                            placeholder="e.g. Dublin Circuit Court"
+                                            className="h-10"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="court_reference" className="text-sm font-medium">Court reference number</Label>
+                                        <Input
+                                            id="court_reference"
+                                            value={data.court_reference}
+                                            onChange={(e) => setData('court_reference', e.target.value)}
+                                            placeholder="e.g. 2025/1234"
+                                            className="h-10"
+                                        />
+                                    </div>
                                 </div>
                             </div>
 
-                            <div className="space-y-3">
-                                <Label className="text-sm font-medium">Responsible solicitor *</Label>
-                                <Select
-                                    value={data.responsible_user_id}
-                                    onValueChange={(v) => setData('responsible_user_id', v)}
-                                >
-                                    <SelectTrigger className="h-11">
-                                        <SelectValue placeholder="Assign to…" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {users.map((u) => (
-                                            <SelectItem key={u.id} value={u.id}>{u.full_name}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                                {errors.responsible_user_id && <p className="text-xs text-destructive mt-1">{errors.responsible_user_id}</p>}
-                            </div>
-
-                            <div className="flex gap-3 justify-end pt-6">
+                            <div className="flex gap-3 justify-end pt-4">
                                 <Button type="button" variant="outline" asChild>
                                     <Link href="/matters">Cancel</Link>
                                 </Button>
@@ -249,6 +444,7 @@ export default function CreateMatter({ users, contacts, prefill_contact_id }: Pr
                 </Card>
             </div>
 
+            {/* Quick-create contact modal */}
             <Dialog open={contactModalOpen} onOpenChange={setContactModalOpen}>
                 <DialogContent>
                     <DialogHeader>

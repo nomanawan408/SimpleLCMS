@@ -1,0 +1,38 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(php -l app/Http/Controllers/TaskController.php)",
+      "Bash(php -l app/Http/Controllers/CalendarController.php)",
+      "Bash(php -l app/Http/Controllers/DocumentController.php)",
+      "Bash(php -l app/Http/Controllers/AccountController.php)",
+      "Bash(php -l app/Http/Controllers/ActivityController.php)",
+      "Bash(php -l routes/web.php)",
+      "Bash(php -l app/Http/Controllers/MatterController.php)",
+      "Bash(npx tsc *)",
+      "Bash(npm run *)",
+      "Bash(php -l app/Http/Controllers/TimeController.php)",
+      "Bash(php -l app/Http/Controllers/MatterTimeEntryController.php)",
+      "Bash(php artisan *)",
+      "Bash(cat app/Http/Requests/Admin/StoreUserRequest.php)",
+      "Bash(cat app/Http/Requests/Admin/UpdateUserRequest.php)",
+      "Bash(php -l app/Http/Controllers/InvoiceController.php)",
+      "Bash(php -l app/Http/Requests/Admin/StoreUserRequest.php)",
+      "Bash(php -l app/Http/Requests/Admin/UpdateUserRequest.php)",
+      "Bash(cat tailwind.config.ts)",
+      "Bash(cat tailwind.config.js)",
+      "Bash(ls tests/Unit/)",
+      "Bash(ls tests/Feature/)",
+      "Bash(cat phpunit.xml)",
+      "Bash(cat phpunit.xml.dist)",
+      "Bash(psql *)",
+      "Bash(cat app/Http/Middleware/SetTenant.php)",
+      "Bash(find app *)",
+      "Bash(xargs ls)",
+      "Bash(php -l app/Models/Matter.php app/Models/Contact.php app/Models/TimeEntry.php app/Models/Invoice.php app/Models/Task.php app/Models/CalendarEvent.php app/Models/Expense.php app/Models/Document.php)",
+      "Bash(2>&1)",
+      "Bash(grep -v '^\\\\s*$')",
+      "Bash(psql postgresql://postgres:password@localhost/lexdesk -c \"SELECT COUNT\\(*\\) FROM model_has_roles;\")",
+      "Bash(psql postgresql://postgres:password@localhost/lexdesk -c \"SELECT COUNT\\(*\\) FROM roles;\")"
+    ]
+  }
+}

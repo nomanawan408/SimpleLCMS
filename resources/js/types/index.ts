@@ -116,6 +116,7 @@ export interface Invoice {
     vat_rate: number;
     total: number;
     discount_amount: number;
+    discount_reason?: string | null;
     due_date: string | null;
     sent_at: string | null;
     paid_at: string | null;
@@ -144,7 +145,7 @@ export interface Payment {
     firm_id: string;
     invoice_id: string;
     amount: number;
-    method: 'cash' | 'cheque' | 'bank_transfer' | 'credit_card' | 'stripe';
+    method: 'cash' | 'cheque' | 'bank_transfer' | 'stripe_card' | 'stripe_sepa';
     stripe_charge_id: string | null;
     paid_at: string;
     notes: string | null;
@@ -158,10 +159,13 @@ export interface TimeEntry {
     date: string;
     description: string | null;
     duration_minutes: number;
-    rate?: number | null;
-    amount?: number | null;
+    duration_formatted?: string;
+    rate: number;
+    amount: number;
     billable: boolean;
     billed: boolean;
+    is_locked: boolean;
+    activity_type: 'advising' | 'drafting' | 'research' | 'court_attendance' | 'travel' | 'telephone' | 'correspondence' | 'meeting' | 'other';
     invoice_id: string | null;
     matter?: Matter;
     user?: User;
@@ -234,10 +238,13 @@ export interface PaginatedData<T> {
     total: number;
     from: number;
     to: number;
+    prev_page_url: string | null;
+    next_page_url: string | null;
     links: { url: string | null; label: string; active: boolean }[];
 }
 
 export interface PageProps {
+    [key: string]: unknown;
     auth: {
         user: User | null;
     };

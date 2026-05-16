@@ -48,8 +48,9 @@ class ContactController extends Controller
             'national_insurance_number' => ['nullable', 'string'],
             'dob'        => ['nullable', 'date'],
             'address'    => ['nullable', 'array'],
-            'source'     => ['nullable', 'string'],
-            'tags'       => ['nullable', 'array'],
+            'source'        => ['nullable', 'string'],
+            'source_detail' => ['nullable', 'string', 'max:255'],
+            'tags'          => ['nullable', 'array'],
         ]);
 
         $duplicate = Contact::where('firm_id', $request->user()->firm_id)
@@ -113,7 +114,9 @@ class ContactController extends Controller
             'dob'        => ['nullable', 'date'],
             'address'    => ['nullable', 'array'],
             'tags'       => ['nullable', 'array'],
-            'lead_status' => ['nullable', 'in:enquiry,consultation_booked,engaged,matter_opened,declined'],
+            'lead_status'   => ['nullable', 'in:enquiry,consultation_booked,engaged,matter_opened,declined'],
+            'source'        => ['nullable', 'string'],
+            'source_detail' => ['nullable', 'string', 'max:255'],
         ]));
 
         activity()->causedBy($request->user())->performedOn($contact)->log('updated');

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Spatie\Activitylog\Support\LogOptions;
@@ -10,7 +11,7 @@ use Spatie\Activitylog\Models\Concerns\LogsActivity;
 
 class Firm extends Model
 {
-    use HasUuids, LogsActivity;
+    use HasFactory, HasUuids, LogsActivity;
 
     protected $keyType = 'string';
     public $incrementing = false;

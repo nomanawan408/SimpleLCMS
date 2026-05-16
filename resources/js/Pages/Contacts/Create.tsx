@@ -7,6 +7,16 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft } from 'lucide-react';
 
+const SOURCE_DETAIL_LABELS: Record<string, { label: string; placeholder: string }> = {
+    social_media:  { label: 'Platform', placeholder: 'e.g. LinkedIn, Facebook, Instagram…' },
+    website:       { label: 'Landing page / campaign', placeholder: 'e.g. /contact, Google Ads campaign…' },
+    friend_refer:  { label: 'Referred by', placeholder: 'Name of the person who referred them' },
+    google:        { label: 'Search query / campaign', placeholder: 'e.g. "solicitor Dublin", Google Ads…' },
+    referral:      { label: 'Referred by', placeholder: 'Name or organisation that referred them' },
+    walk_in:       { label: 'Location / branch', placeholder: 'e.g. Main office, Cork branch…' },
+    other:         { label: 'Details', placeholder: 'Please describe how they found us…' },
+};
+
 export default function CreateContact() {
     const { data, setData, post, processing, errors } = useForm({
         type: 'individual',
@@ -25,6 +35,7 @@ export default function CreateContact() {
         },
         lead_status: '',
         source: '',
+        source_detail: '',
     });
 
     const submit = (e: React.FormEvent) => {
@@ -123,23 +134,16 @@ export default function CreateContact() {
                             )}
 
                             {data.type === 'individual' && (
-                                <>
-                                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                                        <div className="space-y-3">
-                                        </div>
-
-                                        <div className="space-y-3">
-                                            <Label htmlFor="dob" className="text-sm font-medium">Date of Birth</Label>
-                                            <Input
-                                                id="dob"
-                                                type="date"
-                                                value={data.dob}
-                                                onChange={(e) => setData('dob', e.target.value)}
-                                                className="h-11"
-                                            />
-                                        </div>
-                                    </div>
-                                </>
+                                <div className="space-y-3">
+                                    <Label htmlFor="dob" className="text-sm font-medium">Date of Birth</Label>
+                                    <Input
+                                        id="dob"
+                                        type="date"
+                                        value={data.dob}
+                                        onChange={(e) => setData('dob', e.target.value)}
+                                        className="h-11"
+                                    />
+                                </div>
                             )}
 
                             <div className="space-y-3">
@@ -196,20 +200,33 @@ export default function CreateContact() {
 
                             <div className="space-y-3">
                                 <Label className="text-sm font-medium">Source</Label>
-                                <Select value={data.source} onValueChange={(v) => setData('source', v)}>
+                                <Select value={data.source} onValueChange={(v) => { setData('source', v); setData('source_detail', ''); }}>
                                     <SelectTrigger className="h-11">
                                         <SelectValue placeholder="Select source" />
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="social_media">Social Media</SelectItem>
                                         <SelectItem value="website">Website</SelectItem>
-                                        <SelectItem value="friend_refer">Friend Refer</SelectItem>
+                                        <SelectItem value="friend_refer">Friend Referral</SelectItem>
                                         <SelectItem value="google">Google</SelectItem>
                                         <SelectItem value="referral">Referral</SelectItem>
                                         <SelectItem value="walk_in">Walk-in</SelectItem>
                                         <SelectItem value="other">Other</SelectItem>
                                     </SelectContent>
                                 </Select>
+                                {data.source && SOURCE_DETAIL_LABELS[data.source] && (
+                                    <div className="space-y-1">
+                                        <Label className="text-sm font-medium">
+                                            {SOURCE_DETAIL_LABELS[data.source].label}
+                                        </Label>
+                                        <Input
+                                            value={data.source_detail}
+                                            onChange={(e) => setData('source_detail', e.target.value)}
+                                            placeholder={SOURCE_DETAIL_LABELS[data.source].placeholder}
+                                            className="h-10"
+                                        />
+                                    </div>
+                                )}
                             </div>
 
                             <div className="flex gap-3 justify-end pt-6">
@@ -217,7 +234,7 @@ export default function CreateContact() {
                                     <Link href="/contacts">Cancel</Link>
                                 </Button>
                                 <Button type="submit" disabled={processing}>
-                                    {processing ? 'Creating...' : 'Create Contact'}
+                                    {processing ? 'Creating…' : 'Create Contact'}
                                 </Button>
                             </div>
                         </form>
