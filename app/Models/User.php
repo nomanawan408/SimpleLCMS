@@ -94,6 +94,6 @@ class User extends Authenticatable
 
     public function isFirmAdmin(): bool
     {
-        return $this->role === 'administrator';
+        return $this->hasRole('super_admin') || $this->hasRole('admin');
     }
 }

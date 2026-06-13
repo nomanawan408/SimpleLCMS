@@ -8,8 +8,6 @@ use App\Http\Requests\Admin\UpdateUserRequest;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 use Spatie\Permission\Models\Role;
@@ -64,21 +62,19 @@ class UserController extends Controller
             return back()->withErrors(['email' => 'A user with this email already exists in your firm.']);
         }
 
-        $tempPassword = Str::password(16);
         $roleName = $validated['role'];
 
         $user = User::create([
             ...$validated,
             'firm_id'  => $firmId,
-            'password' => Hash::make($tempPassword),
+            'password' => $validated['password'],
         ]);
 
-        // Assign Spatie role
         $user->assignRole($roleName);
 
-        activity()->causedBy($request->user())->performedOn($user)->log('user_invited');
+        activity()->causedBy($request->user())->performedOn($user)->log('user_created');
 
-        return redirect()->route('admin.users.index')->with('success', "User {$user->full_name} has been invited.");
+        return redirect()->route('admin.users.index')->with('success', "User {$user->full_name} has been created.");
     }
 
     public function update(UpdateUserRequest $request, User $user): RedirectResponse

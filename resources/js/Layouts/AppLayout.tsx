@@ -36,6 +36,7 @@ const navItems: NavItem[] = [
 
 const adminItems: NavItem[] = [
     { label: 'Users',      href: '/admin/users',       icon: Shield,     routeName: 'admin.users.index', adminOnly: true },
+    { label: 'Roles',      href: '/admin/roles',       icon: Shield,     routeName: 'admin.roles.index', adminOnly: true },
     { label: 'Firm Setup', href: '/admin/firm/setup',  icon: Building2,  routeName: 'admin.firm.setup',  adminOnly: true },
 ];
 
@@ -103,7 +104,7 @@ export default function AppLayout({ children, title }: AppLayoutProps) {
                     </Link>
                 ))}
 
-                {(['administrator', 'manager'] as string[]).includes(user.role) && (
+                {(user.roles?.some((r: string) => ['super_admin', 'admin'].includes(r)) || user.permissions?.includes('manage_users')) && (
                     <>
                         <div className="pt-5 pb-2">
                             <p className="px-3 text-[11px] font-semibold text-white/40 uppercase tracking-[0.15em]">Admin</p>

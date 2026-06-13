@@ -30,6 +30,8 @@ export interface User {
     full_name: string;
     email: string;
     role: 'solicitor' | 'lawyer' | 'barrister' | 'clerk' | 'consultant' | 'administrator' | 'manager' | 'accounts';
+    roles?: string[];
+    permissions?: string[];
     phone: string | null;
     rate_per_hour: number | null;
     totp_enabled: boolean;

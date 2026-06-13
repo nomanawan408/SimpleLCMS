@@ -16,6 +16,6 @@ class FirmPolicy
     {
         return $user->is_active
             && $user->firm_id === $firm->id
-            && $user->role === 'administrator';
+            && ($user->hasPermissionTo('edit_firm_settings') || $user->hasPermissionTo('manage_firm'));
     }
 }

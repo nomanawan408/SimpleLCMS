@@ -58,7 +58,11 @@ export const PRACTICE_AREA_LABELS: Record<string, string> = {
 };
 
 export const ROLE_LABELS: Record<string, string> = {
+    super_admin: 'Super Admin',
+    admin: 'Admin',
     solicitor: 'Solicitor',
+    paralegal: 'Paralegal',
+    secretary: 'Secretary',
     lawyer: 'Lawyer',
     barrister: 'Barrister',
     clerk: 'Clerk',
@@ -67,6 +71,16 @@ export const ROLE_LABELS: Record<string, string> = {
     manager: 'Manager',
     accounts: 'Accounts',
 };
+
+export function hasPermission(permissions: string[] | undefined, required: string): boolean {
+    if (!permissions) return false;
+    return permissions.includes(required);
+}
+
+export function hasRole(roles: string[] | undefined, role: string): boolean {
+    if (!roles) return false;
+    return roles.includes(role);
+}
 
 export const CONTACT_TYPE_LABELS: Record<string, string> = {
     individual: 'Individual',

@@ -26,6 +26,8 @@ class HandleInertiaRequests extends Middleware
                     'full_name'    => $user->full_name,
                     'email'        => $user->email,
                     'role'         => $user->role,
+                    'roles'        => $user->getRoleNames(),
+                    'permissions'  => $user->getAllPermissions()->pluck('name'),
                     'avatar_url'   => $user->avatar_url,
                     'totp_enabled' => $user->totp_enabled,
                     'firm'         => $user->firm ? [

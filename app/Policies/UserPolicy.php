@@ -8,17 +8,17 @@ class UserPolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->is_active && $user->role === 'administrator';
+        return $user->is_active && $user->hasPermissionTo('view_users');
     }
 
     public function create(User $user): bool
     {
-        return $user->is_active && $user->role === 'administrator';
+        return $user->is_active && $user->hasPermissionTo('create_users');
     }
 
     public function update(User $user, User $target): bool
     {
-        if (! $user->is_active || $user->role !== 'administrator') {
+        if (! $user->is_active || ! $user->hasPermissionTo('edit_users')) {
             return false;
         }
 
@@ -31,6 +31,8 @@ class UserPolicy
 
     public function delete(User $user, User $target): bool
     {
-        return $this->update($user, $target) && $user->id !== $target->id;
+        return $this->update($user, $target)
+            && $user->hasPermissionTo('delete_users')
+            && $user->id !== $target->id;
     }
 }

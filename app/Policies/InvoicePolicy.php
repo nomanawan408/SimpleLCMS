@@ -7,36 +7,34 @@ use App\Models\User;
 
 class InvoicePolicy
 {
-    private const BILLING_ROLES = ['administrator', 'manager', 'accounts', 'solicitor', 'lawyer', 'barrister', 'consultant'];
-
     public function viewAny(User $user): bool
     {
-        return $user->is_active && in_array($user->role, self::BILLING_ROLES);
+        return $user->is_active && $user->hasPermissionTo('view_invoices');
     }
 
     public function view(User $user, Invoice $invoice): bool
     {
         return $user->is_active
             && $user->firm_id === $invoice->firm_id
-            && in_array($user->role, self::BILLING_ROLES);
+            && $user->hasPermissionTo('view_invoices');
     }
 
     public function create(User $user): bool
     {
-        return $user->is_active && in_array($user->role, self::BILLING_ROLES);
+        return $user->is_active && $user->hasPermissionTo('create_invoices');
     }
 
     public function update(User $user, Invoice $invoice): bool
     {
         return $user->is_active
             && $user->firm_id === $invoice->firm_id
-            && in_array($user->role, self::BILLING_ROLES);
+            && ($user->hasPermissionTo('edit_invoices') || $user->hasPermissionTo('manage_invoices'));
     }
 
     public function delete(User $user, Invoice $invoice): bool
     {
         return $user->is_active
             && $user->firm_id === $invoice->firm_id
-            && in_array($user->role, ['administrator', 'manager', 'accounts']);
+            && $user->hasPermissionTo('delete_invoices');
     }
 }

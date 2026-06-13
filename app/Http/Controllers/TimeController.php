@@ -16,19 +16,18 @@ use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 class TimeController extends Controller
 {
-    private const ADMIN_ROLES = ['administrator', 'manager', 'accounts'];
-
     public function index(Request $request): Response
     {
         $user   = $request->user();
         $firmId = $user->firm_id;
+        $canManageAll = $user->hasPermissionTo('manage_time_entries');
 
         $query = TimeEntry::where('firm_id', $firmId)
             ->with(['matter', 'user'])
             ->orderBy('date', 'desc')
             ->orderBy('created_at', 'desc');
 
-        if (!in_array($user->role, self::ADMIN_ROLES)) {
+        if (!$canManageAll) {
             $query->where('user_id', $user->id);
         }
 
@@ -53,7 +52,7 @@ class TimeController extends Controller
         });
 
         $statsBase = TimeEntry::where('firm_id', $firmId);
-        if (!in_array($user->role, self::ADMIN_ROLES)) {
+        if (!$canManageAll) {
             $statsBase->where('user_id', $user->id);
         }
 
@@ -84,7 +83,7 @@ class TimeController extends Controller
             'activeTimer' => $activeTimer,
             'defaultRate' => (float) ($user->rate_per_hour ?? $user->firm->default_hourly_rate ?? 0),
             'firmVatRate' => (float) ($user->firm->vat_rate ?? 0),
-            'isAdmin'     => in_array($user->role, self::ADMIN_ROLES),
+            'isAdmin'     => $canManageAll,
         ]);
     }
 

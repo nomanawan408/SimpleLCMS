@@ -1,15 +1,18 @@
 import { Head, useForm } from '@inertiajs/react';
 import { useState } from 'react';
 import AppLayout from '@/Layouts/AppLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import {
+    Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from '@/components/ui/dialog';
 import { formatDate, initials } from '@/lib/utils';
-import { Plus, X } from 'lucide-react';
+import { Plus, Eye, EyeOff } from 'lucide-react';
 
 interface RoleOption {
     id: number;
@@ -37,12 +40,17 @@ interface Props {
 }
 
 export default function UsersIndex({ users, availableRoles }: Props) {
-    const [showInvite, setShowInvite] = useState(false);
+    const [dialogOpen, setDialogOpen] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
 
     const { data, setData, post, processing, errors, reset } = useForm({
         full_name: '',
         email: '',
+        password: '',
+        password_confirmation: '',
         role: availableRoles[0]?.name ?? '',
+        phone: '',
+        rate_per_hour: '',
     });
 
     const submit = (e: React.FormEvent) => {
@@ -50,7 +58,7 @@ export default function UsersIndex({ users, availableRoles }: Props) {
         post('/admin/users', {
             onSuccess: () => {
                 reset();
-                setShowInvite(false);
+                setDialogOpen(false);
             },
         });
     };
@@ -64,71 +72,13 @@ export default function UsersIndex({ users, availableRoles }: Props) {
                     <div>
                         <p className="text-sm text-muted-foreground">{users.length} member{users.length !== 1 ? 's' : ''} in your firm</p>
                     </div>
-                    <Button onClick={() => setShowInvite(!showInvite)}>
+                    <Button onClick={() => { reset(); setDialogOpen(true); }}>
                         <Plus className="h-4 w-4 mr-2" />
-                        Invite User
+                        Add User
                     </Button>
                 </div>
 
-                {/* Invite Form */}
-                {showInvite && (
-                    <Card className="mb-6 border-primary/30 bg-primary/5">
-                        <CardHeader className="flex flex-row items-center justify-between pb-3">
-                            <CardTitle className="text-base">Invite New User</CardTitle>
-                            <Button variant="ghost" size="icon" onClick={() => setShowInvite(false)}>
-                                <X className="h-4 w-4" />
-                            </Button>
-                        </CardHeader>
-                        <CardContent>
-                            <form onSubmit={submit} className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                                <div className="space-y-2">
-                                    <Label htmlFor="full_name">Full name</Label>
-                                    <Input
-                                        id="full_name"
-                                        autoFocus
-                                        value={data.full_name}
-                                        onChange={(e) => setData('full_name', e.target.value)}
-                                        placeholder="Aoife Murphy"
-                                    />
-                                    {errors.full_name && <p className="text-xs text-destructive">{errors.full_name}</p>}
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="email">Work email</Label>
-                                    <Input
-                                        id="email"
-                                        type="email"
-                                        value={data.email}
-                                        onChange={(e) => setData('email', e.target.value)}
-                                        placeholder="user@firm.co.uk"
-                                    />
-                                    {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Role</Label>
-                                    <Select value={data.role} onValueChange={(v) => setData('role', v)}>
-                                        <SelectTrigger>
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {availableRoles.map((role) => (
-                                                <SelectItem key={role.id} value={role.name}>
-                                                    <span className="capitalize">{role.name.replace(/_/g, ' ')}</span>
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="sm:col-span-3 flex justify-end">
-                                    <Button type="submit" disabled={processing}>
-                                        {processing ? 'Sending invite…' : 'Send invite'}
-                                    </Button>
-                                </div>
-                            </form>
-                        </CardContent>
-                    </Card>
-                )}
-
-                {/* Users Table */}
+                {/* Users List */}
                 <Card>
                     <CardContent className="p-0">
                         <div className="divide-y">
@@ -171,6 +121,141 @@ export default function UsersIndex({ users, availableRoles }: Props) {
                     </CardContent>
                 </Card>
             </div>
+
+            {/* Add User Dialog */}
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                <DialogContent className="max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle>Add New User</DialogTitle>
+                        <DialogDescription>
+                            Fill in the user's details and assign a role. They can log in with the email and password you set.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <form onSubmit={submit} className="space-y-4">
+                        {/* Name & Email */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="full_name">Full Name *</Label>
+                                <Input
+                                    id="full_name"
+                                    autoFocus
+                                    value={data.full_name}
+                                    onChange={(e) => setData('full_name', e.target.value)}
+                                    placeholder="Noman Awan"
+                                />
+                                {errors.full_name && <p className="text-xs text-destructive">{errors.full_name}</p>}
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="email">Email Address *</Label>
+                                <Input
+                                    id="email"
+                                    type="email"
+                                    value={data.email}
+                                    onChange={(e) => setData('email', e.target.value)}
+                                    placeholder="noman@firm.co.uk"
+                                />
+                                {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
+                            </div>
+                        </div>
+
+                        {/* Password */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="password">Password *</Label>
+                                <div className="relative">
+                                    <Input
+                                        id="password"
+                                        type={showPassword ? 'text' : 'password'}
+                                        value={data.password}
+                                        onChange={(e) => setData('password', e.target.value)}
+                                        placeholder="Min 8 characters"
+                                    />
+                                    <button
+                                        type="button"
+                                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        tabIndex={-1}
+                                    >
+                                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                    </button>
+                                </div>
+                                {errors.password && <p className="text-xs text-destructive">{errors.password}</p>}
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="password_confirmation">Confirm Password *</Label>
+                                <Input
+                                    id="password_confirmation"
+                                    type={showPassword ? 'text' : 'password'}
+                                    value={data.password_confirmation}
+                                    onChange={(e) => setData('password_confirmation', e.target.value)}
+                                    placeholder="Repeat password"
+                                />
+                                {errors.password_confirmation && <p className="text-xs text-destructive">{errors.password_confirmation}</p>}
+                            </div>
+                        </div>
+
+                        {/* Role */}
+                        <div className="space-y-2">
+                            <Label>Role *</Label>
+                            <Select value={data.role} onValueChange={(v) => setData('role', v)}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select a role" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {availableRoles.map((role) => (
+                                        <SelectItem key={role.id} value={role.name}>
+                                            <div>
+                                                <span className="capitalize">{role.name.replace(/_/g, ' ')}</span>
+                                                {role.description && (
+                                                    <span className="ml-2 text-xs text-muted-foreground">— {role.description}</span>
+                                                )}
+                                            </div>
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            {errors.role && <p className="text-xs text-destructive">{errors.role}</p>}
+                        </div>
+
+                        {/* Phone & Rate */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="phone">Phone</Label>
+                                <Input
+                                    id="phone"
+                                    value={data.phone}
+                                    onChange={(e) => setData('phone', e.target.value)}
+                                    placeholder="+44 7700 900000"
+                                />
+                                {errors.phone && <p className="text-xs text-destructive">{errors.phone}</p>}
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="rate_per_hour">Hourly Rate (£)</Label>
+                                <Input
+                                    id="rate_per_hour"
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    value={data.rate_per_hour}
+                                    onChange={(e) => setData('rate_per_hour', e.target.value)}
+                                    placeholder="150.00"
+                                />
+                                {errors.rate_per_hour && <p className="text-xs text-destructive">{errors.rate_per_hour}</p>}
+                            </div>
+                        </div>
+
+                        <DialogFooter>
+                            <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+                                Cancel
+                            </Button>
+                            <Button type="submit" disabled={processing}>
+                                {processing ? 'Creating…' : 'Create User'}
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
         </AppLayout>
     );
 }

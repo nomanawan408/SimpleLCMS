@@ -9,30 +9,30 @@ class ContactPolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->is_active;
+        return $user->is_active && $user->hasPermissionTo('view_contacts');
     }
 
     public function view(User $user, Contact $contact): bool
     {
-        return $user->is_active && $contact->firm_id === $user->firm_id;
+        return $user->is_active && $contact->firm_id === $user->firm_id && $user->hasPermissionTo('view_contacts');
     }
 
     public function create(User $user): bool
     {
-        return $user->is_active && !in_array($user->role, ['accounts', 'clerk']);
+        return $user->is_active && $user->hasPermissionTo('create_contacts');
     }
 
     public function update(User $user, Contact $contact): bool
     {
         return $user->is_active
             && $contact->firm_id === $user->firm_id
-            && !in_array($user->role, ['accounts', 'clerk']);
+            && ($user->hasPermissionTo('edit_contacts') || $user->hasPermissionTo('manage_contacts'));
     }
 
     public function delete(User $user, Contact $contact): bool
     {
         return $user->is_active
             && $contact->firm_id === $user->firm_id
-            && in_array($user->role, ['administrator', 'manager']);
+            && $user->hasPermissionTo('delete_contacts');
     }
 }

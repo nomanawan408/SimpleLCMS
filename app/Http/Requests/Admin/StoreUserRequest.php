@@ -17,9 +17,10 @@ class StoreUserRequest extends FormRequest
         return [
             'full_name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
             'role' => ['required', 'string', Rule::exists('roles', 'name')->where('guard_name', 'web')],
-            'rate_per_hour' => ['nullable', 'numeric', 'min:0'],
             'phone' => ['nullable', 'string', 'max:50'],
+            'rate_per_hour' => ['nullable', 'numeric', 'min:0'],
         ];
     }
 }
