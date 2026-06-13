@@ -23,6 +23,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'set.tenant'          => \App\Http\Middleware\SetTenant::class,
             'requires.two.factor' => \App\Http\Middleware\RequiresTwoFactor::class,
             'firm.setup'          => \App\Http\Middleware\EnsureFirmSetupComplete::class,
+            'redirect.super.admin'=> \App\Http\Middleware\RedirectSuperAdmin::class,
             'role'                => \Spatie\Permission\Middleware\RoleMiddleware::class,
             'permission'          => \Spatie\Permission\Middleware\PermissionMiddleware::class,
         ]);

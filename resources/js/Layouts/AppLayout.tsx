@@ -40,6 +40,11 @@ const adminItems: NavItem[] = [
     { label: 'Firm Setup', href: '/admin/firm/setup',  icon: Building2,  routeName: 'admin.firm.setup',  adminOnly: true },
 ];
 
+const superAdminNavItems: NavItem[] = [
+    { label: 'Dashboard',    href: '/superadmin/dashboard', icon: LayoutDashboard, routeName: 'superadmin.dashboard' },
+    { label: 'Manage Firms', href: '/superadmin/firms',     icon: Building2,       routeName: 'superadmin.firms.index' },
+];
+
 interface AppLayoutProps {
     children: React.ReactNode;
     title?: string;
@@ -52,6 +57,7 @@ export default function AppLayout({ children, title }: AppLayoutProps) {
     const user = auth.user!;
 
     const isActive = (item: NavItem) => url.startsWith(item.href);
+    const isSuperAdmin = user.roles?.includes('super_admin') ?? false;
 
     const handleLogout = () => {
         router.post('/logout');
@@ -61,21 +67,23 @@ export default function AppLayout({ children, title }: AppLayoutProps) {
         <div className="flex h-full flex-col">
             {/* Logo */}
             <div className="flex h-16 items-center px-5">
-                <Link href="/dashboard" className="flex items-center gap-3">
+                <Link href={isSuperAdmin ? '/superadmin/dashboard' : '/dashboard'} className="flex items-center gap-3">
                     <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-500 ring-2 ring-white/25 shadow-lg">
                         <span className="text-xs font-bold text-white">SLCM</span>
                     </div>
                     <div>
                         <p className="text-base font-bold text-white tracking-tight">Simple Law Practice</p>
-                        <p className="text-[10px] uppercase tracking-[0.22em] text-white/50 font-medium">Case Management</p>
+                        <p className="text-[10px] uppercase tracking-[0.22em] text-white/50 font-medium">
+                            {isSuperAdmin ? 'Platform Admin' : 'Case Management'}
+                        </p>
                     </div>
                 </Link>
             </div>
 
             <Separator className="bg-white/10" />
 
-            {/* Firm name */}
-            {user.firm && (
+            {/* Firm name (for firm users only) */}
+            {!isSuperAdmin && user.firm && (
                 <div className="px-4 py-4">
                     <p className="text-[11px] font-semibold text-white/50 uppercase tracking-[0.15em]">Firm</p>
                     <p className="mt-1 text-sm font-medium text-white truncate">{user.firm.name}</p>
@@ -84,7 +92,7 @@ export default function AppLayout({ children, title }: AppLayoutProps) {
 
             {/* Nav */}
             <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-                {navItems.map((item) => (
+                {(isSuperAdmin ? superAdminNavItems : navItems).map((item) => (
                     <Link
                         key={item.routeName}
                         href={item.href}
@@ -104,7 +112,7 @@ export default function AppLayout({ children, title }: AppLayoutProps) {
                     </Link>
                 ))}
 
-                {(user.roles?.some((r: string) => ['super_admin', 'admin'].includes(r)) || user.permissions?.includes('manage_users')) && (
+                {!isSuperAdmin && (user.roles?.some((r: string) => ['super_admin', 'admin'].includes(r)) || user.permissions?.includes('manage_users')) && (
                     <>
                         <div className="pt-5 pb-2">
                             <p className="px-3 text-[11px] font-semibold text-white/40 uppercase tracking-[0.15em]">Admin</p>

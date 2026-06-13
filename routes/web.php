@@ -19,12 +19,19 @@ use App\Http\Controllers\MatterController;
 use App\Http\Controllers\MatterNoteController;
 use App\Http\Controllers\MatterTimeEntryController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\SuperAdmin\DashboardController as SuperAdminDashboardController;
+use App\Http\Controllers\SuperAdmin\FirmController as SuperAdminFirmController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\TimeController;
 use App\Http\Controllers\TransactionController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', fn () => redirect()->route('dashboard'));
+Route::get('/', function () {
+    if (auth()->check() && auth()->user()->hasRole('super_admin')) {
+        return redirect()->route('superadmin.dashboard');
+    }
+    return redirect()->route('dashboard');
+});
 
 // --- Auth ---
 Route::middleware('guest')->group(function () {
@@ -52,7 +59,7 @@ Route::middleware('auth')->group(function () {
 });
 
 // --- Authenticated & Tenant-Scoped ---
-Route::middleware(['auth', 'set.tenant', 'requires.two.factor'])->group(function () {
+Route::middleware(['auth', 'set.tenant', 'requires.two.factor', 'redirect.super.admin'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     // Matters
@@ -134,4 +141,14 @@ Route::middleware(['auth', 'set.tenant', 'requires.two.factor'])->group(function
         Route::put('/roles/{role}', [RoleController::class, 'update'])->name('roles.update');
         Route::delete('/roles/{role}', [RoleController::class, 'destroy'])->name('roles.destroy');
     });
+});
+
+// --- Super Admin (Platform Owner) ---
+Route::middleware(['auth', 'requires.two.factor'])->prefix('superadmin')->name('superadmin.')->group(function () {
+    Route::get('/dashboard', [SuperAdminDashboardController::class, 'index'])->name('dashboard');
+
+    Route::get('/firms', [SuperAdminFirmController::class, 'index'])->name('firms.index');
+    Route::post('/firms', [SuperAdminFirmController::class, 'store'])->name('firms.store');
+    Route::put('/firms/{firm}', [SuperAdminFirmController::class, 'update'])->name('firms.update');
+    Route::delete('/firms/{firm}', [SuperAdminFirmController::class, 'destroy'])->name('firms.destroy');
 });

@@ -14,8 +14,12 @@ use Inertia\Response;
 
 class DashboardController extends Controller
 {
-    public function index(Request $request): Response
+    public function index(Request $request): Response|\Illuminate\Http\RedirectResponse
     {
+        if ($request->user()->hasRole('super_admin')) {
+            return redirect()->route('superadmin.dashboard');
+        }
+
         $user   = $request->user();
         $firmId = $user->firm_id;
 
