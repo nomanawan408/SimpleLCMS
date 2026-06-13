@@ -1,11 +1,11 @@
 <?php
 
 use App\Http\Controllers\Admin\FirmController;
+use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Auth\RegisterController;
-use App\Http\Controllers\Auth\SocialiteController;
 use App\Http\Controllers\Auth\TwoFactorController;
 use App\Http\Controllers\AccountController;
 use App\Http\Controllers\ActivityController;
@@ -38,8 +38,7 @@ Route::middleware('guest')->group(function () {
     Route::get('/reset-password/{token}', [PasswordResetController::class, 'edit'])->name('password.reset');
     Route::post('/reset-password', [PasswordResetController::class, 'update'])->name('password.update');
 
-    Route::get('/auth/{provider}/redirect', [SocialiteController::class, 'redirect'])->name('socialite.redirect');
-    Route::get('/auth/{provider}/callback', [SocialiteController::class, 'callback'])->name('socialite.callback');
+    // Socialite routes removed to enforce simple email/password login
 });
 
 // --- Two-Factor ---
@@ -73,11 +72,14 @@ Route::middleware(['auth', 'set.tenant', 'requires.two.factor'])->group(function
     Route::post('/billing/{invoice}', [InvoiceController::class, 'update'])->name('billing.update');
     Route::delete('/billing/{invoice}', [InvoiceController::class, 'destroy'])->name('billing.destroy');
     Route::post('/billing/{invoice}/payments', [InvoiceController::class, 'recordPayment'])->name('billing.payments.store');
+    Route::post('/billing/{invoice}/send-email', [InvoiceController::class, 'sendEmail'])->name('billing.send-email');
 
     // Time Tracking / Check-in & Check-out
     Route::post('/time/checkin',  [TimeController::class, 'checkIn'])->name('time.checkin');
     Route::post('/time/checkout', [TimeController::class, 'checkOut'])->name('time.checkout');
     Route::post('/time/discard',  [TimeController::class, 'discardSession'])->name('time.discard');
+    Route::post('/time/pause',    [TimeController::class, 'pauseSession'])->name('time.pause');
+    Route::post('/time/resume',   [TimeController::class, 'resumeSession'])->name('time.resume');
     Route::post('/time/timer/start', [TimeController::class, 'startTimer'])->name('time.timer.start');
     Route::post('/time/timer/stop',  [TimeController::class, 'stopTimer'])->name('time.timer.stop');
     Route::post('/time/invoice', [TimeController::class, 'createInvoice'])->name('time.invoice');
@@ -126,5 +128,10 @@ Route::middleware(['auth', 'set.tenant', 'requires.two.factor'])->group(function
         Route::get('/users', [UserController::class, 'index'])->name('users.index');
         Route::post('/users', [UserController::class, 'store'])->name('users.store');
         Route::put('/users/{user}', [UserController::class, 'update'])->name('users.update');
+
+        Route::get('/roles', [RoleController::class, 'index'])->name('roles.index');
+        Route::post('/roles', [RoleController::class, 'store'])->name('roles.store');
+        Route::put('/roles/{role}', [RoleController::class, 'update'])->name('roles.update');
+        Route::delete('/roles/{role}', [RoleController::class, 'destroy'])->name('roles.destroy');
     });
 });

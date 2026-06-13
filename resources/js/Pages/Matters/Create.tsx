@@ -463,9 +463,9 @@ export default function CreateMatter({ users, contacts, prefill_contact_id }: Pr
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="individual">Person</SelectItem>
+                                    <SelectItem value="individual">Individual</SelectItem>
                                     <SelectItem value="company">Company</SelectItem>
-                                    <SelectItem value="other_party">Other party</SelectItem>
+                                    <SelectItem value="other_party">Other Party</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>

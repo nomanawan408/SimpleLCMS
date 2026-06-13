@@ -22,6 +22,8 @@ class Firm extends Model
         'address_line1', 'address_line2', 'city', 'county', 'postcode',
         'phone', 'email', 'website', 'timezone', 'default_hourly_rate',
         'invoice_prefix', 'invoice_sequence', 'vat_rate', 'payment_terms_days',
+        'bank_name', 'bank_sort_code', 'bank_account_number', 'bank_account_name',
+        'bank_iban', 'bank_swift_code', 'payment_instructions',
     ];
 
     protected function casts(): array

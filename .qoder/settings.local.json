@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(psql -U postgres -c \"\\\\l\" 2>&1 || sudo -u postgres psql -c \"\\\\l\" 2>&1)",
+      "Bash(which psql 2>&1 && psql --version 2>&1)",
+      "Bash(PGPASSWORD=password psql -U postgres -h 127.0.0.1 -c \"\\\\l\")",
+      "Bash(cd \"/run/media/nomanawan408/01DB5A2EB99B4DC0/LARAVEL PROJECT/Laywer Case Management/simpleLawyer\" && PGPASSWORD=password psql -h 127.0.0.1 -U postgres -d simplelaw -c \"\\\\d users\" 2>&1 | head -40)",
+      "Bash(cd \"/run/media/nomanawan408/01DB5A2EB99B4DC0/LARAVEL PROJECT/Laywer Case Management/simpleLawyer\" && PGPASSWORD=password psql -h 127.0.0.1 -U postgres -d simplelaw -c \"\\\\dt *role*\" 2>&1 && PGPASSWORD=password psql -h 127.0.0.1 -U postgres -d simplelaw -c \"\\\\dt *permission*\" 2>&1)",
+      "Bash(cd \"/run/media/nomanawan408/01DB5A2EB99B4DC0/LARAVEL PROJECT/Laywer Case Management/simpleLawyer\" && PGPASSWORD=password psql -h 127.0.0.1 -U postgres -d simplelaw -c \"SELECT * FROM roles;\" 2>&1 && PGPASSWORD=password psql -h 127.0.0.1 -U postgres -d simplelaw -c \"SELECT * FROM permissions LIMIT 10;\" 2>&1 && PGPASSWORD=password psql -h 127.0.0.1 -U postgres -d simplelaw -c \"\\\\d roles\" 2>&1)",
+      "Bash(cd \"/run/media/nomanawan408/01DB5A2EB99B4DC0/LARAVEL PROJECT/Laywer Case Management/simpleLawyer\" && PGPASSWORD=password psql -h 127.0.0.1 -U postgres -d simplelaw -c \"SELECT name FROM permissions ORDER BY name;\" 2>&1 && PGPASSWORD=password psql -h 127.0.0.1 -U postgres -d simplelaw -c \"SELECT * FROM model_has_roles;\" 2>&1 && PGPASSWORD=password psql -h 127.0.0.1 -U postgres -d simplelaw -c \"SELECT * FROM role_has_permissions;\" 2>&1)",
+      "Bash(cd \"/run/media/nomanawan408/01DB5A2EB99B4DC0/LARAVEL PROJECT/Laywer Case Management/simpleLawyer\" && PGPASSWORD=password psql -h 127.0.0.1 -U postgres -d simplelaw -c \"\\\\d model_has_roles\" 2>&1 && PGPASSWORD=password psql -h 127.0.0.1 -U postgres -d simplelaw -c \"\\\\d permissions\" 2>&1)"
+    ]
+  }
+}

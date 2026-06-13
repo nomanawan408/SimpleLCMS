@@ -16,10 +16,10 @@ Confirmed tech stack	Laravel 11 + Inertia.js v2 + React 18 + PostgreSQL 15
 
 1. Introduction
 1.1 Purpose of this document
-This Software Requirements Specification (SRS) is the single authoritative reference for building LexDesk — a secure, GDPR-compliant, cloud-based legal case management web application for Irish law firms. It is written for the development team and covers all functional requirements, non-functional requirements, the confirmed technology stack, security architecture, data model, and implementation plan.
+This Software Requirements Specification (SRS) is the single authoritative reference for building SimpleLaw — a secure, GDPR-compliant, cloud-based legal case management web application for Irish law firms. It is written for the development team and covers all functional requirements, non-functional requirements, the confirmed technology stack, security architecture, data model, and implementation plan.
 This is version 2.0, updated to reflect the final confirmed technology decision: Laravel 11 + Inertia.js v2 + React 18 + TypeScript + PostgreSQL 15, self-hosted on a European VPS.
 1.2 Scope
-LexDesk covers the full lifecycle of legal practice management:
+SimpleLaw covers the full lifecycle of legal practice management:
     • Matter (case) management from client intake to matter closure
     • Client CRM, conflict-of-interest checking, and online intake forms
     • Time recording, expense capture, and legal billing with Irish VAT
@@ -346,7 +346,7 @@ CAL-01	Calendar views: Day, Week, Month, Agenda; colour-coded by event type	P1
 CAL-02	Create event: title, date/time, duration, location or video link, matter (optional), attendees (internal and external), recurrence rule	P1
 CAL-03	Event types: Appointment, Court Date, Deadline, File Review, Consultation, Other	P1
 CAL-04	Court Diary: dedicated view of all court date events across all matters	P1
-CAL-05	Two-way sync: Google Calendar and Microsoft Outlook/Exchange — events created in LexDesk appear in external calendar and vice versa	P1
+CAL-05	Two-way sync: Google Calendar and Microsoft Outlook/Exchange — events created in SimpleLaw appear in external calendar and vice versa	P1
 CAL-06	Configurable reminders per event: in-app notification and email, at user-defined intervals (e.g. 1 day before, 1 hour before)	P1
 CAL-07	Firm-wide calendar view for firm admin: all solicitors' calendars overlaid with colour coding	P2
 TASK-01	Create task: title, description, due date, priority (High/Medium/Low), assignee, matter association	P1
@@ -363,7 +363,7 @@ PORTAL-03	Portal features: matter status display, shared documents (solicitor-co
 PORTAL-04	Secure messaging: threaded conversation between solicitor and client, logged to matter timeline	P1
 PORTAL-05	Client document upload: client uploads ID, proof of address, or other documents via portal; solicitor receives notification	P1
 PORTAL-06	Invoice payment from portal: Stripe card and SEPA, no login required beyond magic link	P1
-PORTAL-07	Portal branding: firm name and logo displayed; no LexDesk branding visible to client (white-label)	P1
+PORTAL-07	Portal branding: firm name and logo displayed; no SimpleLaw branding visible to client (white-label)	P1
 PORTAL-08	Portal fully mobile-responsive: functions on iOS and Android without app installation	P1
 PORTAL-09	Portal session expires after 30 minutes of inactivity; client prompted to re-authenticate	P1
 PORTAL-10	All portal actions logged in audit trail: documents viewed, downloaded, messages sent	P1

@@ -25,16 +25,12 @@ class DocumentController extends Controller
             $query->where('matter_id', $request->matter_id);
         }
 
-        if ($request->filled('folder')) {
-            $query->where('folder', $request->folder);
-        }
-
         $documents = $query->paginate(25)->withQueryString();
 
         return Inertia::render('Documents/Index', [
             'documents' => $documents,
             'matters'   => Matter::where('firm_id', $firmId)->orderBy('name')->get(['id', 'name', 'matter_number']),
-            'filters'   => $request->only('matter_id', 'folder'),
+            'filters'   => $request->only('matter_id'),
         ]);
     }
 
@@ -43,7 +39,6 @@ class DocumentController extends Controller
         $request->validate([
             'file'             => ['required', 'file', 'max:20480'],
             'matter_id'        => ['required', 'uuid', 'exists:matters,id'],
-            'folder'           => ['nullable', 'string', 'max:100'],
             'is_client_visible' => ['boolean'],
         ]);
 
@@ -65,7 +60,7 @@ class DocumentController extends Controller
             'name'             => $file->getClientOriginalName(),
             'original_name'    => $file->getClientOriginalName(),
             's3_key'           => $path,
-            'folder'           => $request->input('folder'),
+            'folder'           => 'General',
             'mime_type'        => $file->getClientMimeType(),
             'size_bytes'       => $file->getSize(),
             'is_client_visible' => $request->boolean('is_client_visible'),

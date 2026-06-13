@@ -51,6 +51,9 @@ class ContactController extends Controller
             'source'        => ['nullable', 'string'],
             'source_detail' => ['nullable', 'string', 'max:255'],
             'tags'          => ['nullable', 'array'],
+            'contact_person_name'  => ['nullable', 'string', 'max:255'],
+            'contact_person_email' => ['nullable', 'email', 'max:255'],
+            'contact_person_phone' => ['nullable', 'string', 'max:50'],
         ]);
 
         $duplicate = Contact::where('firm_id', $request->user()->firm_id)
@@ -117,6 +120,9 @@ class ContactController extends Controller
             'lead_status'   => ['nullable', 'in:enquiry,consultation_booked,engaged,matter_opened,declined'],
             'source'        => ['nullable', 'string'],
             'source_detail' => ['nullable', 'string', 'max:255'],
+            'contact_person_name'  => ['nullable', 'string', 'max:255'],
+            'contact_person_email' => ['nullable', 'email', 'max:255'],
+            'contact_person_phone' => ['nullable', 'string', 'max:50'],
         ]));
 
         activity()->causedBy($request->user())->performedOn($contact)->log('updated');

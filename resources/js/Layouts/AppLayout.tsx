@@ -61,12 +61,12 @@ export default function AppLayout({ children, title }: AppLayoutProps) {
             {/* Logo */}
             <div className="flex h-16 items-center px-5">
                 <Link href="/dashboard" className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-500 ring-1 ring-white/20">
-                        <span className="text-xs font-bold text-white">LD</span>
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-500 ring-2 ring-white/25 shadow-lg">
+                        <span className="text-xs font-bold text-white">SLCM</span>
                     </div>
                     <div>
-                        <p className="text-base font-semibold text-white tracking-tight">Simple Lawyer</p>
-                        <p className="text-[11px] uppercase tracking-[0.2em] text-white/60">Management System</p>
+                        <p className="text-base font-bold text-white tracking-tight">Simple Law Practice</p>
+                        <p className="text-[10px] uppercase tracking-[0.22em] text-white/50 font-medium">Case Management</p>
                     </div>
                 </Link>
             </div>
@@ -90,15 +90,16 @@ export default function AppLayout({ children, title }: AppLayoutProps) {
                         className={cn(
                             'group flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-all',
                             isActive(item)
-                                ? 'bg-brand-500 text-white shadow-md'
-                                : 'text-white/70 hover:bg-white/10 hover:text-white',
+                                ? 'bg-white/15 text-white shadow-sm ring-1 ring-white/20'
+                                : 'text-white/65 hover:bg-white/8 hover:text-white',
                         )}
                     >
                         <item.icon className={cn(
-                            'h-4 w-4 shrink-0',
-                            isActive(item) ? 'text-white' : 'text-white/60 group-hover:text-white'
+                            'h-4 w-4 shrink-0 transition-colors',
+                            isActive(item) ? 'text-brand-300' : 'text-white/55 group-hover:text-white'
                         )} />
                         {item.label}
+                        {isActive(item) && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-brand-400" />}
                     </Link>
                 ))}
 
@@ -137,7 +138,7 @@ export default function AppLayout({ children, title }: AppLayoutProps) {
                     <div className="flex items-center gap-3">
                     <Avatar className="h-8 w-8 shrink-0 ring-2 ring-white/10">
                         <AvatarImage src={user.avatar_url ?? undefined} />
-                        <AvatarFallback className="bg-brand-500 text-white text-xs font-medium">
+                        <AvatarFallback className="bg-brand-500 text-brand-950 text-xs font-bold">
                             {initials(user.full_name)}
                         </AvatarFallback>
                     </Avatar>
@@ -163,7 +164,7 @@ export default function AppLayout({ children, title }: AppLayoutProps) {
     return (
         <div className="flex h-screen overflow-hidden bg-background">
             {/* Desktop sidebar - Dark with purple theme */}
-            <aside className="hidden lg:flex lg:w-64 lg:flex-col bg-gradient-to-br from-brand-900 via-brand-800 to-brand-700 border-r border-white/10 shrink-0">
+            <aside className="hidden lg:flex lg:w-64 lg:flex-col shrink-0" style={{background: 'linear-gradient(180deg, #003837 0%, #054f49 35%, #006B64 70%, #008D82 100%)', borderRight: '1px solid rgba(255,255,255,0.08)'}}>
                 <SidebarContent />
             </aside>
 
@@ -171,7 +172,7 @@ export default function AppLayout({ children, title }: AppLayoutProps) {
             {sidebarOpen && (
                 <div className="fixed inset-0 z-50 lg:hidden">
                     <div className="fixed inset-0 bg-foreground/20 backdrop-blur-[2px]" onClick={() => setSidebarOpen(false)} />
-                    <aside className="fixed inset-y-0 left-0 w-64 flex flex-col bg-gradient-to-br from-brand-900 via-brand-800 to-brand-700 border-r border-white/10 shadow-2xl">
+                    <aside className="fixed inset-y-0 left-0 w-64 flex flex-col shadow-2xl" style={{background: 'linear-gradient(180deg, #003837 0%, #054f49 35%, #006B64 70%, #008D82 100%)', borderRight: '1px solid rgba(255,255,255,0.08)'}}>
                         <SidebarContent />
                     </aside>
                 </div>
@@ -206,7 +207,7 @@ export default function AppLayout({ children, title }: AppLayoutProps) {
                         <div className="flex items-center gap-2 rounded-md border border-border/60 bg-background px-2 py-1.5 text-sm">
                             <Avatar className="h-7 w-7">
                                 <AvatarImage src={user.avatar_url ?? undefined} />
-                                <AvatarFallback className="bg-primary text-primary-foreground text-xs font-medium">
+                                <AvatarFallback className="bg-brand-500 text-brand-950 text-xs font-bold">
                                     {initials(user.full_name)}
                                 </AvatarFallback>
                             </Avatar>

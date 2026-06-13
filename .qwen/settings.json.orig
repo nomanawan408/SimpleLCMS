@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(sudo *)",
+      "Bash(ls *)"
+    ]
+  },
+  "$version": 4
+}

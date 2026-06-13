@@ -30,6 +30,13 @@ class UpdateFirmRequest extends FormRequest
             'invoice_prefix' => ['nullable', 'string', 'max:20'],
             'vat_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'payment_terms_days' => ['nullable', 'integer', 'min:1'],
+            'bank_name' => ['nullable', 'string', 'max:255'],
+            'bank_sort_code' => ['nullable', 'string', 'max:10'],
+            'bank_account_number' => ['nullable', 'string', 'max:30'],
+            'bank_account_name' => ['nullable', 'string', 'max:255'],
+            'bank_iban' => ['nullable', 'string', 'max:50'],
+            'bank_swift_code' => ['nullable', 'string', 'max:20'],
+            'payment_instructions' => ['nullable', 'string', 'max:2000'],
         ];
     }
 }

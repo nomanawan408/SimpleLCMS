@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, Trash2 } from 'lucide-react';
 import type { Contact } from '@/types';
+import { CONTACT_TYPE_LABELS, LEAD_STATUS_LABELS } from '@/lib/utils';
 
 const SOURCE_DETAIL_LABELS: Record<string, { label: string; placeholder: string }> = {
     social_media:  { label: 'Platform', placeholder: 'e.g. LinkedIn, Facebook, Instagram…' },
@@ -31,6 +32,9 @@ export default function EditContact({ contact }: Props) {
         phone: contact.phone || '',
         phone_secondary: (contact as any).phone_secondary || '',
         company_number: contact.company_number || '',
+        contact_person_name: (contact as any).contact_person_name || '',
+        contact_person_email: (contact as any).contact_person_email || '',
+        contact_person_phone: (contact as any).contact_person_phone || '',
         dob: (contact as any).dob || '',
         address: {
             line1: (contact.address as any)?.line1 || '',
@@ -90,9 +94,9 @@ export default function EditContact({ contact }: Props) {
                                         <SelectValue placeholder="Select type" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="individual">Individual</SelectItem>
-                                        <SelectItem value="company">Company</SelectItem>
-                                        <SelectItem value="other_party">Other Party</SelectItem>
+                                        <SelectItem value="individual">{CONTACT_TYPE_LABELS.individual}</SelectItem>
+                                        <SelectItem value="company">{CONTACT_TYPE_LABELS.company}</SelectItem>
+                                        <SelectItem value="other_party">{CONTACT_TYPE_LABELS.other_party}</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -133,15 +137,54 @@ export default function EditContact({ contact }: Props) {
                             </div>
 
                             {data.type === 'company' && (
-                                <div className="space-y-3">
-                                    <Label htmlFor="company_number" className="text-sm font-medium">Company Number</Label>
-                                    <Input
-                                        id="company_number"
-                                        value={data.company_number}
-                                        onChange={(e) => setData('company_number', e.target.value)}
-                                        className="h-11"
-                                    />
-                                </div>
+                                <>
+                                    <div className="space-y-3">
+                                        <Label htmlFor="company_number" className="text-sm font-medium">Company Number</Label>
+                                        <Input
+                                            id="company_number"
+                                            value={data.company_number}
+                                            onChange={(e) => setData('company_number', e.target.value)}
+                                            className="h-11"
+                                        />
+                                    </div>
+
+                                    <div className="space-y-3 rounded-lg border border-border/60 p-4 bg-muted/20">
+                                        <p className="text-sm font-semibold text-muted-foreground">Contact Person</p>
+                                        <div className="space-y-3">
+                                            <Label htmlFor="contact_person_name" className="text-sm font-medium">Name</Label>
+                                            <Input
+                                                id="contact_person_name"
+                                                value={data.contact_person_name}
+                                                onChange={(e) => setData('contact_person_name', e.target.value)}
+                                                placeholder="Contact person's name"
+                                                className="h-11"
+                                            />
+                                        </div>
+                                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                            <div className="space-y-3">
+                                                <Label htmlFor="contact_person_email" className="text-sm font-medium">Email</Label>
+                                                <Input
+                                                    id="contact_person_email"
+                                                    type="email"
+                                                    value={data.contact_person_email}
+                                                    onChange={(e) => setData('contact_person_email', e.target.value)}
+                                                    placeholder="contact@company.com"
+                                                    className="h-11"
+                                                />
+                                            </div>
+                                            <div className="space-y-3">
+                                                <Label htmlFor="contact_person_phone" className="text-sm font-medium">Phone</Label>
+                                                <Input
+                                                    id="contact_person_phone"
+                                                    value={data.contact_person_phone}
+                                                    onChange={(e) => setData('contact_person_phone', e.target.value)}
+                                                    placeholder="+44 7700 900123"
+                                                    className="h-11"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </>
                             )}
 
                             {data.type === 'individual' && (

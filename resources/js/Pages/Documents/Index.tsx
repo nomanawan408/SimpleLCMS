@@ -15,7 +15,7 @@ import type { Document, PaginatedData } from '@/types';
 interface Props {
     documents: PaginatedData<Document & { matter?: { id: string; name: string }; uploadedBy?: { full_name: string } }>;
     matters: { id: string; name: string }[];
-    filters: { matter_id?: string; folder?: string };
+    filters: { matter_id?: string };
 }
 
 function formatBytes(bytes: number | null): string {
@@ -33,7 +33,6 @@ export default function DocumentsIndex({ documents, matters, filters }: Props) {
     const { data, setData, post, processing, errors, reset } = useForm({
         file: null as File | null,
         matter_id: '',
-        folder: '',
         is_client_visible: false,
     });
 
@@ -82,12 +81,6 @@ export default function DocumentsIndex({ documents, matters, filters }: Props) {
                         ))}
                     </SelectContent>
                 </Select>
-                <Input
-                    className="w-40 h-9"
-                    placeholder="Folder"
-                    value={filters.folder ?? ''}
-                    onChange={(e) => setFilter('folder', e.target.value)}
-                />
             </div>
 
             <Card>
@@ -101,7 +94,6 @@ export default function DocumentsIndex({ documents, matters, filters }: Props) {
                                     <tr className="border-b bg-muted/30 text-muted-foreground">
                                         <th className="text-left px-4 py-3 font-medium">Name</th>
                                         <th className="text-left px-4 py-3 font-medium">Matter</th>
-                                        <th className="text-left px-4 py-3 font-medium">Folder</th>
                                         <th className="text-left px-4 py-3 font-medium">Uploaded by</th>
                                         <th className="text-left px-4 py-3 font-medium">Date</th>
                                         <th className="text-right px-4 py-3 font-medium">Size</th>
@@ -124,7 +116,6 @@ export default function DocumentsIndex({ documents, matters, filters }: Props) {
                                                     </Link>
                                                 ) : '—'}
                                             </td>
-                                            <td className="px-4 py-3 text-muted-foreground">{doc.folder || 'General'}</td>
                                             <td className="px-4 py-3 text-muted-foreground">{(doc as any).uploadedBy?.full_name ?? '—'}</td>
                                             <td className="px-4 py-3 text-muted-foreground">{formatDate(doc.created_at)}</td>
                                             <td className="px-4 py-3 text-right text-muted-foreground">{formatBytes(doc.size_bytes)}</td>
@@ -216,14 +207,6 @@ export default function DocumentsIndex({ documents, matters, filters }: Props) {
                                 </SelectContent>
                             </Select>
                             {errors.matter_id && <p className="text-xs text-destructive">{errors.matter_id}</p>}
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Folder</Label>
-                            <Input
-                                placeholder="e.g. Correspondence"
-                                value={data.folder}
-                                onChange={(e) => setData('folder', e.target.value)}
-                            />
                         </div>
                         <label className="flex items-center gap-2 cursor-pointer">
                             <input

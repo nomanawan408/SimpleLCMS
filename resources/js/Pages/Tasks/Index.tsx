@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Card, CardContent } from '@/components/ui/card';
@@ -10,14 +10,23 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { formatDate, cn } from '@/lib/utils';
-import { Plus, Pencil, Trash2, ChevronRight } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, X } from 'lucide-react';
 import type { Task, PaginatedData } from '@/types';
+
+function useDebounce(value: string, delay: number) {
+    const [debounced, setDebounced] = useState(value);
+    useEffect(() => {
+        const t = setTimeout(() => setDebounced(value), delay);
+        return () => clearTimeout(t);
+    }, [value, delay]);
+    return debounced;
+}
 
 interface Props {
     tasks: PaginatedData<Task & { matter?: { id: string; name: string; matter_number: string } }>;
     users: { id: string; full_name: string }[];
     matters: { id: string; name: string; matter_number: string }[];
-    filters: { status?: string; priority?: string; assignee_id?: string; matter_id?: string };
+    filters: { status?: string; priority?: string; assignee_id?: string; matter_id?: string; search?: string };
 }
 
 const PRIORITY_COLORS: Record<string, 'destructive' | 'warning' | 'secondary'> = {
@@ -56,6 +65,14 @@ export default function TasksIndex({ tasks, users, matters, filters }: Props) {
     const [form, setForm] = useState({ ...emptyForm });
     const [saving, setSaving] = useState(false);
     const [deleting, setDeleting] = useState<string | null>(null);
+    const [search, setSearch] = useState(filters.search ?? '');
+    const debouncedSearch     = useDebounce(search, 300);
+    const isFirstRun          = useRef(true);
+
+    useEffect(() => {
+        if (isFirstRun.current) { isFirstRun.current = false; return; }
+        router.get('/tasks', { ...filters, search: debouncedSearch || undefined }, { preserveState: true, replace: true });
+    }, [debouncedSearch]);
 
     const openCreate = () => {
         setEditing(null);
@@ -112,7 +129,7 @@ export default function TasksIndex({ tasks, users, matters, filters }: Props) {
 
     const setFilter = (key: string, value: string) => {
         const actual = value === '_all' ? '' : value;
-        router.get('/tasks', { ...filters, [key]: actual || undefined }, { preserveState: true, replace: true });
+        router.get('/tasks', { ...filters, search: search || undefined, [key]: actual || undefined }, { preserveState: true, replace: true });
     };
 
     const handleStatusChange = (taskId: string, newStatus: string) => {
@@ -140,7 +157,22 @@ export default function TasksIndex({ tasks, users, matters, filters }: Props) {
             </div>
 
             {/* Filters */}
-            <div className="flex flex-wrap items-center gap-3 mb-5">
+            <div className="flex flex-col gap-2 mb-5">
+            <div className="relative w-full max-w-sm">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/60" />
+                <Input
+                    className="pl-8 h-9 text-sm"
+                    placeholder="Search tasks or matters…"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                />
+                {search && (
+                    <button onClick={() => setSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                        <X className="h-3.5 w-3.5" />
+                    </button>
+                )}
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
                 <div className="flex gap-1 border rounded-md p-1 bg-muted/30">
                     {statusTabs.map((t) => (
                         <button
@@ -181,6 +213,7 @@ export default function TasksIndex({ tasks, users, matters, filters }: Props) {
                         ))}
                     </SelectContent>
                 </Select>
+            </div>
             </div>
 
             <Card>

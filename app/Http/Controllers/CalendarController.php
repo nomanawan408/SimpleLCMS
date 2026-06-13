@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\CalendarEvent;
 use App\Models\Matter;
+use App\Models\Task;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -24,10 +25,58 @@ class CalendarController extends Controller
             ->whereBetween('start_at', [$start, $end])
             ->with(['matter', 'createdBy'])
             ->orderBy('start_at')
-            ->get();
+            ->get()
+            ->map(function ($event) {
+                return [
+                    'id'            => $event->id,
+                    'firm_id'       => $event->firm_id,
+                    'matter_id'     => $event->matter_id,
+                    'title'         => $event->title,
+                    'type'          => $event->type,
+                    'start_at'      => $event->start_at->toIso8601String(),
+                    'end_at'        => $event->end_at?->toIso8601String(),
+                    'location'      => $event->location,
+                    'is_court_date' => $event->is_court_date,
+                    'source'        => 'event',
+                    'matter'        => $event->matter ? [
+                        'id'            => $event->matter->id,
+                        'name'          => $event->matter->name,
+                        'matter_number' => $event->matter->matter_number,
+                    ] : null,
+                    'status'        => null,
+                ];
+            });
+
+        $tasks = Task::where('firm_id', $firmId)
+            ->whereNotNull('due_date')
+            ->whereBetween('due_date', [$start->toDateString(), $end->toDateString()])
+            ->with('matter')
+            ->get()
+            ->map(function ($task) use ($year, $month) {
+                return [
+                    'id'            => $task->id,
+                    'firm_id'       => $task->firm_id,
+                    'matter_id'     => $task->matter_id,
+                    'title'         => $task->title,
+                    'type'          => 'task_deadline',
+                    'start_at'      => $task->due_date->setTime(9, 0)->toIso8601String(),
+                    'end_at'        => null,
+                    'location'      => null,
+                    'is_court_date' => false,
+                    'source'        => 'task',
+                    'matter'        => $task->matter ? [
+                        'id'            => $task->matter->id,
+                        'name'          => $task->matter->name,
+                        'matter_number' => $task->matter->matter_number,
+                    ] : null,
+                    'status'        => $task->status,
+                ];
+            });
+
+        $allEvents = collect($events)->merge($tasks)->sortBy('start_at')->values()->all();
 
         return Inertia::render('Calendar/Index', [
-            'events'  => $events,
+            'events'  => $allEvents,
             'matters' => Matter::where('firm_id', $firmId)->orderBy('name')->get(['id', 'name', 'matter_number']),
             'year'    => $year,
             'month'   => $month,

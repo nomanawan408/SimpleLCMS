@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Admin;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreUserRequest extends FormRequest
 {
@@ -16,7 +17,7 @@ class StoreUserRequest extends FormRequest
         return [
             'full_name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255'],
-            'role' => ['required', 'in:solicitor,lawyer,barrister,clerk,consultant,administrator,manager,accounts'],
+            'role' => ['required', 'string', Rule::exists('roles', 'name')->where('guard_name', 'web')],
             'rate_per_hour' => ['nullable', 'numeric', 'min:0'],
             'phone' => ['nullable', 'string', 'max:50'],
         ];

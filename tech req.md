@@ -1,12 +1,12 @@
-# LexDesk | Software Requirements Specification | v3.0 — Modernized for Laravel 13
+# SimpleLaw Case Management System | Software Requirements Specification | v3.0 — Modernized for Laravel 13
 
 ## 1. Introduction
 
 ### 1.1 Purpose
-This document serves as the authoritative Software Requirements Specification (SRS) for **LexDesk**, a secure, GDPR-compliant, cloud-based legal case management system designed for Irish law firms. This version (v3.0) updates the technical architecture to **Laravel 13**, focusing on security, scalability, and long-term maintainability.
+This document serves as the authoritative Software Requirements Specification (SRS) for **SimpleLaw**, a secure, GDPR-compliant, cloud-based legal case management system designed for Irish law firms. This version (v3.0) updates the technical architecture to **Laravel 13**, focusing on security, scalability, and long-term maintainability.
 
 ### 1.2 Scope
-LexDesk provides a comprehensive suite of tools for legal practice management, including:
+SimpleLaw provides a comprehensive suite of tools for legal practice management, including:
 *   **Matter Management:** Full lifecycle from intake to closure.
 *   **CRM & Conflict Checking:** Robust client management and legal compliance.
 *   **Time & Billing:** Precise time recording and SAR 2014 compliant billing.
@@ -36,7 +36,7 @@ To ensure the application remains at the cutting edge of performance and securit
 
 ## 3. Enhanced Security Architecture
 
-Security is the core pillar of LexDesk. The following controls are non-negotiable.
+Security is the core pillar of SimpleLaw. The following controls are non-negotiable.
 
 ### 3.1 Authentication & Authorization
 *   **Identity Management:** Use **Laravel's new Starter Kits** with **WorkOS AuthKit** integration for enterprise-grade SSO (Google Workspace, Microsoft 365) and Passkey support.
@@ -99,7 +99,7 @@ Security is the core pillar of LexDesk. The following controls are non-negotiabl
 
 ## 7. GDPR & Compliance
 
-LexDesk is designed for the Irish jurisdiction.
+SimpleLaw is designed for the Irish jurisdiction.
 *   **Data Residency:** Mandatory hosting on EU-based infrastructure (Hetzner Frankfurt / DigitalOcean AMS3).
 *   **SAR 2014:** Trust ledger logic is immutable; no edits allowed, only reversing entries.
 *   **DSAR Workflow:** One-click generation of machine-readable JSON exports for data subjects.

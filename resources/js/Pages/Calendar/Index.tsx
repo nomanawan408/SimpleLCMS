@@ -15,12 +15,14 @@ interface CalendarEvent {
     firm_id: string;
     matter_id: string | null;
     title: string;
-    type: 'appointment' | 'court_date' | 'deadline' | 'consultation' | 'other';
+    type: 'appointment' | 'court_date' | 'deadline' | 'consultation' | 'other' | 'task_deadline';
     start_at: string;
     end_at: string | null;
     location: string | null;
     is_court_date: boolean;
+    source: 'event' | 'task';
     matter?: { id: string; name: string; matter_number: string };
+    status?: string | null;
 }
 
 interface Props {
@@ -208,15 +210,29 @@ export default function CalendarIndex({ events, matters, year, month }: Props) {
                                                     key={ev.id}
                                                     className={cn(
                                                         'text-[11px] px-1.5 py-0.5 rounded truncate cursor-pointer font-medium',
-                                                        ev.is_court_date || ev.type === 'court_date'
-                                                            ? 'bg-destructive/15 text-destructive'
-                                                            : ev.type === 'deadline'
-                                                                ? 'bg-warning/15 text-warning'
-                                                                : 'bg-primary/15 text-primary',
+                                                        ev.type === 'task_deadline'
+                                                            ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400'
+                                                            : ev.is_court_date || ev.type === 'court_date'
+                                                                ? 'bg-destructive/15 text-destructive'
+                                                                : ev.type === 'deadline'
+                                                                    ? 'bg-warning/15 text-warning'
+                                                                    : 'bg-primary/15 text-primary',
                                                     )}
-                                                    onClick={(e) => { e.stopPropagation(); openEdit(ev); }}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        if (ev.source === 'task' && ev.matter_id) {
+                                                            window.location.href = `/matters/${ev.matter_id}`;
+                                                        } else {
+                                                            openEdit(ev);
+                                                        }
+                                                    }}
+                                                    title={ev.source === 'task' ? `Task: ${ev.title}${ev.status ? ` (${ev.status.replace(/_/g, ' ')})` : ''}` : ev.title}
                                                 >
+                                                    {ev.type === 'task_deadline' && <span className="mr-0.5">&#9744;</span>}
                                                     {ev.title}
+                                                    {ev.source === 'task' && ev.status && ev.status !== 'done' && (
+                                                        <span className="ml-1 opacity-70">({ev.status.replace(/_/g, ' ')})</span>
+                                                    )}
                                                 </div>
                                             ))}
                                             {dayEvents.length > 3 && (

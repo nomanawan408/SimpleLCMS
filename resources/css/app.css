@@ -4,62 +4,90 @@
 
 @layer base {
     :root {
-        /* Vibrant High-Contrast Light Mode */
-        --background: 220 16% 96%;
-        --foreground: 222 47% 11%;
+        /* ── Genoa Teal/Cyan — Light Mode ── */
+        /* Background: #fafafa (Mountbatten Pink 50 equivalent) */
+        --background: 180 14% 97%;
+        --foreground: 180 40% 8%;
+
         --card: 0 0% 100%;
-        --card-foreground: 222 47% 11%;
+        --card-foreground: 180 40% 8%;
+
         --popover: 0 0% 100%;
-        --popover-foreground: 222 47% 11%;
-        --primary: 174 80% 36%;
-        --primary-foreground: 0 0% 100%;
-        --secondary: 174 45% 90%;
-        --secondary-foreground: 174 80% 16%;
-        --muted: 220 14% 91%;
-        --muted-foreground: 220 10% 40%;
-        --accent: 174 80% 36%;
+        --popover-foreground: 180 40% 8%;
+
+        /* Primary: #00DCC4 — Genoa 500 */
+        --primary: 174 100% 43%;
+        --primary-foreground: 180 40% 5%;
+
+        /* Secondary: soft cyan tint */
+        --secondary: 174 80% 92%;
+        --secondary-foreground: 174 100% 20%;
+
+        --muted: 180 12% 93%;
+        --muted-foreground: 180 12% 42%;
+
+        /* Accent: Genoa 600 — #00B2A2 */
+        --accent: 175 100% 35%;
         --accent-foreground: 0 0% 100%;
-        --destructive: 0 84% 58%;
+
+        --destructive: 4 86% 55%;
         --destructive-foreground: 0 0% 100%;
-        --border: 220 14% 82%;
-        --input: 220 14% 82%;
-        --ring: 174 80% 36%;
+
+        --border: 180 14% 88%;
+        --input: 180 14% 88%;
+        --ring: 174 100% 43%;
         --radius: 0.625rem;
-        --warning: 38 95% 46%;
-        --warning-foreground: 38 60% 12%;
-        --success: 142 72% 34%;
+
+        --warning: 36 100% 50%;
+        --warning-foreground: 36 80% 10%;
+
+        --success: 152 69% 35%;
         --success-foreground: 0 0% 100%;
-        --info: 217 91% 58%;
+
+        --info: 200 100% 48%;
         --info-foreground: 0 0% 100%;
     }
 
     .dark {
-        /* Vibrant High-Contrast Dark Mode */
-        --background: 222 47% 8%;
-        --foreground: 210 40% 97%;
-        --card: 222 47% 11%;
-        --card-foreground: 210 40% 97%;
-        --popover: 222 47% 11%;
-        --popover-foreground: 210 40% 97%;
-        --primary: 174 80% 46%;
-        --primary-foreground: 222 47% 6%;
-        --secondary: 222 38% 18%;
-        --secondary-foreground: 210 40% 90%;
-        --muted: 222 38% 16%;
-        --muted-foreground: 220 16% 62%;
-        --accent: 174 80% 46%;
-        --accent-foreground: 222 47% 6%;
-        --destructive: 0 84% 64%;
+        /* ── Genoa Teal/Cyan — Dark Mode (deep teal-navy) ── */
+        /* Sidebar dark: #003837 / #065B55 family */
+        --background: 174 60% 5%;
+        --foreground: 174 20% 95%;
+
+        --card: 174 50% 8%;
+        --card-foreground: 174 20% 95%;
+
+        --popover: 174 50% 8%;
+        --popover-foreground: 174 20% 95%;
+
+        /* Primary stays vivid on dark */
+        --primary: 174 100% 50%;
+        --primary-foreground: 174 60% 4%;
+
+        --secondary: 174 40% 14%;
+        --secondary-foreground: 174 30% 85%;
+
+        --muted: 174 35% 12%;
+        --muted-foreground: 174 20% 55%;
+
+        --accent: 175 100% 42%;
+        --accent-foreground: 174 60% 4%;
+
+        --destructive: 4 86% 62%;
         --destructive-foreground: 0 0% 100%;
-        --border: 222 38% 20%;
-        --input: 222 38% 20%;
-        --ring: 174 80% 46%;
-        --warning: 38 95% 62%;
-        --warning-foreground: 38 50% 10%;
-        --success: 142 72% 50%;
-        --success-foreground: 142 72% 8%;
-        --info: 217 91% 68%;
-        --info-foreground: 222 47% 6%;
+
+        --border: 174 30% 16%;
+        --input: 174 30% 16%;
+        --ring: 174 100% 50%;
+
+        --warning: 36 100% 60%;
+        --warning-foreground: 36 80% 8%;
+
+        --success: 152 65% 50%;
+        --success-foreground: 152 65% 8%;
+
+        --info: 200 100% 60%;
+        --info-foreground: 174 60% 4%;
     }
 
     * {
@@ -72,35 +100,45 @@
     }
 
     ::selection {
-        background: hsl(var(--primary) / 0.2);
+        background: hsl(var(--primary) / 0.18);
         color: hsl(var(--foreground));
     }
+
+    /* Subtle scrollbar styling */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 99px; }
+    ::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground) / 0.5); }
 }
 
 @layer components {
     .surface-card {
         @apply rounded-xl border bg-card;
-        box-shadow: 0 1px 2px rgb(0 0 0 / 0.04), 0 4px 16px rgb(0 0 0 / 0.06);
+        box-shadow: 0 1px 3px rgb(0 0 0 / 0.05), 0 4px 20px rgb(0 0 0 / 0.06);
     }
 
     .surface-elevated {
         @apply rounded-xl border bg-card;
-        box-shadow: 0 4px 8px rgb(0 0 0 / 0.06), 0 12px 32px rgb(0 0 0 / 0.08);
+        box-shadow: 0 4px 12px rgb(0 0 0 / 0.08), 0 16px 40px rgb(0 0 0 / 0.1);
     }
 
     .flash-success {
-        @apply rounded-md border border-emerald-200/70 bg-emerald-50/80 px-4 py-3 text-sm text-emerald-900;
+        @apply rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800;
+        box-shadow: 0 1px 3px rgb(5 150 105 / 0.12);
     }
 
     .flash-error {
-        @apply rounded-md border border-rose-200/70 bg-rose-50/80 px-4 py-3 text-sm text-rose-900;
+        @apply rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-800;
+        box-shadow: 0 1px 3px rgb(225 29 72 / 0.12);
     }
 
     .flash-warning {
-        @apply rounded-md border border-amber-200/70 bg-amber-50/80 px-4 py-3 text-sm text-amber-900;
+        @apply rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800;
+        box-shadow: 0 1px 3px rgb(245 158 11 / 0.12);
     }
 
     .flash-info {
-        @apply rounded-md border border-violet-200/70 bg-violet-50/80 px-4 py-3 text-sm text-violet-900;
+        @apply rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm font-medium text-indigo-800;
+        box-shadow: 0 1px 3px rgb(99 102 241 / 0.12);
     }
 }

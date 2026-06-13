@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\InvoiceMail;
 use App\Models\Invoice;
 use App\Models\InvoiceLineItem;
 use App\Models\Matter;
@@ -10,6 +11,7 @@ use App\Models\TimeEntry;
 use App\Models\Expense;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
 
 class InvoiceController extends Controller
@@ -248,6 +250,43 @@ class InvoiceController extends Controller
 
         return redirect()->route('billing.index')
             ->with('success', 'Invoice deleted.');
+    }
+
+    public function sendEmail(Request $request, Invoice $invoice)
+    {
+        $this->authorize('update', $invoice);
+
+        $validated = $request->validate([
+            'recipient_email' => 'required|email',
+            'recipient_name'  => 'nullable|string|max:255',
+            'message'         => 'nullable|string|max:2000',
+        ]);
+
+        $invoice->load(['matter', 'matter.contacts', 'lineItems']);
+
+        $firm        = $request->user()->firm;
+        $clientName  = $validated['recipient_name']
+                    ?? $invoice->matter?->contacts?->first()?->name
+                    ?? 'Valued Client';
+        $clientEmail = $validated['recipient_email'];
+
+        try {
+            Mail::to($clientEmail)
+                ->send(new InvoiceMail($invoice, $firm, $clientName, $clientEmail));
+
+            // Mark as sent if currently draft
+            if ($invoice->status === 'draft') {
+                $invoice->update(['status' => 'sent', 'sent_at' => now()]);
+            }
+
+            activity()->causedBy($request->user())->performedOn($invoice)->withProperties([
+                'sent_to' => $clientEmail,
+            ])->log('invoice_emailed');
+
+            return back()->with('success', "Invoice emailed to {$clientEmail} successfully.");
+        } catch (\Exception $e) {
+            return back()->with('error', "Failed to send email: {$e->getMessage()}");
+        }
     }
 
     private function getNextInvoiceNumber(string $firmId): string

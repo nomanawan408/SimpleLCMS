@@ -1,14 +1,24 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { formatDate, initials } from '@/lib/utils';
-import { Plus, Search } from 'lucide-react';
+import { formatDate, initials, CONTACT_TYPE_LABELS, LEAD_STATUS_LABELS } from '@/lib/utils';
+import { Plus, Search, X } from 'lucide-react';
 import type { Contact, PaginatedData } from '@/types';
+
+function useDebounce(value: string, delay: number) {
+    const [debounced, setDebounced] = useState(value);
+    useEffect(() => {
+        const t = setTimeout(() => setDebounced(value), delay);
+        return () => clearTimeout(t);
+    }, [value, delay]);
+    return debounced;
+}
 
 interface Props {
     contacts: PaginatedData<Contact>;
@@ -26,35 +36,61 @@ const leadColors: Record<string, any> = {
 
 export default function ContactsIndex({ contacts, filters }: Props) {
     const [search, setSearch] = useState(filters.search ?? '');
+    const [type, setType]     = useState(filters.type ?? '_all');
+    const debounced           = useDebounce(search, 300);
+    const isFirstRun          = useRef(true);
 
-    const handleSearch = (e: React.FormEvent) => {
-        e.preventDefault();
-        router.get('/contacts', { search }, { preserveState: true });
-    };
+    useEffect(() => {
+        if (isFirstRun.current) { isFirstRun.current = false; return; }
+        router.get('/contacts', {
+            search: debounced || undefined,
+            type:   type === '_all' ? undefined : type,
+        }, { preserveState: true, replace: true });
+    }, [debounced, type]);
+
+    const hasFilters = search || type !== '_all';
 
     return (
         <AppLayout title="Contacts">
             <Head title="Contacts" />
 
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-8">
-                <form onSubmit={handleSearch} className="flex gap-2 flex-1 max-w-md">
-                    <div className="relative flex-1">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <div className="flex flex-col gap-3 mb-6">
+                <div className="flex items-center justify-between">
+                    <h1 className="text-2xl font-bold tracking-tight">Contacts</h1>
+                    <Button asChild className="gap-2">
+                        <Link href="/contacts/create"><Plus className="h-4 w-4" />New Contact</Link>
+                    </Button>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                    <div className="relative flex-1 min-w-[200px]">
+                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/60" />
                         <Input
-                            className="pl-9"
-                            placeholder="Search contacts…"
+                            className="pl-8 h-9 text-sm"
+                            placeholder="Search by name, email, phone…"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                         />
+                        {search && (
+                            <button onClick={() => setSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                                <X className="h-3.5 w-3.5" />
+                            </button>
+                        )}
                     </div>
-                    <Button type="submit" variant="outline" size="sm">Search</Button>
-                </form>
-                <Button asChild>
-                    <Link href="/contacts/create">
-                        <Plus className="h-4 w-4 mr-2" />
-                        New Contact
-                    </Link>
-                </Button>
+                    <Select value={type} onValueChange={setType}>
+                        <SelectTrigger className="h-9 w-38 text-sm"><SelectValue placeholder="Type" /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="_all">All types</SelectItem>
+                            <SelectItem value="individual">{CONTACT_TYPE_LABELS.individual}</SelectItem>
+                            <SelectItem value="company">{CONTACT_TYPE_LABELS.company}</SelectItem>
+                            <SelectItem value="other_party">{CONTACT_TYPE_LABELS.other_party}</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    {hasFilters && (
+                        <button onClick={() => { setSearch(''); setType('_all'); }} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive transition-colors">
+                            <X className="h-3 w-3" />Clear
+                        </button>
+                    )}
+                </div>
             </div>
 
             <Card className="surface-card">
@@ -88,11 +124,11 @@ export default function ContactsIndex({ contacts, filters }: Props) {
                                         </div>
                                         <div className="flex items-center gap-2 shrink-0">
                                             <Badge variant={typeVariant[contact.type]} className="capitalize text-xs">
-                                                {contact.type.replace('_', ' ')}
+                                                {CONTACT_TYPE_LABELS[contact.type] || contact.type}
                                             </Badge>
                                             {contact.lead_status && (
                                                 <Badge variant={leadColors[contact.lead_status] ?? 'secondary'} className="capitalize text-xs hidden sm:inline-flex">
-                                                    {contact.lead_status.replace('_', ' ')}
+                                                    {LEAD_STATUS_LABELS[contact.lead_status] || contact.lead_status.replace('_', ' ')}
                                                 </Badge>
                                             )}
                                             <span className="text-xs text-muted-foreground hidden md:block">

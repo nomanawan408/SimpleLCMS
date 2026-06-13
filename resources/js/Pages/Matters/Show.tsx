@@ -32,14 +32,169 @@ interface Props {
         unbilled_time_value?: number;
     };
     users: { id: string; full_name: string }[];
+    activeTimer: {
+        matter_id: string;
+        matter_name: string;
+        matter_number: string;
+        started_at: string;
+        activity_type: string;
+        description: string;
+        rate?: number;
+        paused_at?: string | null;
+        total_paused_seconds?: number;
+    } | null;
 }
 
-export default function ShowMatter({ matter, users }: Props) {
+export default function ShowMatter({ matter, users, activeTimer: serverTimer }: Props) {
     const [notes, setNotes] = useState<any[]>(matter.notes ?? []);
     const [timeEntries, setTimeEntries] = useState<any[]>(matter.time_entries ?? []);
     const [expenses, setExpenses] = useState<any[]>(matter.expenses ?? []);
     const [tasks, setTasks] = useState<any[]>(matter.tasks ?? []);
     const [documents, setDocuments] = useState<any[]>(matter.documents ?? []);
+
+    // ── Live Timer State ──
+    const [timerSession, setTimerSession] = useState(serverTimer && serverTimer.matter_id === matter.id ? serverTimer : null);
+    const [timerElapsed, setTimerElapsed] = useState(0);
+    const [timerPaused, setTimerPaused] = useState(!!(serverTimer && serverTimer.matter_id === matter.id && serverTimer.paused_at));
+    const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+    // Timer form fields
+    const matterHourlyRate = (matter as any).custom_fields?.hourly_rate ?? '';
+    const [timerForm, setTimerForm] = useState({
+        activity_type: 'other',
+        description: '',
+        rate: matterHourlyRate ? String(matterHourlyRate) : '',
+        billable: true,
+    });
+    const [timerExpanded, setTimerExpanded] = useState(false);
+    const [timerCheckOutOpen, setTimerCheckOutOpen] = useState(false);
+    const [timerLoading, setTimerLoading] = useState(false);
+
+    // Live editable fields while timer is running
+    const [liveActivity, setLiveActivity] = useState(serverTimer?.activity_type ?? 'other');
+    const [liveDescription, setLiveDescription] = useState(serverTimer?.description ?? '');
+
+    useEffect(() => {
+        if (timerSession) {
+            const start = new Date(timerSession.started_at).getTime();
+            const tick = () => {
+                const rawElapsed = Math.floor((Date.now() - start) / 1000);
+                const pausedSecs = timerSession.paused_at
+                    ? (timerSession.total_paused_seconds ?? 0) + Math.floor((Date.now() - new Date(timerSession.paused_at).getTime()) / 1000)
+                    : (timerSession.total_paused_seconds ?? 0);
+                setTimerElapsed(Math.max(0, rawElapsed - pausedSecs));
+            };
+            tick();
+            timerIntervalRef.current = setInterval(tick, 1000);
+        } else {
+            setTimerElapsed(0);
+            setTimerPaused(false);
+            if (timerIntervalRef.current) { clearInterval(timerIntervalRef.current); timerIntervalRef.current = null; }
+        }
+        return () => { if (timerIntervalRef.current) clearInterval(timerIntervalRef.current); };
+    }, [timerSession]);
+
+    function formatTimerElapsed(seconds: number): string {
+        const h = Math.floor(seconds / 3600);
+        const m = Math.floor((seconds % 3600) / 60);
+        const s = seconds % 60;
+        return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    }
+
+    function getTimerToken(): string {
+        return (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement | null)?.content ?? '';
+    }
+
+    async function timerCheckIn() {
+        setTimerLoading(true);
+        const token = getTimerToken();
+        const res = await fetch('/time/checkin', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Accept: 'application/json', ...(token ? { 'X-CSRF-TOKEN': token } : {}) },
+            body: JSON.stringify({
+                matter_id: matter.id,
+                activity_type: timerForm.activity_type,
+                description: timerForm.description || null,
+                rate: timerForm.rate ? parseFloat(timerForm.rate) : undefined,
+            }),
+        });
+        if (res.ok) {
+            const payload = await res.json();
+            setTimerSession(payload.session);
+            setTimerPaused(false);
+            setLiveActivity(payload.session.activity_type ?? 'other');
+            setLiveDescription(payload.session.description ?? '');
+            setTimerExpanded(false);
+        }
+        setTimerLoading(false);
+    }
+
+    async function timerPause() {
+        const token = getTimerToken();
+        const res = await fetch('/time/pause', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Accept: 'application/json', ...(token ? { 'X-CSRF-TOKEN': token } : {}) },
+        });
+        if (res.ok) {
+            setTimerPaused(true);
+            setTimerSession((prev) => prev ? { ...prev, paused_at: new Date().toISOString() } : prev);
+        }
+    }
+
+    async function timerResume() {
+        const token = getTimerToken();
+        const res = await fetch('/time/resume', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Accept: 'application/json', ...(token ? { 'X-CSRF-TOKEN': token } : {}) },
+        });
+        if (res.ok) {
+            const payload = await res.json();
+            setTimerPaused(false);
+            setTimerSession(payload.session);
+        }
+    }
+
+    async function timerCheckOut() {
+        setTimerLoading(true);
+        const token = getTimerToken();
+        const res = await fetch('/time/checkout', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Accept: 'application/json', ...(token ? { 'X-CSRF-TOKEN': token } : {}) },
+            body: JSON.stringify({
+                billable: timerForm.billable,
+                rate: timerForm.rate ? parseFloat(timerForm.rate) : undefined,
+                activity_type: liveActivity,
+                description: liveDescription || null,
+            }),
+        });
+        if (res.ok) {
+            setTimerSession(null);
+            setTimerPaused(false);
+            setTimerCheckOutOpen(false);
+            setTimerForm({ activity_type: 'other', description: '', rate: matterHourlyRate ? String(matterHourlyRate) : '', billable: true });
+            try {
+                const payload = await res.json();
+                if (payload.entry) {
+                    setTimeEntries((prev) => [payload.entry, ...prev]);
+                }
+            } catch {}
+        }
+        setTimerLoading(false);
+    }
+
+    async function timerDiscard() {
+        if (!confirm('Discard this timer session? No time entry will be saved.')) return;
+        const token = getTimerToken();
+        const res = await fetch('/time/discard', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Accept: 'application/json', ...(token ? { 'X-CSRF-TOKEN': token } : {}) },
+        });
+        if (res.ok) {
+            setTimerSession(null);
+            setTimerPaused(false);
+            setTimerForm({ activity_type: 'other', description: '', rate: matterHourlyRate ? String(matterHourlyRate) : '', billable: true });
+        }
+    }
 
     const [noteModalOpen, setNoteModalOpen] = useState(false);
     const [noteSaving, setNoteSaving] = useState(false);
@@ -711,7 +866,343 @@ export default function ShowMatter({ matter, users }: Props) {
             )}
 
             {tab === 'time' && (
-                <Card className="surface-card">
+                <>
+                    {/* ─── Live Timer Module ─── */}
+                    <div className={cn(
+                        "mb-4 rounded-2xl border shadow-lg overflow-hidden transition-all duration-300",
+                        timerSession
+                            ? "border-emerald-200/60 dark:border-emerald-800/30 bg-gradient-to-br from-emerald-50/90 via-white to-green-50/40 dark:from-emerald-950/40 dark:via-card dark:to-green-950/20 shadow-emerald-100/50 dark:shadow-emerald-900/20"
+                            : "border-border/50 bg-gradient-to-br from-card via-card to-primary/[0.02] shadow-muted/20",
+                    )}>
+                        {timerSession ? (
+                            <div className="relative h-1.5 w-full overflow-hidden">
+                                <div className="absolute inset-0 bg-gradient-to-r from-emerald-400 via-teal-400 to-green-500" />
+                                <div className="absolute inset-0 bg-[linear-gradient(90deg,transparent_0%,rgba(255,255,255,0.3)_50%,transparent_100%)] animate-shimmer" />
+                            </div>
+                        ) : (
+                            <div className="h-0.5 w-full bg-gradient-to-r from-primary/60 via-primary/30 to-transparent" />
+                        )}
+                        <div className="p-5 sm:p-6">
+                            {timerSession ? (
+                                /* ── Running / Paused State ── */
+                                <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+                                    {/* Left: Timer display */}
+                                    <div className="flex-1 min-w-0">
+                                        {/* Status badge */}
+                                        <div className="flex items-center gap-3 mb-5">
+                                            <div className={cn(
+                                                "flex items-center gap-2.5 px-3.5 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest transition-colors",
+                                                timerPaused
+                                                    ? "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400"
+                                                    : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400",
+                                            )}>
+                                                <span className="relative flex h-2 w-2">
+                                                    <span className={cn("animate-ping absolute inline-flex h-full w-full rounded-full opacity-75", timerPaused ? "bg-amber-400" : "bg-emerald-400")} />
+                                                    <span className={cn("relative inline-flex rounded-full h-2 w-2", timerPaused ? "bg-amber-500" : "bg-emerald-500")} />
+                                                </span>
+                                                {timerPaused ? 'Paused' : 'Recording'}
+                                            </div>
+                                            <span className="text-xs text-muted-foreground">
+                                                Started {new Date(timerSession.started_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                            </span>
+                                        </div>
+
+                                        {/* Matter info */}
+                                        <div className="mb-5">
+                                            <p className="text-lg font-bold truncate text-foreground">{matter.name}</p>
+                                            <p className="text-xs text-muted-foreground font-mono mt-0.5">{matter.matter_number}</p>
+                                        </div>
+
+                                        {/* Clock display card */}
+                                        <div className={cn(
+                                            "rounded-xl p-6 mb-5 transition-colors duration-300",
+                                            timerPaused
+                                                ? "bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200/50 dark:border-amber-800/30"
+                                                : "bg-emerald-50/70 dark:bg-emerald-950/20 border border-emerald-200/50 dark:border-emerald-800/30",
+                                        )}>
+                                            <p className="font-mono text-6xl font-black tabular-nums tracking-tight text-foreground leading-none">
+                                                {formatTimerElapsed(timerElapsed)}
+                                            </p>
+                                        </div>
+
+                                        {/* Running cost + rate */}
+                                        <div className="flex flex-wrap items-center gap-3">
+                                            {timerForm.rate && (
+                                                <div className="inline-flex items-center gap-2 rounded-full px-4 py-2 bg-white dark:bg-black/20 border border-border/50 shadow-sm">
+                                                    <div className="p-1 rounded-full bg-emerald-100 dark:bg-emerald-900/50">
+                                                        <PoundSterling className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+                                                    </div>
+                                                    <span className="text-sm font-bold text-foreground">
+                                                        {formatCurrency((parseFloat(timerForm.rate) || 0) * (timerElapsed / 3600))}
+                                                    </span>
+                                                </div>
+                                            )}
+                                            {timerForm.rate && (
+                                                <span className="text-xs text-muted-foreground">
+                                                    @ £{parseFloat(timerForm.rate).toFixed(2)}/hr
+                                                </span>
+                                            )}
+                                            <span className="text-xs text-muted-foreground">
+                                                {timerForm.billable ? 'Billable' : 'Non-billable'}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    {/* Right: Fields + actions */}
+                                    <div className="flex flex-col gap-3 lg:w-72 w-full">
+                                        <div className="space-y-1.5">
+                                            <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">Activity</Label>
+                                            <Select value={liveActivity} onValueChange={setLiveActivity}>
+                                                <SelectTrigger className="h-10 bg-background/60 backdrop-blur-sm border-border/60 rounded-lg">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {Object.entries(ACTIVITY_LABELS).map(([k, v]) => (
+                                                        <SelectItem key={k} value={k}>{v}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">Notes</Label>
+                                            <Textarea
+                                                rows={2}
+                                                className="resize-none text-sm bg-background/60 backdrop-blur-sm border-border/60 rounded-lg"
+                                                placeholder="What are you working on?"
+                                                value={liveDescription}
+                                                onChange={(e) => setLiveDescription(e.target.value)}
+                                            />
+                                        </div>
+                                        <div className="pt-1 space-y-2">
+                                            <Button
+                                                className="w-full gap-2 h-11 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white shadow-md shadow-emerald-200 dark:shadow-emerald-900/30 rounded-lg font-semibold transition-all"
+                                                onClick={() => setTimerCheckOutOpen(true)}
+                                            >
+                                                <Clock className="h-4 w-4" />
+                                                Stop & Save
+                                            </Button>
+                                            <div className="flex gap-2">
+                                                {timerPaused ? (
+                                                    <Button variant="outline" size="sm" className="flex-1 gap-1.5 h-9 border-amber-300 text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 rounded-lg font-medium transition-all" onClick={timerResume}>
+                                                        <Timer className="h-3.5 w-3.5" /> Resume
+                                                    </Button>
+                                                ) : (
+                                                    <Button variant="outline" size="sm" className="flex-1 gap-1.5 h-9 rounded-lg font-medium transition-all" onClick={timerPause}>
+                                                        <Clock className="h-3.5 w-3.5" /> Pause
+                                                    </Button>
+                                                )}
+                                                <Button variant="ghost" size="sm" className="flex-1 gap-1.5 h-9 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 font-medium transition-all" onClick={timerDiscard}>
+                                                    <X className="h-3.5 w-3.5" /> Discard
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                /* ── Idle State: Start Form ── */
+                                <div>
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-4">
+                                            <div className="relative">
+                                                <div className="p-3 rounded-xl bg-gradient-to-br from-primary/15 to-primary/5 dark:from-primary/20 dark:to-primary/5 ring-1 ring-primary/10">
+                                                    <Timer className="h-5 w-5 text-primary" />
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <p className="text-base font-bold text-foreground">Time Tracker</p>
+                                                <p className="text-xs text-muted-foreground mt-0.5">Track billable time for <span className="font-mono font-medium">{matter.matter_number}</span></p>
+                                            </div>
+                                        </div>
+                                        {!timerExpanded && (
+                                            <Button size="sm" className="gap-2 h-9 px-5 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground shadow-md shadow-primary/20 rounded-lg font-semibold transition-all" onClick={() => setTimerExpanded(true)}>
+                                                <Timer className="h-4 w-4" /> Start Timer
+                                            </Button>
+                                        )}
+                                    </div>
+
+                                    {timerExpanded && (
+                                        <div className="space-y-5 mt-5 pt-5 border-t border-border/40">
+                                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                                <div className="space-y-2">
+                                                    <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">Activity</Label>
+                                                    <Select value={timerForm.activity_type} onValueChange={(v) => setTimerForm((p) => ({ ...p, activity_type: v }))}>
+                                                        <SelectTrigger className="h-11 rounded-lg border-border/60"><SelectValue /></SelectTrigger>
+                                                        <SelectContent>
+                                                            {Object.entries(ACTIVITY_LABELS).map(([k, v]) => (
+                                                                <SelectItem key={k} value={k}>{v}</SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">Rate (£/hr)</Label>
+                                                    <div className="relative">
+                                                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">£</span>
+                                                        <Input
+                                                            type="number" step="0.01" min="0" className="h-11 pl-7 rounded-lg border-border/60"
+                                                            value={timerForm.rate}
+                                                            onChange={(e) => setTimerForm((p) => ({ ...p, rate: e.target.value }))}
+                                                            placeholder="Default rate"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">Description</Label>
+                                                <Textarea
+                                                    rows={2}
+                                                    className="resize-none rounded-lg border-border/60"
+                                                    placeholder="What will you be working on?"
+                                                    value={timerForm.description}
+                                                    onChange={(e) => setTimerForm((p) => ({ ...p, description: e.target.value }))}
+                                                />
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => setTimerForm((p) => ({ ...p, billable: !p.billable }))}
+                                                className={cn(
+                                                    'w-full flex items-center justify-between px-4 py-3.5 rounded-xl border-2 transition-all duration-200',
+                                                    timerForm.billable
+                                                        ? 'border-emerald-400/70 bg-gradient-to-r from-emerald-50 to-green-50/50 dark:from-emerald-950/30 dark:to-green-950/20 shadow-sm shadow-emerald-100 dark:shadow-none'
+                                                        : 'border-border/60 bg-muted/20 hover:bg-muted/30',
+                                                )}
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <div className={cn(
+                                                        'h-9 w-9 rounded-lg flex items-center justify-center transition-all duration-200',
+                                                        timerForm.billable ? 'bg-emerald-500 shadow-sm shadow-emerald-200 dark:shadow-emerald-900/30' : 'bg-muted',
+                                                    )}>
+                                                        <PoundSterling className={cn('h-4 w-4 transition-colors', timerForm.billable ? 'text-white' : 'text-muted-foreground')} />
+                                                    </div>
+                                                    <div className="text-left">
+                                                        <p className="text-sm font-semibold">{timerForm.billable ? 'Billable to client' : 'Non-billable'}</p>
+                                                        <p className="text-xs text-muted-foreground">{timerForm.billable ? 'Will appear on invoice' : 'Internal time only'}</p>
+                                                    </div>
+                                                </div>
+                                                <span className={cn(
+                                                    'relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border-2 border-transparent transition-colors duration-200',
+                                                    timerForm.billable ? 'bg-emerald-500' : 'bg-muted-foreground/25',
+                                                )}>
+                                                    <span className={cn(
+                                                        'inline-block h-5 w-5 rounded-full bg-white shadow-md ring-1 ring-black/5 transition-transform duration-200',
+                                                        timerForm.billable ? 'translate-x-5' : 'translate-x-0',
+                                                    )} />
+                                                </span>
+                                            </button>
+                                            <div className="flex gap-2 justify-end pt-1">
+                                                <Button variant="outline" size="sm" className="rounded-lg" onClick={() => setTimerExpanded(false)}>Cancel</Button>
+                                                <Button className="gap-2 h-9 px-5 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground shadow-md shadow-primary/20 rounded-lg font-semibold transition-all" onClick={timerCheckIn} disabled={timerLoading}>
+                                                    <Timer className="h-4 w-4" />
+                                                    {timerLoading ? 'Starting...' : 'Start Tracking'}
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* ─── Timer Checkout Dialog ─── */}
+                    <Dialog open={timerCheckOutOpen} onOpenChange={setTimerCheckOutOpen}>
+                        <DialogContent className="max-w-sm">
+                            <DialogHeader>
+                                <DialogTitle className="flex items-center gap-2.5 text-lg">
+                                    <div className="p-1.5 rounded-lg bg-success/10">
+                                        <CheckSquare className="h-4.5 w-4.5 text-success" />
+                                    </div>
+                                    Confirm Check-out
+                                </DialogTitle>
+                                <DialogDescription>Review your time entry details before saving.</DialogDescription>
+                            </DialogHeader>
+                            <div className="space-y-4 pt-1">
+                                {/* Summary card */}
+                                <div className="rounded-xl bg-muted/30 border border-border/40 p-4 space-y-3">
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Matter</span>
+                                        <span className="font-semibold text-sm truncate max-w-[180px] text-right">{matter.name}</span>
+                                    </div>
+                                    <div className="h-px bg-border/40" />
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Activity</span>
+                                        <span className="text-sm">{ACTIVITY_LABELS[liveActivity] ?? liveActivity}</span>
+                                    </div>
+                                    <div className="h-px bg-border/40" />
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Duration</span>
+                                        <span className="font-mono font-black text-xl tabular-nums">{formatTimerElapsed(timerElapsed)}</span>
+                                    </div>
+                                </div>
+                                {/* Amount highlight */}
+                                {timerForm.rate && (
+                                    <div className="rounded-xl border-2 border-success/20 bg-gradient-to-r from-success/5 to-success/[0.02] p-4 flex items-center justify-between">
+                                        <div>
+                                            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total Amount</span>
+                                            <p className="text-xs text-muted-foreground mt-0.5">@ £{parseFloat(timerForm.rate).toFixed(2)}/hr</p>
+                                        </div>
+                                        <span className="text-2xl font-black text-success tabular-nums">
+                                            {formatCurrency((parseFloat(timerForm.rate) || 0) * (timerElapsed / 3600))}
+                                        </span>
+                                    </div>
+                                )}
+                                {/* Rate input */}
+                                <div className="space-y-2">
+                                    <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">Rate (£/hr)</Label>
+                                    <Input
+                                        type="number" min="0" step="0.01" className="h-10 rounded-lg border-border/60"
+                                        value={timerForm.rate}
+                                        onChange={(e) => setTimerForm((p) => ({ ...p, rate: e.target.value }))}
+                                    />
+                                </div>
+                                {/* Billable toggle */}
+                                <button
+                                    type="button"
+                                    onClick={() => setTimerForm((p) => ({ ...p, billable: !p.billable }))}
+                                    className={cn(
+                                        'w-full flex items-center justify-between px-4 py-3.5 rounded-xl border-2 transition-all duration-200',
+                                        timerForm.billable
+                                            ? 'border-emerald-400/70 bg-gradient-to-r from-emerald-50 to-green-50/50 dark:from-emerald-950/30 dark:to-green-950/20'
+                                            : 'border-border/60 bg-muted/20 hover:bg-muted/30',
+                                    )}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className={cn(
+                                            'h-9 w-9 rounded-lg flex items-center justify-center transition-all duration-200',
+                                            timerForm.billable ? 'bg-emerald-500 shadow-sm' : 'bg-muted',
+                                        )}>
+                                            <PoundSterling className={cn('h-4 w-4 transition-colors', timerForm.billable ? 'text-white' : 'text-muted-foreground')} />
+                                        </div>
+                                        <div className="text-left">
+                                            <p className="text-sm font-semibold">{timerForm.billable ? 'Billable to client' : 'Non-billable'}</p>
+                                            <p className="text-xs text-muted-foreground">{timerForm.billable ? 'Will appear on invoice' : 'Internal time only'}</p>
+                                        </div>
+                                    </div>
+                                    <span className={cn(
+                                        'relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border-2 border-transparent transition-colors duration-200',
+                                        timerForm.billable ? 'bg-emerald-500' : 'bg-muted-foreground/25',
+                                    )}>
+                                        <span className={cn(
+                                            'inline-block h-5 w-5 rounded-full bg-white shadow-md ring-1 ring-black/5 transition-transform duration-200',
+                                            timerForm.billable ? 'translate-x-5' : 'translate-x-0',
+                                        )} />
+                                    </span>
+                                </button>
+                            </div>
+                            <DialogFooter className="gap-2 pt-2">
+                                <Button variant="outline" className="rounded-lg" onClick={() => setTimerCheckOutOpen(false)} disabled={timerLoading}>Back</Button>
+                                <Button
+                                    className="gap-2 h-10 px-6 bg-gradient-to-r from-success to-success/90 hover:from-success/90 hover:to-success text-success-foreground shadow-md shadow-success/20 rounded-lg font-semibold transition-all"
+                                    onClick={timerCheckOut}
+                                    disabled={timerLoading}
+                                >
+                                    <Clock className="h-4 w-4" />
+                                    {timerLoading ? 'Saving...' : 'Check-out & Save'}
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+
+                    <Card className="surface-card">
                     <CardHeader className="flex flex-row items-center justify-between pb-3">
                         <div>
                             <CardTitle className="text-base tracking-tight flex items-center gap-2">
@@ -788,6 +1279,7 @@ export default function ShowMatter({ matter, users }: Props) {
                         )}
                     </CardContent>
                 </Card>
+                </>
             )}
 
             {tab === 'expenses' && (

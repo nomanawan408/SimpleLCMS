@@ -9,8 +9,9 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, Mail, CreditCard, CheckCircle, Printer, XCircle } from 'lucide-react';
+import { ArrowLeft, Mail, CreditCard, CheckCircle, Printer, XCircle, Send } from 'lucide-react';
 import { cn, formatCurrency, formatDate } from '@/lib/utils';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import type { Invoice } from '@/types';
 
 interface InvoiceContact {
@@ -64,12 +65,30 @@ const METHOD_LABELS: Record<string, string> = {
 
 export default function ShowInvoice({ invoice }: Props) {
     const [paymentOpen, setPaymentOpen] = useState(false);
+    const [emailOpen, setEmailOpen] = useState(false);
     const { data, setData, post, processing, errors, reset } = useForm({
         amount:  String(invoice.amount_outstanding ?? invoice.total ?? 0),
         method:  'bank_transfer',
         paid_at: new Date().toISOString().split('T')[0],
         notes:   '',
     });
+
+    const emailContacts = invoice.matter?.contacts ?? [];
+    const defaultEmail = emailContacts[0]?.id ? (emailContacts as any)[0]?.email ?? '' : '';
+    const defaultName = emailContacts[0]?.id ? (emailContacts as any)[0]?.name ?? '' : '';
+
+    const emailForm = useForm({
+        recipient_email: defaultEmail,
+        recipient_name: defaultName,
+        message: '',
+    });
+
+    const handleSendEmail = (e: React.FormEvent) => {
+        e.preventDefault();
+        emailForm.post(`/billing/${invoice.id}/send-email`, {
+            onSuccess: () => { setEmailOpen(false); emailForm.reset(); },
+        });
+    };
 
     const lineItems  = invoice.lineItems ?? invoice.line_items ?? [];
     const payments   = invoice.payments  ?? [];
@@ -272,8 +291,13 @@ export default function ShowInvoice({ invoice }: Props) {
 
                 {/* Action buttons */}
                 <div className="flex flex-wrap gap-3 mb-6">
+                    <Button onClick={() => setEmailOpen(true)} className="gap-2 bg-gradient-to-r from-primary to-primary/90 text-primary-foreground shadow-md shadow-primary/20 rounded-lg font-semibold">
+                        <Send className="h-4 w-4" />
+                        Email Invoice
+                    </Button>
+
                     {invoice.status === 'draft' && (
-                        <Button onClick={() => handleStatusChange('sent')} className="gap-2">
+                        <Button variant="outline" onClick={() => handleStatusChange('sent')} className="gap-2">
                             <Mail className="h-4 w-4" />
                             Mark as Sent
                         </Button>
@@ -293,6 +317,65 @@ export default function ShowInvoice({ invoice }: Props) {
                         </Button>
                     )}
                 </div>
+
+                {/* Email Invoice Modal */}
+                <Dialog open={emailOpen} onOpenChange={setEmailOpen}>
+                    <DialogContent className="max-w-md">
+                        <DialogHeader>
+                            <DialogTitle className="flex items-center gap-2 text-lg">
+                                <div className="p-1.5 rounded-lg bg-primary/10">
+                                    <Send className="h-4 w-4 text-primary" />
+                                </div>
+                                Email Invoice
+                            </DialogTitle>
+                            <DialogDescription>
+                                Send {invoice.invoice_number} to the client with your firm bank details for payment.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <form onSubmit={handleSendEmail} className="space-y-4 pt-2">
+                            <div className="space-y-2">
+                                <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">Recipient Email *</Label>
+                                <Input
+                                    type="email"
+                                    value={emailForm.data.recipient_email}
+                                    onChange={(e) => emailForm.setData('recipient_email', e.target.value)}
+                                    placeholder="client@email.com"
+                                    className="h-10 rounded-lg"
+                                />
+                                {emailForm.errors.recipient_email && <p className="text-xs text-destructive">{emailForm.errors.recipient_email}</p>}
+                            </div>
+                            <div className="space-y-2">
+                                <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">Recipient Name</Label>
+                                <Input
+                                    value={emailForm.data.recipient_name}
+                                    onChange={(e) => emailForm.setData('recipient_name', e.target.value)}
+                                    placeholder="Client name"
+                                    className="h-10 rounded-lg"
+                                />
+                            </div>
+
+                            {/* Preview: what gets included */}
+                            <div className="rounded-xl bg-muted/30 border border-border/40 p-4 space-y-2">
+                                <p className="text-xs font-semibold text-foreground">Email will include:</p>
+                                <ul className="text-xs text-muted-foreground space-y-1">
+                                    <li>- Invoice summary and line items</li>
+                                    <li>- Amount due: <span className="font-bold text-foreground">{formatCurrency(invoice.total)}</span></li>
+                                    <li>- Due date: <span className="font-semibold">{invoice.due_date ? formatDate(invoice.due_date) : 'N/A'}</span></li>
+                                    <li>- Firm bank account details for manual transfer</li>
+                                    <li>- Payment instructions</li>
+                                </ul>
+                            </div>
+
+                            <DialogFooter className="gap-2 pt-2">
+                                <Button type="button" variant="outline" className="rounded-lg" onClick={() => setEmailOpen(false)}>Cancel</Button>
+                                <Button type="submit" disabled={emailForm.processing} className="gap-2 h-10 bg-gradient-to-r from-primary to-primary/90 text-primary-foreground shadow-md shadow-primary/20 rounded-lg font-semibold">
+                                    <Send className="h-4 w-4" />
+                                    {emailForm.processing ? 'Sending...' : 'Send Invoice'}
+                                </Button>
+                            </DialogFooter>
+                        </form>
+                    </DialogContent>
+                </Dialog>
 
                 {/* Record Payment Form */}
                 {paymentOpen && (

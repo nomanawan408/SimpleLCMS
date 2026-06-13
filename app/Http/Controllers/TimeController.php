@@ -215,6 +215,8 @@ class TimeController extends Controller
             'started_at'    => now()->toIso8601String(),
             'activity_type' => $validated['activity_type'] ?? 'other',
             'description'   => $validated['description'] ?? '',
+            'paused_at'     => null,
+            'total_paused_seconds' => 0,
         ];
 
         $matterRate      = is_array($matter->custom_fields) ? ($matter->custom_fields['hourly_rate'] ?? null) : null;
@@ -249,7 +251,13 @@ class TimeController extends Controller
         ]);
 
         $startedAt       = \Carbon\Carbon::parse($sess['started_at']);
-        $durationMinutes = (int) max(1, $startedAt->diffInMinutes(now()));
+        $durationMinutes = (int) max(1, $startedAt->diffInMinutes(now()) - (($sess['total_paused_seconds'] ?? 0) / 60));
+
+        // If currently paused, also subtract the current pause duration
+        if (!empty($sess['paused_at'])) {
+            $currentPause = \Carbon\Carbon::parse($sess['paused_at'])->diffInSeconds(now());
+            $durationMinutes = (int) max(1, $startedAt->diffInMinutes(now()) - (($sess['total_paused_seconds'] + $currentPause) / 60));
+        }
 
         $matter = Matter::where('id', $sess['matter_id'])
             ->where('firm_id', $user->firm_id)
@@ -303,6 +311,47 @@ class TimeController extends Controller
         }
 
         return response()->json(['discarded' => true]);
+    }
+
+    public function pauseSession(Request $request): JsonResponse
+    {
+        $key  = 'active_timer_' . $request->user()->id;
+        $sess = session($key);
+
+        if (!$sess) {
+            return response()->json(['error' => 'No active session.'], 404);
+        }
+
+        if (!empty($sess['paused_at'])) {
+            return response()->json(['error' => 'Session is already paused.'], 409);
+        }
+
+        $sess['paused_at'] = now()->toIso8601String();
+        session([$key => $sess]);
+
+        return response()->json(['session' => $sess]);
+    }
+
+    public function resumeSession(Request $request): JsonResponse
+    {
+        $key  = 'active_timer_' . $request->user()->id;
+        $sess = session($key);
+
+        if (!$sess) {
+            return response()->json(['error' => 'No active session.'], 404);
+        }
+
+        if (empty($sess['paused_at'])) {
+            return response()->json(['error' => 'Session is not paused.'], 409);
+        }
+
+        $pausedAt = \Carbon\Carbon::parse($sess['paused_at']);
+        $pausedSeconds = (int) $pausedAt->diffInSeconds(now());
+        $sess['total_paused_seconds'] = ($sess['total_paused_seconds'] ?? 0) + $pausedSeconds;
+        $sess['paused_at'] = null;
+        session([$key => $sess]);
+
+        return response()->json(['session' => $sess]);
     }
 
     public function startTimer(Request $request): JsonResponse

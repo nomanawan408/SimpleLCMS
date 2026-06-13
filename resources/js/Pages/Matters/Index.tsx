@@ -1,17 +1,27 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatDate, MATTER_STATUS_LABELS, PRACTICE_AREA_LABELS } from '@/lib/utils';
-import { Plus, Search, Filter } from 'lucide-react';
+import { Plus, Search, X } from 'lucide-react';
 import type { Matter, PaginatedData } from '@/types';
 
 interface Props {
     matters: PaginatedData<Matter>;
     filters: { search?: string; status?: string; practice_area?: string };
+}
+
+function useDebounce(value: string, delay: number) {
+    const [debounced, setDebounced] = useState(value);
+    useEffect(() => {
+        const t = setTimeout(() => setDebounced(value), delay);
+        return () => clearTimeout(t);
+    }, [value, delay]);
+    return debounced;
 }
 
 const statusVariant: Record<string, any> = {
@@ -20,38 +30,73 @@ const statusVariant: Record<string, any> = {
 };
 
 export default function MattersIndex({ matters, filters }: Props) {
-    const [search, setSearch] = useState(filters.search ?? '');
+    const [search, setSearch]   = useState(filters.search ?? '');
+    const [status, setStatus]   = useState(filters.status ?? '_all');
+    const [area, setArea]       = useState(filters.practice_area ?? '_all');
+    const debouncedSearch       = useDebounce(search, 300);
+    const isFirstRun            = useRef(true);
 
-    const handleSearch = (e: React.FormEvent) => {
-        e.preventDefault();
-        router.get('/matters', { search }, { preserveState: true });
-    };
+    useEffect(() => {
+        if (isFirstRun.current) { isFirstRun.current = false; return; }
+        router.get('/matters', {
+            search:        debouncedSearch || undefined,
+            status:        status === '_all' ? undefined : status,
+            practice_area: area === '_all' ? undefined : area,
+        }, { preserveState: true, replace: true });
+    }, [debouncedSearch, status, area]);
+
+    const hasFilters = search || status !== '_all' || area !== '_all';
+
+    function clearAll() {
+        setSearch(''); setStatus('_all'); setArea('_all');
+    }
 
     return (
         <AppLayout title="Matters">
             <Head title="Matters" />
 
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-8">
-                <form onSubmit={handleSearch} className="flex gap-2 flex-1 max-w-md">
-                    <div className="relative flex-1">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <div className="flex flex-col gap-3 mb-6">
+                <div className="flex items-center justify-between">
+                    <h1 className="text-2xl font-bold tracking-tight">Matters</h1>
+                    <Button asChild className="gap-2">
+                        <Link href="/matters/create"><Plus className="h-4 w-4" />New Matter</Link>
+                    </Button>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                    <div className="relative flex-1 min-w-[200px]">
+                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/60" />
                         <Input
-                            className="pl-9"
-                            placeholder="Search matters…"
+                            className="pl-8 h-9 text-sm"
+                            placeholder="Search by name, number, client…"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                         />
+                        {search && (
+                            <button onClick={() => setSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                                <X className="h-3.5 w-3.5" />
+                            </button>
+                        )}
                     </div>
-                    <Button type="submit" variant="outline" size="icon">
-                        <Filter className="h-4 w-4" />
-                    </Button>
-                </form>
-                <Button asChild>
-                    <Link href="/matters/create">
-                        <Plus className="h-4 w-4 mr-2" />
-                        New Matter
-                    </Link>
-                </Button>
+                    <Select value={status} onValueChange={setStatus}>
+                        <SelectTrigger className="h-9 w-40 text-sm"><SelectValue placeholder="Status" /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="_all">All statuses</SelectItem>
+                            {Object.entries(MATTER_STATUS_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                    <Select value={area} onValueChange={setArea}>
+                        <SelectTrigger className="h-9 w-44 text-sm"><SelectValue placeholder="Practice area" /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="_all">All areas</SelectItem>
+                            {Object.entries(PRACTICE_AREA_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                    {hasFilters && (
+                        <button onClick={clearAll} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive transition-colors">
+                            <X className="h-3 w-3" />Clear
+                        </button>
+                    )}
+                </div>
             </div>
 
             <Card className="surface-card">

@@ -118,6 +118,7 @@ class MatterController extends Controller
             'users'  => User::where('firm_id', $matter->firm_id)
                 ->where('is_active', true)
                 ->get(['id', 'full_name']),
+            'activeTimer' => session('active_timer_' . $request->user()->id),
         ]);
     }
 

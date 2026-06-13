@@ -67,3 +67,17 @@ export const ROLE_LABELS: Record<string, string> = {
     manager: 'Manager',
     accounts: 'Accounts',
 };
+
+export const CONTACT_TYPE_LABELS: Record<string, string> = {
+    individual: 'Individual',
+    company: 'Company',
+    other_party: 'Other Party',
+};
+
+export const LEAD_STATUS_LABELS: Record<string, string> = {
+    enquiry: 'Enquiry',
+    consultation_booked: 'Consultation Booked',
+    engaged: 'Engaged',
+    matter_opened: 'Matter Opened',
+    declined: 'Declined',
+};

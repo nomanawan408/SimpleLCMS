@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
+use Spatie\Permission\Models\Role;
 
 class UserController extends Controller
 {
@@ -19,12 +20,35 @@ class UserController extends Controller
     {
         $this->authorize('viewAny', User::class);
 
-        $users = User::where('firm_id', $request->user()->firm_id)
+        $firmId = $request->user()->firm_id;
+
+        $users = User::where('firm_id', $firmId)
+            ->with('roles:id,name')
             ->orderBy('full_name')
-            ->paginate(20);
+            ->get(['id', 'full_name', 'email', 'role', 'is_active', 'totp_enabled', 'last_login_at', 'avatar_url', 'created_at']);
+
+        // Get available roles for the firm (firm-specific + global)
+        $roles = Role::where(function ($q) use ($firmId) {
+                $q->where('firm_id', $firmId)->orWhereNull('firm_id');
+            })
+            ->orderByDesc('is_system')
+            ->orderBy('name')
+            ->get(['id', 'name', 'description', 'is_system']);
 
         return Inertia::render('Admin/Users/Index', [
-            'users' => $users,
+            'users' => $users->map(fn ($user) => [
+                'id'            => $user->id,
+                'full_name'     => $user->full_name,
+                'email'         => $user->email,
+                'role'          => $user->role,
+                'roles'         => $user->roles->pluck('name')->toArray(),
+                'is_active'     => $user->is_active,
+                'totp_enabled'  => $user->totp_enabled,
+                'last_login_at' => $user->last_login_at,
+                'avatar_url'    => $user->avatar_url,
+                'created_at'    => $user->created_at,
+            ]),
+            'availableRoles' => $roles,
         ]);
     }
 
@@ -41,12 +65,16 @@ class UserController extends Controller
         }
 
         $tempPassword = Str::password(16);
+        $roleName = $validated['role'];
 
         $user = User::create([
             ...$validated,
             'firm_id'  => $firmId,
             'password' => Hash::make($tempPassword),
         ]);
+
+        // Assign Spatie role
+        $user->assignRole($roleName);
 
         activity()->causedBy($request->user())->performedOn($user)->log('user_invited');
 
@@ -57,7 +85,14 @@ class UserController extends Controller
     {
         $this->authorize('update', $user);
 
-        $user->update($request->validated());
+        $validated = $request->validated();
+
+        // If role is being changed, sync Spatie role
+        if (isset($validated['role'])) {
+            $user->syncRoles([$validated['role']]);
+        }
+
+        $user->update($validated);
 
         activity()->causedBy($request->user())->performedOn($user)->log('user_updated');
 

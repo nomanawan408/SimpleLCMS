@@ -8,21 +8,41 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { formatDate, initials, ROLE_LABELS } from '@/lib/utils';
+import { formatDate, initials } from '@/lib/utils';
 import { Plus, X } from 'lucide-react';
-import type { User } from '@/types';
 
-interface Props {
-    users: User[];
+interface RoleOption {
+    id: number;
+    name: string;
+    description: string | null;
+    is_system: boolean;
 }
 
-export default function UsersIndex({ users }: Props) {
+interface UserItem {
+    id: string;
+    full_name: string;
+    email: string;
+    role: string;
+    roles: string[];
+    is_active: boolean;
+    totp_enabled: boolean;
+    last_login_at: string | null;
+    avatar_url: string | null;
+    created_at: string;
+}
+
+interface Props {
+    users: UserItem[];
+    availableRoles: RoleOption[];
+}
+
+export default function UsersIndex({ users, availableRoles }: Props) {
     const [showInvite, setShowInvite] = useState(false);
 
     const { data, setData, post, processing, errors, reset } = useForm({
         full_name: '',
         email: '',
-        role: 'solicitor',
+        role: availableRoles[0]?.name ?? '',
     });
 
     const submit = (e: React.FormEvent) => {
@@ -90,14 +110,11 @@ export default function UsersIndex({ users }: Props) {
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="solicitor">Solicitor</SelectItem>
-                                            <SelectItem value="lawyer">Lawyer</SelectItem>
-                                            <SelectItem value="barrister">Barrister</SelectItem>
-                                            <SelectItem value="clerk">Clerk</SelectItem>
-                                            <SelectItem value="consultant">Consultant</SelectItem>
-                                            <SelectItem value="administrator">Administrator</SelectItem>
-                                            <SelectItem value="manager">Manager</SelectItem>
-                                            <SelectItem value="accounts">Accounts</SelectItem>
+                                            {availableRoles.map((role) => (
+                                                <SelectItem key={role.id} value={role.name}>
+                                                    <span className="capitalize">{role.name.replace(/_/g, ' ')}</span>
+                                                </SelectItem>
+                                            ))}
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -127,9 +144,17 @@ export default function UsersIndex({ users }: Props) {
                                         <p className="text-xs text-muted-foreground">{user.email}</p>
                                     </div>
                                     <div className="flex items-center gap-2 shrink-0">
-                                        <Badge variant="secondary" className="hidden sm:inline-flex">
-                                            {ROLE_LABELS[user.role] ?? user.role}
-                                        </Badge>
+                                        {user.roles.length > 0 ? (
+                                            user.roles.map((role) => (
+                                                <Badge key={role} variant="secondary" className="hidden sm:inline-flex capitalize">
+                                                    {role.replace(/_/g, ' ')}
+                                                </Badge>
+                                            ))
+                                        ) : (
+                                            <Badge variant="secondary" className="hidden sm:inline-flex capitalize">
+                                                {user.role}
+                                            </Badge>
+                                        )}
                                         {user.totp_enabled && (
                                             <Badge variant="success" className="hidden md:inline-flex text-xs">2FA</Badge>
                                         )}

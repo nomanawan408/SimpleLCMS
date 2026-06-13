@@ -22,6 +22,7 @@ class Contact extends Model
     protected $fillable = [
         'firm_id', 'type', 'name', 'email', 'phone', 'phone_secondary',
         'address', 'national_insurance_number', 'dob', 'company_number',
+        'contact_person_name', 'contact_person_email', 'contact_person_phone',
         'id_verification_status', 'source', 'source_detail', 'tags', 'gdpr_consent_at',
         'gdpr_consent_version', 'marketing_consent', 'conflict_check_cleared_at',
         'lead_status',

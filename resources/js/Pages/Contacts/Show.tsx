@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { formatDate, initials } from '@/lib/utils';
+import { formatDate, initials, CONTACT_TYPE_LABELS, LEAD_STATUS_LABELS } from '@/lib/utils';
 import { ArrowLeft, Mail, Phone, MapPin, Edit, Briefcase } from 'lucide-react';
 import type { Contact, Matter } from '@/types';
 
@@ -107,11 +107,11 @@ export default function ShowContact({ contact }: Props) {
                             )}
                             <div className="flex gap-2 mt-5">
                                 <Badge variant={typeVariant[contact.type]} className="capitalize">
-                                    {contact.type.replace('_', ' ')}
+                                    {CONTACT_TYPE_LABELS[contact.type] || contact.type}
                                 </Badge>
                                 {contact.lead_status && (
                                     <Badge variant={leadVariant[contact.lead_status] ?? 'secondary'} className="capitalize">
-                                        {contact.lead_status.replace('_', ' ')}
+                                        {LEAD_STATUS_LABELS[contact.lead_status] || contact.lead_status.replace('_', ' ')}
                                     </Badge>
                                 )}
                             </div>
@@ -150,6 +150,34 @@ export default function ShowContact({ contact }: Props) {
                                 </div>
                             )}
                         </div>
+
+                        {contact.type === 'company' && ((contact as any).contact_person_name || (contact as any).contact_person_email || (contact as any).contact_person_phone) && (
+                            <>
+                                <Separator className="my-6" />
+                                <div className="space-y-3">
+                                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Contact Person</p>
+                                    {(contact as any).contact_person_name && (
+                                        <p className="text-sm font-medium">{(contact as any).contact_person_name}</p>
+                                    )}
+                                    {(contact as any).contact_person_email && (
+                                        <div className="flex items-center gap-3 text-sm">
+                                            <Mail className="h-4 w-4 text-muted-foreground shrink-0" />
+                                            <a href={`mailto:${(contact as any).contact_person_email}`} className="hover:text-primary truncate transition-colors">
+                                                {(contact as any).contact_person_email}
+                                            </a>
+                                        </div>
+                                    )}
+                                    {(contact as any).contact_person_phone && (
+                                        <div className="flex items-center gap-3 text-sm">
+                                            <Phone className="h-4 w-4 text-muted-foreground shrink-0" />
+                                            <a href={`tel:${(contact as any).contact_person_phone}`} className="hover:text-primary transition-colors">
+                                                {(contact as any).contact_person_phone}
+                                            </a>
+                                        </div>
+                                    )}
+                                </div>
+                            </>
+                        )}
 
                         <Separator className="my-6" />
 

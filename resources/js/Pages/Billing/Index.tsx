@@ -1,5 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -9,6 +9,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Plus, Search, FileText, AlertCircle, CheckCircle, Clock } from 'lucide-react';
 import type { Invoice, PaginatedData } from '@/types';
+
+function useDebounce(value: string, delay: number) {
+    const [debounced, setDebounced] = useState(value);
+    useEffect(() => {
+        const t = setTimeout(() => setDebounced(value), delay);
+        return () => clearTimeout(t);
+    }, [value, delay]);
+    return debounced;
+}
 
 interface Props {
     invoices: PaginatedData<Invoice>;
@@ -41,10 +50,16 @@ const statusLabel: Record<string, string> = {
 export default function BillingIndex({ invoices, stats, filters }: Props) {
     const [search, setSearch] = useState(filters.search ?? '');
     const [status, setStatus] = useState(filters.status ?? 'all');
+    const debounced           = useDebounce(search, 300);
+    const isFirstRun          = useRef(true);
 
-    const handleSearch = () => {
-        router.get('/billing', { search, status: status === 'all' ? undefined : status }, { preserveState: true });
-    };
+    useEffect(() => {
+        if (isFirstRun.current) { isFirstRun.current = false; return; }
+        router.get('/billing', {
+            search: debounced || undefined,
+            status: status === 'all' ? undefined : status,
+        }, { preserveState: true, replace: true });
+    }, [debounced, status]);
 
     return (
         <AppLayout title="Billing">
@@ -103,10 +118,9 @@ export default function BillingIndex({ invoices, stats, filters }: Props) {
                             placeholder="Search invoices..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                         />
                     </div>
-                    <Select value={status} onValueChange={(v) => { setStatus(v); router.get('/billing', { search, status: v === 'all' ? undefined : v }, { preserveState: true }); }}>
+                    <Select value={status} onValueChange={setStatus}>
                         <SelectTrigger className="w-32">
                             <SelectValue placeholder="Status" />
                         </SelectTrigger>

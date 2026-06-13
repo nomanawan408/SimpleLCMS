@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,6 +22,8 @@ interface ActiveSession {
     activity_type: string;
     description: string;
     rate?: number;
+    paused_at?: string | null;
+    total_paused_seconds?: number;
 }
 
 interface Props {
@@ -121,7 +123,10 @@ function getMatterRate(matters: Props['matters'], matterId: string, fallback: nu
 export default function TimeIndex({ entries, stats, users, matters, filters, activeTimer: serverSession, defaultRate, firmVatRate, isAdmin }: Props) {
     const [session, setSession] = useState<ActiveSession | null>(serverSession);
     const [elapsed, setElapsed] = useState(0);
+    const [isPaused, setIsPaused] = useState(!!serverSession?.paused_at);
+    const [pauseElapsed, setPauseElapsed] = useState(0);
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const pauseIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     // Check-in form
     const [checkInForm, setCheckInForm] = useState({ matter_id: '', activity_type: 'other', description: '', rate: String(defaultRate) });
@@ -163,15 +168,39 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
     useEffect(() => {
         if (session) {
             const start = new Date(session.started_at).getTime();
-            const tick = () => setElapsed(Math.floor((Date.now() - start) / 1000));
+            const totalPausedMs = (session.total_paused_seconds ?? 0) * 1000;
+            const tick = () => {
+                const rawElapsed = Math.floor((Date.now() - start) / 1000);
+                const pausedSecs = session.paused_at
+                    ? (session.total_paused_seconds ?? 0) + Math.floor((Date.now() - new Date(session.paused_at).getTime()) / 1000)
+                    : (session.total_paused_seconds ?? 0);
+                setElapsed(Math.max(0, rawElapsed - pausedSecs));
+            };
             tick();
             intervalRef.current = setInterval(tick, 1000);
         } else {
             setElapsed(0);
+            setIsPaused(false);
             if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
         }
         return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
     }, [session]);
+
+    async function handlePause() {
+        const { ok, payload } = await jsonFetch('/time/pause', 'POST', {});
+        if (ok) {
+            setIsPaused(true);
+            setSession((prev) => prev ? { ...prev, paused_at: new Date().toISOString() } : prev);
+        }
+    }
+
+    async function handleResume() {
+        const { ok, payload } = await jsonFetch('/time/resume', 'POST', {});
+        if (ok) {
+            setIsPaused(false);
+            setSession(payload.session);
+        }
+    }
 
     // Live running amount while checked in
     const liveAmount = (() => {
@@ -250,18 +279,26 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
         router.reload({ only: ['entries', 'stats'] });
     }
 
+    const [billableOverrides, setBillableOverrides] = useState<Record<string, boolean>>({});
+
     async function toggleBillable(entry: TimeEntry) {
         if (entry.billed || entry.is_locked) return;
-        await jsonFetch(`/time/${entry.id}`, 'PUT', {
+        const next = !entry.billable;
+        setBillableOverrides((p) => ({ ...p, [entry.id]: next }));
+        const { ok } = await jsonFetch(`/time/${entry.id}`, 'PUT', {
             matter_id: entry.matter_id,
             date: entry.date,
             duration_minutes: entry.duration_minutes,
             rate: entry.rate,
-            billable: !entry.billable,
+            billable: next,
             activity_type: entry.activity_type,
             description: entry.description ?? null,
         });
-        router.reload({ only: ['entries', 'stats'] });
+        if (!ok) {
+            setBillableOverrides((p) => { const n = { ...p }; delete n[entry.id]; return n; });
+        } else {
+            router.reload({ only: ['entries', 'stats'] });
+        }
     }
 
     async function deleteEntry(id: string) {
@@ -286,6 +323,7 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
         setCheckInLoading(false);
         if (!ok) { setCheckInError(payload?.error || 'Check-in failed.'); return; }
         setSession(payload.session);
+        setIsPaused(false);
         setSessionNotes(payload.session.description ?? '');
         setSessionActivity(payload.session.activity_type ?? 'other');
         setCheckOutRate(String(payload.session.rate ?? defaultRate));
@@ -317,12 +355,25 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
         router.reload({ only: ['entries', 'stats'] });
     }
 
+    const [searchInput, setSearchInput] = useState(filters.search ?? '');
+    const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const handleSearchChange = useCallback((value: string) => {
+        setSearchInput(value);
+        if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+        searchDebounceRef.current = setTimeout(() => {
+            const actual = value.trim();
+            router.get('/time', { ...filters, search: actual || undefined }, { preserveState: true, replace: true });
+        }, 300);
+    }, [filters]);
+
     function setFilter(key: string, value: string) {
         const actual = value === '_all' ? '' : value;
-        router.get('/time', { ...filters, [key]: actual || undefined }, { preserveState: true, replace: true });
+        router.get('/time', { ...filters, search: searchInput || undefined, [key]: actual || undefined }, { preserveState: true, replace: true });
     }
 
     function clearFilters() {
+        setSearchInput('');
         router.get('/time', {}, { preserveState: false, replace: true });
     }
 
@@ -391,55 +442,79 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
                 </Button>
             </div>
 
-            {/* Check-in / Active Session Panel */}
+            {/* ─── Check-in / Active Session Panel ─── */}
             {session ? (
-                <div className="mb-6 rounded-xl border border-emerald-200 dark:border-emerald-800/40 bg-gradient-to-br from-emerald-50 to-green-50/60 dark:from-emerald-950/30 dark:to-green-950/20 shadow-sm overflow-hidden">
-                    {/* Top accent bar */}
-                    <div className="h-1 w-full bg-gradient-to-r from-emerald-400 to-green-500" />
-                    <div className="p-5">
-                        <div className="flex flex-col gap-5 md:flex-row md:items-start">
+                <div className="mb-6 rounded-2xl border border-emerald-200/60 dark:border-emerald-800/30 bg-gradient-to-br from-emerald-50/90 via-white to-green-50/40 dark:from-emerald-950/40 dark:via-card dark:to-green-950/20 shadow-lg shadow-emerald-100/50 dark:shadow-emerald-900/20 overflow-hidden transition-all duration-300">
+                    {/* Shimmer accent bar */}
+                    <div className="relative h-1.5 w-full overflow-hidden">
+                        <div className="absolute inset-0 bg-gradient-to-r from-emerald-400 via-teal-400 to-green-500" />
+                        <div className="absolute inset-0 bg-[linear-gradient(90deg,transparent_0%,rgba(255,255,255,0.3)_50%,transparent_100%)] animate-shimmer" />
+                    </div>
+                    <div className="p-5 sm:p-6">
+                        <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
                             {/* Left: timer + meta */}
                             <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2.5 mb-3">
-                                    <span className="relative flex h-2.5 w-2.5">
-                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+                                {/* Status badge */}
+                                <div className="flex items-center gap-3 mb-5">
+                                    <div className={cn(
+                                        "flex items-center gap-2.5 px-3.5 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest transition-colors",
+                                        isPaused
+                                            ? "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400"
+                                            : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400",
+                                    )}>
+                                        <span className="relative flex h-2 w-2">
+                                            <span className={cn("animate-ping absolute inline-flex h-full w-full rounded-full opacity-75", isPaused ? "bg-amber-400" : "bg-emerald-400")} />
+                                            <span className={cn("relative inline-flex rounded-full h-2 w-2", isPaused ? "bg-amber-500" : "bg-emerald-500")} />
+                                        </span>
+                                        {isPaused ? 'Paused' : 'Recording'}
+                                    </div>
+                                    <span className="text-xs text-muted-foreground">
+                                        Started {new Date(session.started_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                     </span>
-                                    <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">Live Session</span>
                                 </div>
+
+                                {/* Matter info */}
                                 <p className="text-xl font-bold truncate text-foreground mb-0.5">{session.matter_name}</p>
-                                <div className="flex items-center gap-3 text-xs text-muted-foreground mb-4">
-                                    <span className="font-mono">{session.matter_number}</span>
-                                    <span>&bull;</span>
-                                    <span>Started {new Date(session.started_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                                    <span>&bull;</span>
-                                    <span>Rate: <strong className="text-foreground">{formatCurrency(Number(checkOutRate) || 0)}/hr</strong></span>
+                                <div className="flex items-center gap-3 text-xs text-muted-foreground mb-5">
+                                    <span className="font-mono font-medium">{session.matter_number}</span>
+                                    <span className="text-border">&bull;</span>
+                                    <span>Rate: <strong className="text-foreground font-semibold">{formatCurrency(Number(checkOutRate) || 0)}/hr</strong></span>
                                 </div>
-                                {/* Big clock */}
-                                <div className="flex items-baseline gap-3 mb-3">
-                                    <span className="font-mono text-5xl font-black text-foreground tabular-nums tracking-tight">{formatElapsed(elapsed)}</span>
+
+                                {/* Clock display card */}
+                                <div className={cn(
+                                    "rounded-xl p-6 mb-5 transition-colors duration-300",
+                                    isPaused
+                                        ? "bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200/50 dark:border-amber-800/30"
+                                        : "bg-emerald-50/70 dark:bg-emerald-950/20 border border-emerald-200/50 dark:border-emerald-800/30",
+                                )}>
+                                    <p className="font-mono text-6xl font-black tabular-nums tracking-tight text-foreground leading-none">
+                                        {formatElapsed(elapsed)}
+                                    </p>
                                 </div>
-                                {/* Running total pill */}
-                                <div className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 bg-emerald-100 dark:bg-emerald-900/40 border border-emerald-200 dark:border-emerald-800/60">
-                                    <PoundSterling className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                                    <span className="text-sm font-bold text-emerald-700 dark:text-emerald-300">{formatCurrency(liveAmount)}</span>
+
+                                {/* Running total */}
+                                <div className="flex flex-wrap items-center gap-3">
+                                    <div className="inline-flex items-center gap-2 rounded-full px-4 py-2 bg-white dark:bg-black/20 border border-border/50 shadow-sm">
+                                        <div className="p-1 rounded-full bg-emerald-100 dark:bg-emerald-900/50">
+                                            <PoundSterling className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+                                        </div>
+                                        <span className="text-sm font-bold text-foreground">{formatCurrency(liveAmount)}</span>
+                                    </div>
                                     {firmVatRate > 0 && (
-                                        <span className="text-xs text-emerald-600/70 dark:text-emerald-400/60">
-                                            +{firmVatRate}% VAT = {formatCurrency(liveAmount * (1 + firmVatRate / 100))}
+                                        <span className="text-xs text-muted-foreground">
+                                            +{firmVatRate}% VAT = <span className="font-semibold text-foreground">{formatCurrency(liveAmount * (1 + firmVatRate / 100))}</span>
                                         </span>
                                     )}
                                 </div>
                             </div>
 
-                            {/* Divider */}
-                            <div className="hidden md:block w-px bg-emerald-200 dark:bg-emerald-800/50 self-stretch" />
-
                             {/* Right: editable fields + actions */}
-                            <div className="flex flex-col gap-3 md:w-64">
+                            <div className="flex flex-col gap-3 lg:w-72 w-full">
                                 <div className="space-y-1.5">
-                                    <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Activity</Label>
+                                    <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">Activity</Label>
                                     <Select value={sessionActivity} onValueChange={setSessionActivity}>
-                                        <SelectTrigger className="h-9 bg-white/70 dark:bg-black/20 border-emerald-200 dark:border-emerald-800/60">
+                                        <SelectTrigger className="h-10 bg-background/60 backdrop-blur-sm border-border/60 rounded-lg">
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -450,53 +525,77 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
                                     </Select>
                                 </div>
                                 <div className="space-y-1.5">
-                                    <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Work Notes</Label>
+                                    <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">Work Notes</Label>
                                     <Textarea
-                                        rows={3} className="resize-none text-sm bg-white/70 dark:bg-black/20 border-emerald-200 dark:border-emerald-800/60"
+                                        rows={3} className="resize-none text-sm bg-background/60 backdrop-blur-sm border-border/60 rounded-lg"
                                         placeholder="What are you working on?"
                                         value={sessionNotes}
                                         onChange={(e) => setSessionNotes(e.target.value)}
                                     />
                                 </div>
-                                <Button
-                                    className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
-                                    onClick={() => setCheckOutOpen(true)}
-                                >
-                                    <LogOut className="h-4 w-4" />
-                                    Check-out &amp; Save
-                                </Button>
-                                <button
-                                    className="text-xs text-muted-foreground/60 hover:text-destructive transition-colors text-center underline underline-offset-2"
-                                    onClick={() => setDiscardConfirm(true)}
-                                >
-                                    Discard session
-                                </button>
+                                <div className="pt-1 space-y-2">
+                                    <Button
+                                        className="w-full gap-2 h-11 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white shadow-md shadow-emerald-200 dark:shadow-emerald-900/30 rounded-lg font-semibold transition-all"
+                                        onClick={() => setCheckOutOpen(true)}
+                                    >
+                                        <LogOut className="h-4 w-4" />
+                                        Check-out & Save
+                                    </Button>
+                                    {isPaused ? (
+                                        <Button
+                                            variant="outline"
+                                            className="w-full gap-2 h-10 border-amber-300 text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 rounded-lg font-medium transition-all"
+                                            onClick={handleResume}
+                                        >
+                                            <Timer className="h-4 w-4" />
+                                            Resume Timer
+                                        </Button>
+                                    ) : (
+                                        <Button
+                                            variant="outline"
+                                            className="w-full gap-2 h-10 rounded-lg font-medium transition-all"
+                                            onClick={handlePause}
+                                        >
+                                            <Clock className="h-4 w-4" />
+                                            Pause / Break
+                                        </Button>
+                                    )}
+                                    <button
+                                        className="w-full text-xs text-muted-foreground/50 hover:text-destructive transition-colors text-center py-1.5"
+                                        onClick={() => setDiscardConfirm(true)}
+                                    >
+                                        Discard session
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             ) : (
-                <Card className="mb-6 border-border/60 surface-card">
-                    <CardHeader className="pb-2 pt-4 px-5">
-                        <CardTitle className="text-sm font-semibold flex items-center gap-2 text-muted-foreground">
-                            <div className="p-1.5 rounded-md bg-primary/10">
-                                <Timer className="h-3.5 w-3.5 text-primary" />
+                <div className="mb-6 rounded-2xl border border-border/50 bg-gradient-to-br from-card via-card to-primary/[0.02] shadow-lg shadow-muted/20 overflow-hidden transition-all duration-300">
+                    {/* Subtle accent bar */}
+                    <div className="h-0.5 w-full bg-gradient-to-r from-primary/60 via-primary/30 to-transparent" />
+                    <div className="p-5 sm:p-6">
+                        <div className="flex items-center gap-4 mb-5">
+                            <div className="p-3 rounded-xl bg-gradient-to-br from-primary/15 to-primary/5 dark:from-primary/20 dark:to-primary/5 ring-1 ring-primary/10">
+                                <Timer className="h-5 w-5 text-primary" />
                             </div>
-                            Start a Timer
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="px-5 pb-4">
-                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 sm:items-end">
-                            <div className="space-y-1.5 sm:col-span-1 lg:col-span-1">
-                                <Label className="text-xs font-medium text-muted-foreground">Matter *</Label>
+                            <div>
+                                <p className="text-base font-bold text-foreground">Start a Timer</p>
+                                <p className="text-xs text-muted-foreground mt-0.5">Begin tracking billable time</p>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 sm:items-end">
+                            <div className="space-y-2 sm:col-span-1 lg:col-span-1">
+                                <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">Matter *</Label>
                                 <Select value={checkInForm.matter_id || '_none'} onValueChange={(v) => {
                                     const id = v === '_none' ? '' : v;
                                     const rate = id ? getMatterRate(matters, id, defaultRate) : defaultRate;
                                     setCheckInForm((p) => ({ ...p, matter_id: id, rate: String(rate) }));
                                 }}>
-                                    <SelectTrigger className="h-9"><SelectValue placeholder="Select matter…" /></SelectTrigger>
+                                    <SelectTrigger className="h-11 rounded-lg border-border/60"><SelectValue placeholder="Select matter..." /></SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="_none">Select matter…</SelectItem>
+                                        <SelectItem value="_none">Select matter...</SelectItem>
                                         {matters.map((m) => (
                                             <SelectItem key={m.id} value={m.id}>
                                                 {m.matter_number} — {m.name}
@@ -515,10 +614,10 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
                                     ) : null;
                                 })()}
                             </div>
-                            <div className="space-y-1.5">
-                                <Label className="text-xs font-medium text-muted-foreground">Activity</Label>
+                            <div className="space-y-2">
+                                <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">Activity</Label>
                                 <Select value={checkInForm.activity_type} onValueChange={(v) => setCheckInForm((p) => ({ ...p, activity_type: v }))}>
-                                    <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                                    <SelectTrigger className="h-11 rounded-lg border-border/60"><SelectValue /></SelectTrigger>
                                     <SelectContent>
                                         {Object.entries(ACTIVITY_LABELS).map(([k, v]) => (
                                             <SelectItem key={k} value={k}>{v}</SelectItem>
@@ -526,10 +625,10 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
                                     </SelectContent>
                                 </Select>
                             </div>
-                            <div className="space-y-1.5">
-                                <Label className="text-xs font-medium text-muted-foreground">Description</Label>
+                            <div className="space-y-2">
+                                <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">Description</Label>
                                 <Input
-                                    className="h-9"
+                                    className="h-11 rounded-lg border-border/60"
                                     placeholder="What are you working on?"
                                     value={checkInForm.description}
                                     onChange={(e) => setCheckInForm((p) => ({ ...p, description: e.target.value }))}
@@ -541,37 +640,37 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
                                 )}
                             </div>
                             <Button
-                                className="h-9 gap-2 shadow-sm"
+                                className="h-11 gap-2 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground shadow-md shadow-primary/20 rounded-lg font-semibold transition-all"
                                 disabled={checkInLoading || !checkInForm.matter_id}
                                 onClick={handleCheckIn}
                             >
                                 <LogIn className="h-4 w-4" />
-                                {checkInLoading ? 'Starting…' : 'Start Timer'}
+                                {checkInLoading ? 'Starting...' : 'Start Timer'}
                             </Button>
                         </div>
                         {checkInError && (
-                            <p className="mt-2 text-xs text-destructive flex items-center gap-1">
+                            <p className="mt-3 text-xs text-destructive flex items-center gap-1.5 bg-destructive/5 px-3 py-2 rounded-lg">
                                 <AlertCircle className="h-3.5 w-3.5" />{checkInError}
                             </p>
                         )}
-                        <p className="mt-3 text-xs text-muted-foreground/70">
-                            Or <button className="underline underline-offset-2 hover:text-foreground transition-colors" onClick={() => openCreate()}>log a manual entry</button>
+                        <p className="mt-4 text-xs text-muted-foreground/60">
+                            Or <button className="underline underline-offset-2 hover:text-foreground transition-colors font-medium" onClick={() => openCreate()}>log a manual entry</button>
                         </p>
-                    </CardContent>
-                </Card>
+                    </div>
+                </div>
             )}
 
             {/* Stats */}
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 mb-6">
                 {stats_cards.map((s) => (
-                    <div key={s.label} className="rounded-xl border border-border/60 bg-card p-4 flex items-center gap-4 shadow-sm hover:shadow-md transition-shadow">
-                        <div className={cn('p-2.5 rounded-xl flex-shrink-0', s.bg)}>
+                    <div key={s.label} className="group rounded-2xl border border-border/50 bg-gradient-to-br from-card to-card/80 p-4 flex items-center gap-4 shadow-sm hover:shadow-lg hover:border-border/80 hover:-translate-y-0.5 transition-all duration-200">
+                        <div className={cn('p-2.5 rounded-xl flex-shrink-0 ring-1 ring-border/30 group-hover:scale-110 transition-transform duration-200', s.bg)}>
                             <s.icon className={cn('h-5 w-5', s.color)} />
                         </div>
                         <div className="min-w-0">
-                            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">{s.label}</p>
+                            <p className="text-[11px] font-bold text-muted-foreground/80 uppercase tracking-widest mb-1">{s.label}</p>
                             <p className={cn('text-2xl font-black tabular-nums leading-none', s.color)}>{s.value}</p>
-                            {s.sub && <p className="text-xs text-muted-foreground mt-0.5">{s.sub}</p>}
+                            {s.sub && <p className="text-xs text-muted-foreground mt-1">{s.sub}</p>}
                         </div>
                     </div>
                 ))}
@@ -597,8 +696,8 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
                                 <Input
                                     className="h-8 pl-8 text-sm"
                                     placeholder="Description or matter…"
-                                    value={filters.search ?? ''}
-                                    onChange={(e) => setFilter('search', e.target.value)}
+                                    value={searchInput}
+                                    onChange={(e) => handleSearchChange(e.target.value)}
                                 />
                             </div>
                         </div>
@@ -670,28 +769,61 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
 
             {/* Bulk action bar */}
             {selectedIds.length > 0 && (
-                <div className="flex items-center gap-3 mb-3 px-4 py-2.5 bg-primary/8 border border-primary/25 rounded-xl">
-                    <div className="flex items-center gap-2">
-                        <div className="h-5 w-5 rounded-full bg-primary flex items-center justify-center">
-                            <span className="text-[10px] font-bold text-primary-foreground">{selectedIds.length}</span>
+                <div className="mb-3 rounded-xl border border-primary/30 bg-gradient-to-r from-primary/8 to-primary/4 shadow-sm overflow-hidden">
+                    <div className="h-0.5 w-full bg-gradient-to-r from-primary to-primary/50" />
+                    <div className="flex items-center gap-4 px-4 py-3">
+                        {/* Selection count badge */}
+                        <div className="flex items-center gap-3">
+                            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center shadow-sm shadow-primary/20">
+                                <span className="text-xs font-bold text-primary-foreground">{selectedIds.length}</span>
+                            </div>
+                            <div>
+                                <p className="text-sm font-bold text-foreground">
+                                    {selectedIds.length} entr{selectedIds.length === 1 ? 'y' : 'ies'} selected
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                    {selectedEntries.reduce((s, e) => s + e.duration_minutes, 0)} min total
+                                </p>
+                            </div>
                         </div>
-                        <span className="text-sm font-semibold">{selectedIds.length} entr{selectedIds.length === 1 ? 'y' : 'ies'} selected</span>
+
+                        <Separator orientation="vertical" className="h-8" />
+
+                        {/* Amount breakdown */}
+                        <div className="flex items-center gap-4">
+                            <div>
+                                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Net</p>
+                                <p className="text-sm font-bold text-foreground tabular-nums">{formatCurrency(selectedTotal)}</p>
+                            </div>
+                            {firmVatRate > 0 && (
+                                <div>
+                                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">+VAT</p>
+                                    <p className="text-sm font-bold text-foreground tabular-nums">{formatCurrency(selectedTotal * (1 + firmVatRate / 100))}</p>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="flex-1" />
+
+                        {/* Actions */}
+                        <div className="flex items-center gap-2">
+                            {selectedMatterIds.length === 1 && (
+                                <Button size="sm" onClick={openInvoiceModal} className="gap-2 h-9 px-4 bg-gradient-to-r from-success to-success/90 hover:from-success/90 hover:to-success text-success-foreground shadow-md shadow-success/20 rounded-lg font-semibold transition-all">
+                                    <Receipt className="h-4 w-4" />
+                                    Create Invoice
+                                </Button>
+                            )}
+                            {selectedMatterIds.length > 1 && (
+                                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/40">
+                                    <AlertCircle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                                    <span className="text-xs font-medium text-amber-700 dark:text-amber-400">Entries must be from a single matter</span>
+                                </div>
+                            )}
+                            <Button size="sm" variant="ghost" className="h-9 gap-1.5 text-muted-foreground hover:text-destructive rounded-lg transition-all" onClick={() => setSelectedIds([])}>
+                                <X className="h-3.5 w-3.5" /> Clear
+                            </Button>
+                        </div>
                     </div>
-                    <Separator orientation="vertical" className="h-4" />
-                    <span className="text-sm font-bold text-primary">{formatCurrency(selectedTotal)}</span>
-                    <div className="flex-1" />
-                    {selectedMatterIds.length === 1 && (
-                        <Button size="sm" onClick={openInvoiceModal} className="gap-2 h-8">
-                            <Receipt className="h-3.5 w-3.5" />
-                            Invoice Selected
-                        </Button>
-                    )}
-                    {selectedMatterIds.length > 1 && (
-                        <span className="text-xs text-muted-foreground">Select entries from a single matter to invoice</span>
-                    )}
-                    <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setSelectedIds([])}>
-                        <X className="h-3.5 w-3.5 mr-1" />Clear
-                    </Button>
                 </div>
             )}
 
@@ -792,22 +924,45 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
                                         <td className="px-4 py-3.5 text-right">
                                             <span className="text-sm font-bold tabular-nums text-foreground">{formatCurrency(Number(entry.amount))}</span>
                                         </td>
-                                        <td className="px-4 py-3.5 text-center">
-                                            <button
-                                                title={entry.billed || entry.is_locked ? undefined : 'Click to toggle billable'}
-                                                disabled={entry.billed || entry.is_locked}
-                                                onClick={() => toggleBillable(entry)}
-                                                className={cn(
-                                                    'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold transition-all',
-                                                    !entry.billed && !entry.is_locked && 'cursor-pointer hover:ring-2 hover:ring-offset-1',
-                                                    entry.billable
-                                                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 hover:ring-emerald-300'
-                                                        : 'bg-muted text-muted-foreground hover:ring-border',
-                                                )}
-                                            >
-                                                <span className={cn('h-1.5 w-1.5 rounded-full', entry.billable ? 'bg-emerald-500' : 'bg-muted-foreground/40')} />
-                                                {entry.billable ? 'Billable' : 'Non-bill'}
-                                            </button>
+                                        <td className="px-4 py-3.5">
+                                            {(() => {
+                                                const isBillable = billableOverrides[entry.id] ?? entry.billable;
+                                                const locked = entry.billed || entry.is_locked;
+                                                return (
+                                                    <button
+                                                        disabled={locked}
+                                                        onClick={() => toggleBillable(entry)}
+                                                        title={locked ? undefined : (isBillable ? 'Mark as non-billable' : 'Mark as billable')}
+                                                        className={cn(
+                                                            'group flex items-center gap-2 focus:outline-none',
+                                                            locked ? 'cursor-default opacity-60' : 'cursor-pointer',
+                                                        )}
+                                                    >
+                                                        {/* Track */}
+                                                        <span className={cn(
+                                                            'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border-2 border-transparent transition-colors duration-200',
+                                                            isBillable
+                                                                ? 'bg-emerald-500'
+                                                                : 'bg-muted-foreground/30',
+                                                            !locked && 'group-hover:ring-2 group-hover:ring-offset-1',
+                                                            !locked && isBillable && 'group-hover:ring-emerald-400',
+                                                            !locked && !isBillable && 'group-hover:ring-muted-foreground/40',
+                                                        )}>
+                                                            {/* Thumb */}
+                                                            <span className={cn(
+                                                                'inline-block h-4 w-4 rounded-full bg-white shadow-md ring-0 transition-transform duration-200',
+                                                                isBillable ? 'translate-x-4' : 'translate-x-0',
+                                                            )} />
+                                                        </span>
+                                                        <span className={cn(
+                                                            'text-[11px] font-semibold whitespace-nowrap',
+                                                            isBillable ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground',
+                                                        )}>
+                                                            {isBillable ? 'Billable' : 'Non-bill'}
+                                                        </span>
+                                                    </button>
+                                                );
+                                            })()}
                                         </td>
                                         <td className="px-4 py-3.5 text-center">
                                             {entry.billed ? (
@@ -1019,16 +1174,38 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
                             />
                         </div>
 
-                        <div className="flex items-center gap-3">
-                            <input
-                                type="checkbox" id="billable-chk" className="h-4 w-4 rounded"
-                                checked={form.billable}
-                                onChange={(e) => setForm((p) => ({ ...p, billable: e.target.checked }))}
-                            />
-                            <label htmlFor="billable-chk" className="text-sm font-medium cursor-pointer">
-                                Billable to client
-                            </label>
-                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setForm((p) => ({ ...p, billable: !p.billable }))}
+                            className={cn(
+                                'w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all',
+                                form.billable
+                                    ? 'border-emerald-400 bg-emerald-50 dark:bg-emerald-950/30'
+                                    : 'border-border bg-muted/30',
+                            )}
+                        >
+                            <div className="flex items-center gap-3">
+                                <div className={cn(
+                                    'h-8 w-8 rounded-lg flex items-center justify-center transition-colors',
+                                    form.billable ? 'bg-emerald-500' : 'bg-muted',
+                                )}>
+                                    <PoundSterling className={cn('h-4 w-4', form.billable ? 'text-white' : 'text-muted-foreground')} />
+                                </div>
+                                <div className="text-left">
+                                    <p className="text-sm font-semibold">{form.billable ? 'Billable to client' : 'Non-billable'}</p>
+                                    <p className="text-xs text-muted-foreground">{form.billable ? 'Will appear on invoice' : 'Internal time only'}</p>
+                                </div>
+                            </div>
+                            <span className={cn(
+                                'relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border-2 border-transparent transition-colors duration-200',
+                                form.billable ? 'bg-emerald-500' : 'bg-muted-foreground/30',
+                            )}>
+                                <span className={cn(
+                                    'inline-block h-5 w-5 rounded-full bg-white shadow-md transition-transform duration-200',
+                                    form.billable ? 'translate-x-5' : 'translate-x-0',
+                                )} />
+                            </span>
+                        </button>
 
                         {formError && <p className="text-sm text-destructive">{formError}</p>}
                     </div>
@@ -1046,70 +1223,84 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
             <Dialog open={invoiceModalOpen} onOpenChange={setInvoiceModalOpen}>
                 <DialogContent className="max-w-md">
                     <DialogHeader>
-                        <DialogTitle>Create Invoice</DialogTitle>
+                        <DialogTitle className="flex items-center gap-2.5 text-lg">
+                            <div className="p-1.5 rounded-lg bg-success/10">
+                                <Receipt className="h-4.5 w-4.5 text-success" />
+                            </div>
+                            Create Invoice
+                        </DialogTitle>
                         <DialogDescription>
-                            Generate an invoice for {selectedIds.length} time {selectedIds.length === 1 ? 'entry' : 'entries'} totalling {formatCurrency(selectedTotal)}.
+                            Generate an invoice from {selectedIds.length} selected time {selectedIds.length === 1 ? 'entry' : 'entries'}.
                         </DialogDescription>
                     </DialogHeader>
 
-                    <div className="space-y-4">
-                        <div className="rounded-lg border border-border/60 divide-y divide-border/60 max-h-48 overflow-y-auto">
-                            {selectedEntries.map((e) => (
-                                <div key={e.id} className="px-3 py-2 flex items-center justify-between text-sm">
-                                    <div>
-                                        <p className="font-medium">{e.description || 'Legal services'}</p>
-                                        <p className="text-xs text-muted-foreground">
-                                            {formatDate(e.date)} · {formatDuration(e.duration_minutes)} · {formatCurrency(Number(e.rate))}/h
-                                        </p>
-                                    </div>
-                                    <span className="font-semibold text-right ml-3">{formatCurrency(Number(e.amount))}</span>
-                                </div>
-                            ))}
-                        </div>
-
-                        <Separator />
-
-                        <div className="flex items-center justify-between text-sm font-semibold">
-                            <span>Subtotal</span>
-                            <span>{formatCurrency(selectedTotal)}</span>
-                        </div>
-                        {firmVatRate > 0 && (
-                            <div className="flex items-center justify-between text-sm text-muted-foreground">
-                                <span>VAT ({firmVatRate}%)</span>
-                                <span>{formatCurrency(selectedTotal * firmVatRate / 100)}</span>
+                    <div className="space-y-4 pt-1">
+                        {/* Entry list */}
+                        <div className="rounded-xl border border-border/40 bg-muted/20 overflow-hidden">
+                            <div className="px-3.5 py-2 bg-muted/30 border-b border-border/40">
+                                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Selected Entries</p>
                             </div>
-                        )}
-                        <div className="flex items-center justify-between font-bold">
-                            <span>Total</span>
-                            <span className="text-success">{formatCurrency(selectedTotal * (1 + firmVatRate / 100))}</span>
+                            <div className="divide-y divide-border/30 max-h-44 overflow-y-auto">
+                                {selectedEntries.map((e) => (
+                                    <div key={e.id} className="px-3.5 py-2.5 flex items-center justify-between">
+                                        <div className="min-w-0 flex-1">
+                                            <p className="text-sm font-medium truncate">{e.description || 'Legal services'}</p>
+                                            <p className="text-[11px] text-muted-foreground mt-0.5">
+                                                {formatDate(e.date)} &middot; {formatDuration(e.duration_minutes)} &middot; {formatCurrency(Number(e.rate))}/h
+                                            </p>
+                                        </div>
+                                        <span className="text-sm font-bold tabular-nums text-foreground ml-3 shrink-0">{formatCurrency(Number(e.amount))}</span>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
 
-                        <Separator />
-
-                        <div className="space-y-2">
-                            <Label>Due Date *</Label>
-                            <Input
-                                type="date" className="h-10"
-                                value={invoiceForm.due_date}
-                                onChange={(e) => setInvoiceForm((p) => ({ ...p, due_date: e.target.value }))}
-                            />
+                        {/* Totals breakdown */}
+                        <div className="rounded-xl border border-success/20 bg-gradient-to-r from-success/5 to-success/[0.02] p-4 space-y-2.5">
+                            <div className="flex items-center justify-between text-sm">
+                                <span className="text-muted-foreground">Subtotal</span>
+                                <span className="font-semibold tabular-nums">{formatCurrency(selectedTotal)}</span>
+                            </div>
+                            {firmVatRate > 0 && (
+                                <div className="flex items-center justify-between text-sm">
+                                    <span className="text-muted-foreground">VAT ({firmVatRate}%)</span>
+                                    <span className="font-semibold tabular-nums">{formatCurrency(selectedTotal * firmVatRate / 100)}</span>
+                                </div>
+                            )}
+                            <div className="h-px bg-success/20" />
+                            <div className="flex items-center justify-between">
+                                <span className="font-bold">Total</span>
+                                <span className="text-lg font-black text-success tabular-nums">{formatCurrency(selectedTotal * (1 + firmVatRate / 100))}</span>
+                            </div>
                         </div>
-                        <div className="space-y-2">
-                            <Label>Invoice Notes</Label>
-                            <Textarea
-                                rows={2} className="resize-none"
-                                value={invoiceForm.notes}
-                                onChange={(e) => setInvoiceForm((p) => ({ ...p, notes: e.target.value }))}
-                                placeholder="Optional notes on the invoice…"
-                            />
+
+                        {/* Due date + notes */}
+                        <div className="grid grid-cols-1 gap-4">
+                            <div className="space-y-2">
+                                <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">Due Date *</Label>
+                                <Input
+                                    type="date" className="h-10 rounded-lg border-border/60"
+                                    value={invoiceForm.due_date}
+                                    onChange={(e) => setInvoiceForm((p) => ({ ...p, due_date: e.target.value }))}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">Invoice Notes</Label>
+                                <Textarea
+                                    rows={2} className="resize-none rounded-lg border-border/60"
+                                    value={invoiceForm.notes}
+                                    onChange={(e) => setInvoiceForm((p) => ({ ...p, notes: e.target.value }))}
+                                    placeholder="Optional notes on the invoice..."
+                                />
+                            </div>
                         </div>
                     </div>
 
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setInvoiceModalOpen(false)} disabled={invoiceSaving}>Cancel</Button>
-                        <Button onClick={submitInvoice} disabled={invoiceSaving || !invoiceForm.due_date} className="gap-2">
+                    <DialogFooter className="gap-2 pt-2">
+                        <Button variant="outline" className="rounded-lg" onClick={() => setInvoiceModalOpen(false)} disabled={invoiceSaving}>Cancel</Button>
+                        <Button onClick={submitInvoice} disabled={invoiceSaving || !invoiceForm.due_date} className="gap-2 h-10 px-6 bg-gradient-to-r from-success to-success/90 hover:from-success/90 hover:to-success text-success-foreground shadow-md shadow-success/20 rounded-lg font-semibold transition-all">
                             <Receipt className="h-4 w-4" />
-                            {invoiceSaving ? 'Creating…' : 'Create Invoice'}
+                            {invoiceSaving ? 'Creating...' : 'Create Invoice'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -1184,16 +1375,38 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
                             <span className="text-lg font-bold text-success">{formatCurrency(liveAmount)}</span>
                         </div>
 
-                        <div className="flex items-center gap-2">
-                            <input
-                                id="billable-chk"
-                                type="checkbox"
-                                className="rounded"
-                                checked={checkOutBillable}
-                                onChange={(e) => setCheckOutBillable(e.target.checked)}
-                            />
-                            <Label htmlFor="billable-chk" className="text-sm cursor-pointer">Mark as billable</Label>
-                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setCheckOutBillable((v) => !v)}
+                            className={cn(
+                                'w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all',
+                                checkOutBillable
+                                    ? 'border-emerald-400 bg-emerald-50 dark:bg-emerald-950/30'
+                                    : 'border-border bg-muted/30',
+                            )}
+                        >
+                            <div className="flex items-center gap-3">
+                                <div className={cn(
+                                    'h-8 w-8 rounded-lg flex items-center justify-center transition-colors',
+                                    checkOutBillable ? 'bg-emerald-500' : 'bg-muted',
+                                )}>
+                                    <PoundSterling className={cn('h-4 w-4', checkOutBillable ? 'text-white' : 'text-muted-foreground')} />
+                                </div>
+                                <div className="text-left">
+                                    <p className="text-sm font-semibold">{checkOutBillable ? 'Billable to client' : 'Non-billable'}</p>
+                                    <p className="text-xs text-muted-foreground">{checkOutBillable ? 'Will appear on invoice' : 'Internal time only'}</p>
+                                </div>
+                            </div>
+                            <span className={cn(
+                                'relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border-2 border-transparent transition-colors duration-200',
+                                checkOutBillable ? 'bg-emerald-500' : 'bg-muted-foreground/30',
+                            )}>
+                                <span className={cn(
+                                    'inline-block h-5 w-5 rounded-full bg-white shadow-md transition-transform duration-200',
+                                    checkOutBillable ? 'translate-x-5' : 'translate-x-0',
+                                )} />
+                            </span>
+                        </button>
                     </div>
 
                     <DialogFooter className="gap-2">

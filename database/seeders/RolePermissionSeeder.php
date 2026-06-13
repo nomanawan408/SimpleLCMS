@@ -75,9 +75,11 @@ class RolePermissionSeeder extends Seeder
         }
 
         $superAdmin = Role::firstOrCreate(['name' => 'super_admin', 'guard_name' => 'web']);
+        $superAdmin->update(['is_system' => true, 'description' => 'Full system access with all permissions']);
         $superAdmin->syncPermissions(Permission::all());
 
         $admin = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
+        $admin->update(['is_system' => true, 'description' => 'Firm administrator with full operational access']);
         $admin->syncPermissions([
             'view_dashboard',
             'manage_matters', 'view_matters', 'create_matters', 'edit_matters',
@@ -95,6 +97,7 @@ class RolePermissionSeeder extends Seeder
         ]);
 
         $solicitor = Role::firstOrCreate(['name' => 'solicitor', 'guard_name' => 'web']);
+        $solicitor->update(['is_system' => true, 'description' => 'Qualified solicitor with case management access']);
         $solicitor->syncPermissions([
             'view_dashboard',
             'view_matters', 'create_matters', 'edit_matters',
@@ -109,6 +112,7 @@ class RolePermissionSeeder extends Seeder
         ]);
 
         $paralegal = Role::firstOrCreate(['name' => 'paralegal', 'guard_name' => 'web']);
+        $paralegal->update(['is_system' => true, 'description' => 'Paralegal with limited case support access']);
         $paralegal->syncPermissions([
             'view_dashboard',
             'view_matters',
@@ -121,6 +125,7 @@ class RolePermissionSeeder extends Seeder
         ]);
 
         $secretary = Role::firstOrCreate(['name' => 'secretary', 'guard_name' => 'web']);
+        $secretary->update(['is_system' => true, 'description' => 'Secretary with read-only case access and admin support']);
         $secretary->syncPermissions([
             'view_dashboard',
             'view_matters',
