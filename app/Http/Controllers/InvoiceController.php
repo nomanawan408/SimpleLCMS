@@ -33,8 +33,8 @@ class InvoiceController extends Controller
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
-                $q->where('invoice_number', 'ilike', "%{$search}%")
-                  ->orWhereHas('matter', fn($mq) => $mq->where('name', 'ilike', "%{$search}%"));
+                $q->where('invoice_number', 'like', "%{$search}%")
+                  ->orWhereHas('matter', fn($mq) => $mq->where('name', 'like', "%{$search}%"));
             });
         }
 

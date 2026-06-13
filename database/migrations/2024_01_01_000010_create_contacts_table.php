@@ -2,7 +2,6 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -10,20 +9,20 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('contacts', function (Blueprint $table) {
-            $table->uuid('id')->primary()->default(DB::raw('gen_random_uuid()'));
+            $table->uuid('id')->primary();
             $table->uuid('firm_id');
             $table->enum('type', ['individual', 'company', 'other_party'])->default('individual');
             $table->string('name');
             $table->string('email')->nullable();
             $table->string('phone')->nullable();
             $table->string('phone_secondary')->nullable();
-            $table->jsonb('address')->default('{}');
+            $table->json('address')->nullable();
             $table->text('national_insurance_number')->nullable();
             $table->text('dob')->nullable();
             $table->string('company_number')->nullable();
             $table->string('id_verification_status')->nullable();
             $table->string('source')->nullable();
-            $table->jsonb('tags')->default('[]');
+            $table->json('tags')->nullable();
             $table->timestamp('gdpr_consent_at')->nullable();
             $table->string('gdpr_consent_version')->nullable();
             $table->boolean('marketing_consent')->default(false);
@@ -37,9 +36,6 @@ return new class extends Migration
             $table->index(['firm_id', 'type']);
             $table->index(['firm_id', 'name']);
         });
-
-        DB::statement('ALTER TABLE contacts ENABLE ROW LEVEL SECURITY');
-        DB::statement("CREATE POLICY firm_isolation ON contacts USING (firm_id = current_setting('app.current_firm_id', true)::uuid)");
     }
 
     public function down(): void

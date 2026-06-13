@@ -2,7 +2,6 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -10,14 +9,14 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('firms', function (Blueprint $table) {
-            $table->uuid('id')->primary()->default(DB::raw('gen_random_uuid()'));
+            $table->uuid('id')->primary();
             $table->string('name');
             $table->string('slug')->unique();
             $table->enum('plan', ['starter', 'professional', 'enterprise'])->default('starter');
             $table->string('vat_number')->nullable();
             $table->string('sra_number')->nullable();
             $table->string('logo_path')->nullable();
-            $table->jsonb('settings')->default('{}');
+            $table->json('settings')->default('{}');
             $table->enum('subscription_status', ['trial', 'active', 'past_due', 'cancelled'])->default('trial');
             $table->timestamp('trial_ends_at')->nullable();
             $table->string('address_line1')->nullable();
@@ -38,13 +37,13 @@ return new class extends Migration
         });
 
         Schema::create('users', function (Blueprint $table) {
-            $table->uuid('id')->primary()->default(DB::raw('gen_random_uuid()'));
-            $table->uuid('firm_id');
+            $table->uuid('id')->primary();
+            $table->uuid('firm_id')->nullable();
             $table->string('full_name');
             $table->string('email');
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password')->nullable();
-            $table->enum('role', ['firm_admin', 'senior_solicitor', 'solicitor', 'paralegal', 'accounts'])->default('solicitor');
+            $table->enum('role', ['super_admin','admin','administrator','solicitor','lawyer','barrister','clerk','consultant','manager','accounts'])->default('solicitor');
             $table->string('phone')->nullable();
             $table->decimal('rate_per_hour', 10, 2)->nullable();
             $table->text('totp_secret')->nullable();
@@ -79,11 +78,6 @@ return new class extends Migration
             $table->longText('payload');
             $table->integer('last_activity')->index();
         });
-
-        DB::statement('ALTER TABLE firms ENABLE ROW LEVEL SECURITY');
-        DB::statement("CREATE POLICY firm_isolation ON firms USING (id = current_setting('app.current_firm_id', true)::uuid)");
-        DB::statement('ALTER TABLE users ENABLE ROW LEVEL SECURITY');
-        DB::statement("CREATE POLICY firm_isolation ON users USING (firm_id = current_setting('app.current_firm_id', true)::uuid)");
     }
 
     public function down(): void

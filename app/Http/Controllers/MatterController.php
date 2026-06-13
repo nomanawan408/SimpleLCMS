@@ -32,8 +32,8 @@ class MatterController extends Controller
 
         if ($request->filled('search')) {
             $query->where(function ($q) use ($request) {
-                $q->where('name', 'ilike', "%{$request->search}%")
-                  ->orWhere('matter_number', 'ilike', "%{$request->search}%");
+                $q->where('name', 'like', "%{$request->search}%")
+                  ->orWhere('matter_number', 'like', "%{$request->search}%");
             });
         }
 

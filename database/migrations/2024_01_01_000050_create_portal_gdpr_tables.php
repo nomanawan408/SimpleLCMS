@@ -2,7 +2,6 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -10,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('portal_sessions', function (Blueprint $table) {
-            $table->uuid('id')->primary()->default(DB::raw('gen_random_uuid()'));
+            $table->uuid('id')->primary();
             $table->uuid('firm_id');
             $table->uuid('matter_id');
             $table->uuid('contact_id');
@@ -27,7 +26,7 @@ return new class extends Migration
         });
 
         Schema::create('portal_messages', function (Blueprint $table) {
-            $table->uuid('id')->primary()->default(DB::raw('gen_random_uuid()'));
+            $table->uuid('id')->primary();
             $table->uuid('firm_id');
             $table->uuid('matter_id');
             $table->uuid('sender_id');
@@ -42,7 +41,7 @@ return new class extends Migration
         });
 
         Schema::create('conflict_checks', function (Blueprint $table) {
-            $table->uuid('id')->primary()->default(DB::raw('gen_random_uuid()'));
+            $table->uuid('id')->primary();
             $table->uuid('firm_id');
             $table->uuid('matter_id')->nullable();
             $table->uuid('performed_by_id');
@@ -57,7 +56,7 @@ return new class extends Migration
         });
 
         Schema::create('gdpr_consents', function (Blueprint $table) {
-            $table->uuid('id')->primary()->default(DB::raw('gen_random_uuid()'));
+            $table->uuid('id')->primary();
             $table->uuid('firm_id');
             $table->uuid('contact_id');
             $table->enum('basis', ['contractual', 'consent', 'legitimate_interest'])->default('contractual');
@@ -73,7 +72,7 @@ return new class extends Migration
         });
 
         Schema::create('dsars', function (Blueprint $table) {
-            $table->uuid('id')->primary()->default(DB::raw('gen_random_uuid()'));
+            $table->uuid('id')->primary();
             $table->uuid('firm_id');
             $table->uuid('contact_id');
             $table->uuid('requested_by_id');
@@ -89,30 +88,19 @@ return new class extends Migration
         });
 
         Schema::create('audit_logs', function (Blueprint $table) {
-            $table->uuid('id')->primary()->default(DB::raw('gen_random_uuid()'));
+            $table->uuid('id')->primary();
             $table->uuid('firm_id');
             $table->uuid('causer_id')->nullable();
             $table->string('causer_type')->nullable();
             $table->uuid('subject_id')->nullable();
             $table->string('subject_type')->nullable();
             $table->string('event');
-            $table->jsonb('old_values')->nullable();
-            $table->jsonb('new_values')->nullable();
+            $table->json('old_values')->nullable();
+            $table->json('new_values')->nullable();
             $table->string('ip_address', 45)->nullable();
             $table->text('user_agent')->nullable();
             $table->timestamp('created_at');
         });
-
-        DB::statement('ALTER TABLE portal_sessions ENABLE ROW LEVEL SECURITY');
-        DB::statement("CREATE POLICY firm_isolation ON portal_sessions USING (firm_id = current_setting('app.current_firm_id', true)::uuid)");
-        DB::statement('ALTER TABLE portal_messages ENABLE ROW LEVEL SECURITY');
-        DB::statement("CREATE POLICY firm_isolation ON portal_messages USING (firm_id = current_setting('app.current_firm_id', true)::uuid)");
-        DB::statement('ALTER TABLE conflict_checks ENABLE ROW LEVEL SECURITY');
-        DB::statement("CREATE POLICY firm_isolation ON conflict_checks USING (firm_id = current_setting('app.current_firm_id', true)::uuid)");
-        DB::statement('ALTER TABLE gdpr_consents ENABLE ROW LEVEL SECURITY');
-        DB::statement("CREATE POLICY firm_isolation ON gdpr_consents USING (firm_id = current_setting('app.current_firm_id', true)::uuid)");
-        DB::statement('ALTER TABLE dsars ENABLE ROW LEVEL SECURITY');
-        DB::statement("CREATE POLICY firm_isolation ON dsars USING (firm_id = current_setting('app.current_firm_id', true)::uuid)");
     }
 
     public function down(): void

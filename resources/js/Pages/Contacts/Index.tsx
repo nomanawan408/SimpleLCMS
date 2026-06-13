@@ -6,8 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { formatDate, initials, CONTACT_TYPE_LABELS, LEAD_STATUS_LABELS } from '@/lib/utils';
+import { formatDate, CONTACT_TYPE_LABELS, LEAD_STATUS_LABELS } from '@/lib/utils';
 import { Plus, Search, X } from 'lucide-react';
 import type { Contact, PaginatedData } from '@/types';
 
@@ -103,62 +102,79 @@ export default function ContactsIndex({ contacts, filters }: Props) {
                             </Button>
                         </div>
                     ) : (
-                        <>
-                            <div className="divide-y divide-border/60">
-                                {contacts.data.map((contact) => (
-                                    <Link
-                                        key={contact.id}
-                                        href={`/contacts/${contact.id}`}
-                                        className="group flex items-center gap-4 px-4 py-3 hover:bg-muted/40 transition-colors"
-                                    >
-                                        <Avatar className="h-9 w-9 shrink-0">
-                                            <AvatarFallback className="bg-primary/10 text-primary text-xs font-medium">
-                                                {initials(contact.name)}
-                                            </AvatarFallback>
-                                        </Avatar>
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">{contact.name}</p>
-                                            <p className="text-xs text-muted-foreground truncate">
-                                                {contact.email ?? contact.phone ?? '—'}
-                                            </p>
-                                        </div>
-                                        <div className="flex items-center gap-2 shrink-0">
-                                            <Badge variant={typeVariant[contact.type]} className="capitalize text-xs">
-                                                {CONTACT_TYPE_LABELS[contact.type] || contact.type}
-                                            </Badge>
-                                            {contact.lead_status && (
-                                                <Badge variant={leadColors[contact.lead_status] ?? 'secondary'} className="capitalize text-xs hidden sm:inline-flex">
-                                                    {LEAD_STATUS_LABELS[contact.lead_status] || contact.lead_status.replace('_', ' ')}
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                                <thead>
+                                    <tr className="border-b bg-muted/30">
+                                        <th className="text-left px-4 py-3 font-medium text-muted-foreground tracking-tight">Name</th>
+                                        <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden md:table-cell tracking-tight">Email</th>
+                                        <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden lg:table-cell tracking-tight">Phone</th>
+                                        <th className="text-left px-4 py-3 font-medium text-muted-foreground tracking-tight">Type</th>
+                                        <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden sm:table-cell tracking-tight">Lead Status</th>
+                                        <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden xl:table-cell tracking-tight">Added</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-border/60">
+                                    {contacts.data.map((contact) => (
+                                        <tr
+                                            key={contact.id}
+                                            className="hover:bg-muted/40 cursor-pointer transition-colors"
+                                            onClick={() => router.visit(`/contacts/${contact.id}`)}
+                                        >
+                                            <td className="px-4 py-3">
+                                                <p className="font-medium">{contact.name}</p>
+                                                {contact.type === 'company' && contact.company_number && (
+                                                    <p className="text-xs text-muted-foreground">#{contact.company_number}</p>
+                                                )}
+                                            </td>
+                                            <td className="px-4 py-3 hidden md:table-cell text-muted-foreground">
+                                                {contact.email ?? '—'}
+                                            </td>
+                                            <td className="px-4 py-3 hidden lg:table-cell text-muted-foreground">
+                                                {contact.phone ?? '—'}
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <Badge variant={typeVariant[contact.type]} className="capitalize text-xs">
+                                                    {CONTACT_TYPE_LABELS[contact.type] || contact.type}
                                                 </Badge>
-                                            )}
-                                            <span className="text-xs text-muted-foreground hidden md:block">
+                                            </td>
+                                            <td className="px-4 py-3 hidden sm:table-cell">
+                                                {contact.lead_status ? (
+                                                    <Badge variant={leadColors[contact.lead_status] ?? 'secondary'} className="capitalize text-xs">
+                                                        {LEAD_STATUS_LABELS[contact.lead_status] || contact.lead_status.replace('_', ' ')}
+                                                    </Badge>
+                                                ) : (
+                                                    <span className="text-muted-foreground">—</span>
+                                                )}
+                                            </td>
+                                            <td className="px-4 py-3 hidden xl:table-cell text-muted-foreground">
                                                 {formatDate(contact.created_at)}
-                                            </span>
-                                        </div>
-                                    </Link>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+
+                    {contacts.last_page > 1 && (
+                        <div className="flex items-center justify-between px-4 py-3 border-t">
+                            <p className="text-sm text-muted-foreground">
+                                Showing {contacts.from}–{contacts.to} of {contacts.total}
+                            </p>
+                            <div className="flex gap-1">
+                                {contacts.links.map((link, i) => (
+                                    <Button
+                                        key={i}
+                                        variant={link.active ? 'default' : 'outline'}
+                                        size="sm"
+                                        disabled={!link.url}
+                                        onClick={() => link.url && router.visit(link.url)}
+                                        dangerouslySetInnerHTML={{ __html: link.label }}
+                                    />
                                 ))}
                             </div>
-
-                            {contacts.last_page > 1 && (
-                                <div className="flex items-center justify-between px-4 py-3 border-t">
-                                    <p className="text-sm text-muted-foreground">
-                                        Showing {contacts.from}–{contacts.to} of {contacts.total}
-                                    </p>
-                                    <div className="flex gap-1">
-                                        {contacts.links.map((link, i) => (
-                                            <Button
-                                                key={i}
-                                                variant={link.active ? 'default' : 'outline'}
-                                                size="sm"
-                                                disabled={!link.url}
-                                                onClick={() => link.url && router.visit(link.url)}
-                                                dangerouslySetInnerHTML={{ __html: link.label }}
-                                            />
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-                        </>
+                        </div>
                     )}
                 </CardContent>
             </Card>

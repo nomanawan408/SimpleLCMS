@@ -16,8 +16,8 @@ class ContactController extends Controller
         $this->authorize('viewAny', Contact::class);
 
         $contacts = Contact::where('firm_id', $request->user()->firm_id)
-            ->when($request->search, fn ($q) => $q->where('name', 'ilike', "%{$request->search}%")
-                ->orWhere('email', 'ilike', "%{$request->search}%"))
+            ->when($request->search, fn ($q) => $q->where('name', 'like', "%{$request->search}%")
+                ->orWhere('email', 'like', "%{$request->search}%"))
             ->when($request->type, fn ($q) => $q->where('type', $request->type))
             ->when($request->lead_status, fn ($q) => $q->where('lead_status', $request->lead_status))
             ->orderBy('name')

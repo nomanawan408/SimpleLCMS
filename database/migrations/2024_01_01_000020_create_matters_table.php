@@ -2,7 +2,6 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -10,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('matters', function (Blueprint $table) {
-            $table->uuid('id')->primary()->default(DB::raw('gen_random_uuid()'));
+            $table->uuid('id')->primary();
             $table->uuid('firm_id');
             $table->string('matter_number');
             $table->string('name');
@@ -24,7 +23,7 @@ return new class extends Migration
             $table->string('court_reference')->nullable();
             $table->timestamp('opened_at')->nullable();
             $table->timestamp('closed_at')->nullable();
-            $table->jsonb('custom_fields')->default('{}');
+            $table->json('custom_fields')->nullable();
             $table->timestamps();
             $table->softDeletes();
 
@@ -47,9 +46,6 @@ return new class extends Migration
             $table->foreign('matter_id')->references('id')->on('matters')->onDelete('cascade');
             $table->foreign('contact_id')->references('id')->on('contacts')->onDelete('cascade');
         });
-
-        DB::statement('ALTER TABLE matters ENABLE ROW LEVEL SECURITY');
-        DB::statement("CREATE POLICY firm_isolation ON matters USING (firm_id = current_setting('app.current_firm_id', true)::uuid)");
     }
 
     public function down(): void

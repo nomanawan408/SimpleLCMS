@@ -2,7 +2,6 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -10,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('time_entries', function (Blueprint $table) {
-            $table->uuid('id')->primary()->default(DB::raw('gen_random_uuid()'));
+            $table->uuid('id')->primary();
             $table->uuid('firm_id');
             $table->uuid('matter_id');
             $table->uuid('user_id');
@@ -37,7 +36,7 @@ return new class extends Migration
         });
 
         Schema::create('expenses', function (Blueprint $table) {
-            $table->uuid('id')->primary()->default(DB::raw('gen_random_uuid()'));
+            $table->uuid('id')->primary();
             $table->uuid('firm_id');
             $table->uuid('matter_id');
             $table->uuid('user_id');
@@ -62,7 +61,7 @@ return new class extends Migration
         });
 
         Schema::create('invoices', function (Blueprint $table) {
-            $table->uuid('id')->primary()->default(DB::raw('gen_random_uuid()'));
+            $table->uuid('id')->primary();
             $table->uuid('firm_id');
             $table->uuid('matter_id');
             $table->string('invoice_number');
@@ -89,7 +88,7 @@ return new class extends Migration
         });
 
         Schema::create('invoice_line_items', function (Blueprint $table) {
-            $table->uuid('id')->primary()->default(DB::raw('gen_random_uuid()'));
+            $table->uuid('id')->primary();
             $table->uuid('invoice_id');
             $table->text('description');
             $table->decimal('quantity', 10, 2)->default(1);
@@ -103,7 +102,7 @@ return new class extends Migration
         });
 
         Schema::create('payments', function (Blueprint $table) {
-            $table->uuid('id')->primary()->default(DB::raw('gen_random_uuid()'));
+            $table->uuid('id')->primary();
             $table->uuid('firm_id');
             $table->uuid('invoice_id');
             $table->decimal('amount', 12, 2);
@@ -119,7 +118,7 @@ return new class extends Migration
         });
 
         Schema::create('trust_entries', function (Blueprint $table) {
-            $table->uuid('id')->primary()->default(DB::raw('gen_random_uuid()'));
+            $table->uuid('id')->primary();
             $table->uuid('firm_id');
             $table->uuid('matter_id');
             $table->enum('type', ['receipt', 'disbursement', 'transfer'])->default('receipt');
@@ -135,17 +134,6 @@ return new class extends Migration
             $table->index('firm_id');
             $table->index(['firm_id', 'matter_id']);
         });
-
-        DB::statement('ALTER TABLE time_entries ENABLE ROW LEVEL SECURITY');
-        DB::statement("CREATE POLICY firm_isolation ON time_entries USING (firm_id = current_setting('app.current_firm_id', true)::uuid)");
-        DB::statement('ALTER TABLE expenses ENABLE ROW LEVEL SECURITY');
-        DB::statement("CREATE POLICY firm_isolation ON expenses USING (firm_id = current_setting('app.current_firm_id', true)::uuid)");
-        DB::statement('ALTER TABLE invoices ENABLE ROW LEVEL SECURITY');
-        DB::statement("CREATE POLICY firm_isolation ON invoices USING (firm_id = current_setting('app.current_firm_id', true)::uuid)");
-        DB::statement('ALTER TABLE payments ENABLE ROW LEVEL SECURITY');
-        DB::statement("CREATE POLICY firm_isolation ON payments USING (firm_id = current_setting('app.current_firm_id', true)::uuid)");
-        DB::statement('ALTER TABLE trust_entries ENABLE ROW LEVEL SECURITY');
-        DB::statement("CREATE POLICY firm_isolation ON trust_entries USING (firm_id = current_setting('app.current_firm_id', true)::uuid)");
     }
 
     public function down(): void

@@ -41,8 +41,8 @@ class TimeController extends Controller
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
-                $q->where('description', 'ilike', "%{$search}%")
-                  ->orWhereHas('matter', fn ($mq) => $mq->where('name', 'ilike', "%{$search}%"));
+                $q->where('description', 'like', "%{$search}%")
+                  ->orWhereHas('matter', fn ($mq) => $mq->where('name', 'like', "%{$search}%"));
             });
         }
 

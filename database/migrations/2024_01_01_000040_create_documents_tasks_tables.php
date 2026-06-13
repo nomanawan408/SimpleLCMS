@@ -2,7 +2,6 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -10,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('documents', function (Blueprint $table) {
-            $table->uuid('id')->primary()->default(DB::raw('gen_random_uuid()'));
+            $table->uuid('id')->primary();
             $table->uuid('firm_id');
             $table->uuid('matter_id');
             $table->uuid('uploaded_by_id');
@@ -26,7 +25,7 @@ return new class extends Migration
             $table->boolean('is_client_visible')->default(false);
             $table->boolean('is_signed')->default(false);
             $table->timestamp('signed_at')->nullable();
-            $table->jsonb('signer_data')->nullable();
+            $table->json('signer_data')->nullable();
             $table->string('docuseal_submission_id')->nullable();
             $table->timestamps();
             $table->softDeletes();
@@ -39,7 +38,7 @@ return new class extends Migration
         });
 
         Schema::create('document_templates', function (Blueprint $table) {
-            $table->uuid('id')->primary()->default(DB::raw('gen_random_uuid()'));
+            $table->uuid('id')->primary();
             $table->uuid('firm_id')->nullable();
             $table->uuid('created_by_id')->nullable();
             $table->string('name');
@@ -53,7 +52,7 @@ return new class extends Migration
         });
 
         Schema::create('tasks', function (Blueprint $table) {
-            $table->uuid('id')->primary()->default(DB::raw('gen_random_uuid()'));
+            $table->uuid('id')->primary();
             $table->uuid('firm_id');
             $table->uuid('matter_id')->nullable();
             $table->uuid('assignee_id')->nullable();
@@ -79,7 +78,7 @@ return new class extends Migration
         });
 
         Schema::create('calendar_events', function (Blueprint $table) {
-            $table->uuid('id')->primary()->default(DB::raw('gen_random_uuid()'));
+            $table->uuid('id')->primary();
             $table->uuid('firm_id');
             $table->uuid('matter_id')->nullable();
             $table->uuid('created_by_id');
@@ -89,7 +88,7 @@ return new class extends Migration
             $table->timestamp('end_at');
             $table->string('location')->nullable();
             $table->string('video_url')->nullable();
-            $table->jsonb('attendees')->default('[]');
+            $table->json('attendees')->nullable();
             $table->string('recurrence_rule')->nullable();
             $table->unsignedInteger('reminder_minutes')->nullable();
             $table->boolean('is_court_date')->default(false);
@@ -107,7 +106,7 @@ return new class extends Migration
         });
 
         Schema::create('notes', function (Blueprint $table) {
-            $table->uuid('id')->primary()->default(DB::raw('gen_random_uuid()'));
+            $table->uuid('id')->primary();
             $table->uuid('firm_id');
             $table->uuid('matter_id');
             $table->uuid('user_id');
@@ -123,15 +122,6 @@ return new class extends Migration
             $table->index('firm_id');
             $table->index(['firm_id', 'matter_id']);
         });
-
-        DB::statement('ALTER TABLE documents ENABLE ROW LEVEL SECURITY');
-        DB::statement("CREATE POLICY firm_isolation ON documents USING (firm_id = current_setting('app.current_firm_id', true)::uuid)");
-        DB::statement('ALTER TABLE tasks ENABLE ROW LEVEL SECURITY');
-        DB::statement("CREATE POLICY firm_isolation ON tasks USING (firm_id = current_setting('app.current_firm_id', true)::uuid)");
-        DB::statement('ALTER TABLE calendar_events ENABLE ROW LEVEL SECURITY');
-        DB::statement("CREATE POLICY firm_isolation ON calendar_events USING (firm_id = current_setting('app.current_firm_id', true)::uuid)");
-        DB::statement('ALTER TABLE notes ENABLE ROW LEVEL SECURITY');
-        DB::statement("CREATE POLICY firm_isolation ON notes USING (firm_id = current_setting('app.current_firm_id', true)::uuid)");
     }
 
     public function down(): void
