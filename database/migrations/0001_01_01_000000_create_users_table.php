@@ -43,7 +43,7 @@ return new class extends Migration
             $table->string('email');
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password')->nullable();
-            $table->enum('role', ['super_admin','admin','administrator','solicitor','lawyer','barrister','clerk','consultant','paralegal','secretary','manager','accounts'])->default('solicitor');
+            $table->string('role')->default('solicitor');
             $table->string('phone')->nullable();
             $table->decimal('rate_per_hour', 10, 2)->nullable();
             $table->text('totp_secret')->nullable();
