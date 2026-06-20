@@ -23,7 +23,7 @@ class UserController extends Controller
         $users = User::where('firm_id', $firmId)
             ->with('roles:id,name')
             ->orderBy('full_name')
-            ->get(['id', 'full_name', 'email', 'role', 'is_active', 'totp_enabled', 'last_login_at', 'avatar_url', 'created_at']);
+            ->get(['id', 'full_name', 'email', 'role', 'phone', 'rate_per_hour', 'is_active', 'totp_enabled', 'last_login_at', 'avatar_url', 'created_at']);
 
         // Get available roles for the firm (firm-specific + global)
         $roles = Role::where(function ($q) use ($firmId) {
@@ -40,6 +40,8 @@ class UserController extends Controller
                 'email'         => $user->email,
                 'role'          => $user->role,
                 'roles'         => $user->roles->pluck('name')->toArray(),
+                'phone'         => $user->phone,
+                'rate_per_hour' => $user->rate_per_hour,
                 'is_active'     => $user->is_active,
                 'totp_enabled'  => $user->totp_enabled,
                 'last_login_at' => $user->last_login_at,
@@ -83,15 +85,45 @@ class UserController extends Controller
 
         $validated = $request->validated();
 
-        // If role is being changed, sync Spatie role
         if (isset($validated['role'])) {
             $user->syncRoles([$validated['role']]);
+            $user->role = $validated['role'];
+            unset($validated['role']);
         }
 
-        $user->update($validated);
+        $user->fill($validated);
+        $user->save();
 
         activity()->causedBy($request->user())->performedOn($user)->log('user_updated');
 
         return back()->with('success', 'User updated.');
+    }
+
+    public function destroy(Request $request, User $user): RedirectResponse
+    {
+        $this->authorize('delete', $user);
+
+        $user->syncRoles([]);
+        $user->delete();
+
+        activity()->causedBy($request->user())->performedOn($user)->log('user_deleted');
+
+        return back()->with('success', "User {$user->full_name} has been removed.");
+    }
+
+    public function resetPassword(Request $request, User $user): RedirectResponse
+    {
+        $this->authorize('update', $user);
+
+        $validated = $request->validate([
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
+
+        $user->password = $validated['password'];
+        $user->save();
+
+        activity()->causedBy($request->user())->performedOn($user)->log('password_reset');
+
+        return back()->with('success', "Password reset for {$user->full_name}.");
     }
 }

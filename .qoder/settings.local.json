@@ -11,7 +11,11 @@
       "Bash(cd \"/run/media/nomanawan408/01DB5A2EB99B4DC0/LARAVEL PROJECT/Laywer Case Management/simpleLawyer\" && PGPASSWORD=password psql -h 127.0.0.1 -U postgres -d simplelaw -c \"\\\\d model_has_roles\" 2>&1 && PGPASSWORD=password psql -h 127.0.0.1 -U postgres -d simplelaw -c \"\\\\d permissions\" 2>&1)",
       "Bash(mkdir:*)",
       "Bash(find \"/run/media/nomanawan408/01DB5A2EB99B4DC0/LARAVEL PROJECT/Laywer Case Management/simpleLawyer/app/Http/Controllers/SuperAdmin\" -type f 2>/dev/null && echo \"---\" && find \"/run/media/nomanawan408/01DB5A2EB99B4DC0/LARAVEL PROJECT/Laywer Case Management/simpleLawyer/resources/js/Pages/SuperAdmin\" -type f 2>/dev/null || echo \"No SuperAdmin pages dir\")",
-      "Bash(php artisan tinker --execute=\"echo App\\\\Models\\\\User::select\\('id','full_name','email','role','is_active','firm_id'\\)->get\\(\\)->toJson\\(JSON_PRETTY_PRINT\\);\" 2>&1)"
+      "Bash(php artisan tinker --execute=\"echo App\\\\Models\\\\User::select\\('id','full_name','email','role','is_active','firm_id'\\)->get\\(\\)->toJson\\(JSON_PRETTY_PRINT\\);\" 2>&1)",
+      "Bash(php artisan test --filter=AdminUserTest 2>&1)",
+      "Bash(php artisan test --filter=UserModuleTest 2>&1)",
+      "Bash(php artisan --version 2>&1)",
+      "Bash(php artisan route:list --path=admin/users --json 2>&1 | head -30)"
     ]
   }
 }

@@ -15,9 +15,11 @@ class AdminUserTest extends TestCase
         [$firm, $admin] = $this->createFirmAndAdmin();
 
         $this->actingAsUser($admin)->post('/admin/users', [
-            'full_name' => 'New Solicitor',
-            'email'     => 'new@example.com',
-            'role'      => 'solicitor',
+            'full_name'             => 'New Solicitor',
+            'email'                 => 'new@example.com',
+            'password'              => 'Password123!',
+            'password_confirmation' => 'Password123!',
+            'role'                  => 'solicitor',
         ])->assertRedirect();
 
         $this->assertDatabaseHas('users', [
@@ -32,9 +34,11 @@ class AdminUserTest extends TestCase
         [$firm, $admin] = $this->createFirmAndAdmin();
 
         $this->actingAsUser($admin)->post('/admin/users', [
-            'full_name' => 'Bad Role User',
-            'email'     => 'bad@example.com',
-            'role'      => 'administrator',
+            'full_name'             => 'Bad Role User',
+            'email'                 => 'bad@example.com',
+            'password'              => 'Password123!',
+            'password_confirmation' => 'Password123!',
+            'role'                  => 'nonexistent_role',
         ])->assertSessionHasErrors('role');
     }
 
@@ -52,9 +56,11 @@ class AdminUserTest extends TestCase
         User::factory()->forFirm($firm)->create(['email' => 'existing@example.com']);
 
         $this->actingAsUser($admin)->post('/admin/users', [
-            'full_name' => 'Duplicate',
-            'email'     => 'existing@example.com',
-            'role'      => 'solicitor',
+            'full_name'             => 'Duplicate',
+            'email'                 => 'existing@example.com',
+            'password'              => 'Password123!',
+            'password_confirmation' => 'Password123!',
+            'role'                  => 'solicitor',
         ])->assertSessionHasErrors('email');
     }
 
@@ -62,25 +68,28 @@ class AdminUserTest extends TestCase
     {
         [$firm, $admin] = $this->createFirmAndAdmin();
         $user = User::factory()->forFirm($firm)->create(['role' => 'solicitor']);
+        $user->assignRole('solicitor');
 
         $this->actingAsUser($admin)->put("/admin/users/{$user->id}", [
-            'role' => 'senior_solicitor',
+            'role' => 'clerk',
         ])->assertRedirect();
 
-        $this->assertDatabaseHas('users', ['id' => $user->id, 'role' => 'senior_solicitor']);
+        $this->assertDatabaseHas('users', ['id' => $user->id, 'role' => 'clerk']);
     }
 
     public function test_valid_roles_accepted(): void
     {
         [$firm, $admin] = $this->createFirmAndAdmin();
 
-        $validRoles = ['firm_admin', 'senior_solicitor', 'solicitor', 'paralegal', 'accounts'];
+        $validRoles = ['admin', 'administrator', 'solicitor', 'lawyer', 'barrister', 'clerk', 'consultant', 'paralegal', 'secretary', 'manager', 'accounts'];
 
         foreach ($validRoles as $i => $role) {
             $this->actingAsUser($admin)->post('/admin/users', [
-                'full_name' => "User {$i}",
-                'email'     => "user{$i}@example.com",
-                'role'      => $role,
+                'full_name'             => "User {$i}",
+                'email'                 => "user{$i}@example.com",
+                'password'              => 'Password123!',
+                'password_confirmation' => 'Password123!',
+                'role'                  => $role,
             ])->assertRedirect();
         }
 

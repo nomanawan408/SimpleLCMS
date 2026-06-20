@@ -181,9 +181,9 @@ export default function RolesIndex({ roles, groupedPermissions }: Props) {
                                             </>
                                         )}
                                         {role.is_builtin && (
-                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(role)}>
-                                                <Lock className="h-3.5 w-3.5 text-muted-foreground" />
-                                            </Button>
+                                            <span title="Built-in role — cannot be modified" className="flex items-center justify-center h-7 w-7">
+                                                <Lock className="h-3.5 w-3.5 text-muted-foreground/50" />
+                                            </span>
                                         )}
                                     </div>
                                 </div>

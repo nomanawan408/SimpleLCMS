@@ -89,7 +89,7 @@ class RolePermissionSeeder extends Seeder
             'manage_invoices', 'view_invoices', 'create_invoices', 'edit_invoices',
             'manage_trust', 'view_trust', 'create_trust_entries', 'edit_trust_entries',
             'manage_documents', 'view_documents', 'upload_documents',
-            'manage_users', 'view_users', 'create_users', 'edit_users',
+            'manage_users', 'view_users', 'create_users', 'edit_users', 'delete_users',
             'view_firm_settings',
             'manage_calendar', 'view_calendar', 'create_events', 'edit_events',
             'manage_tasks', 'view_tasks', 'create_tasks', 'edit_tasks',
@@ -135,6 +135,105 @@ class RolePermissionSeeder extends Seeder
             'view_documents', 'upload_documents',
             'view_calendar', 'create_events',
             'view_tasks',
+        ]);
+
+        $clerk = Role::firstOrCreate(['name' => 'clerk', 'guard_name' => 'web']);
+        $clerk->update(['is_system' => true, 'description' => 'Clerk with administrative support access']);
+        $clerk->syncPermissions([
+            'view_dashboard',
+            'view_matters',
+            'view_contacts', 'create_contacts', 'edit_contacts',
+            'view_time_entries',
+            'view_documents', 'upload_documents',
+            'view_calendar', 'create_events',
+            'view_tasks', 'create_tasks',
+        ]);
+
+        $lawyer = Role::firstOrCreate(['name' => 'lawyer', 'guard_name' => 'web']);
+        $lawyer->update(['is_system' => true, 'description' => 'Lawyer with full case management access']);
+        $lawyer->syncPermissions([
+            'view_dashboard',
+            'view_matters', 'create_matters', 'edit_matters',
+            'view_contacts', 'create_contacts', 'edit_contacts',
+            'view_time_entries', 'create_time_entries', 'edit_time_entries',
+            'view_expenses', 'create_expenses',
+            'view_documents', 'upload_documents',
+            'view_calendar', 'create_events', 'edit_events',
+            'view_tasks', 'create_tasks', 'edit_tasks',
+            'view_reports',
+        ]);
+
+        $barrister = Role::firstOrCreate(['name' => 'barrister', 'guard_name' => 'web']);
+        $barrister->update(['is_system' => true, 'description' => 'Barrister with court-focused access']);
+        $barrister->syncPermissions([
+            'view_dashboard',
+            'view_matters', 'edit_matters',
+            'view_contacts',
+            'view_time_entries', 'create_time_entries',
+            'view_documents', 'upload_documents',
+            'view_calendar', 'create_events', 'edit_events',
+            'view_tasks', 'create_tasks',
+            'view_reports',
+        ]);
+
+        $consultant = Role::firstOrCreate(['name' => 'consultant', 'guard_name' => 'web']);
+        $consultant->update(['is_system' => true, 'description' => 'Consultant with advisory access']);
+        $consultant->syncPermissions([
+            'view_dashboard',
+            'view_matters',
+            'view_contacts',
+            'view_time_entries', 'create_time_entries',
+            'view_documents', 'upload_documents',
+            'view_calendar', 'create_events',
+            'view_tasks', 'create_tasks', 'edit_tasks',
+            'view_reports',
+        ]);
+
+        $manager = Role::firstOrCreate(['name' => 'manager', 'guard_name' => 'web']);
+        $manager->update(['is_system' => true, 'description' => 'Manager with team oversight and reporting access']);
+        $manager->syncPermissions([
+            'view_dashboard',
+            'view_matters', 'create_matters', 'edit_matters',
+            'view_contacts', 'create_contacts', 'edit_contacts',
+            'view_time_entries', 'create_time_entries', 'edit_time_entries',
+            'view_expenses', 'create_expenses', 'edit_expenses',
+            'view_invoices',
+            'view_documents', 'upload_documents',
+            'view_calendar', 'create_events', 'edit_events',
+            'view_tasks', 'create_tasks', 'edit_tasks',
+            'view_reports', 'export_data',
+            'view_users',
+        ]);
+
+        $accounts = Role::firstOrCreate(['name' => 'accounts', 'guard_name' => 'web']);
+        $accounts->update(['is_system' => true, 'description' => 'Accounts role with billing and financial access']);
+        $accounts->syncPermissions([
+            'view_dashboard',
+            'view_matters',
+            'view_contacts',
+            'view_time_entries',
+            'view_expenses', 'create_expenses', 'edit_expenses',
+            'view_invoices', 'create_invoices', 'edit_invoices',
+            'view_trust', 'create_trust_entries', 'edit_trust_entries',
+            'view_documents',
+            'view_calendar',
+            'view_tasks',
+            'view_reports', 'export_data',
+        ]);
+
+        $administrator = Role::firstOrCreate(['name' => 'administrator', 'guard_name' => 'web']);
+        $administrator->update(['is_system' => true, 'description' => 'Administrator with broad operational access']);
+        $administrator->syncPermissions([
+            'view_dashboard',
+            'view_matters', 'create_matters', 'edit_matters',
+            'view_contacts', 'create_contacts', 'edit_contacts',
+            'view_time_entries', 'create_time_entries', 'edit_time_entries',
+            'view_expenses', 'create_expenses', 'edit_expenses',
+            'view_invoices', 'create_invoices', 'edit_invoices',
+            'view_documents', 'upload_documents',
+            'manage_calendar', 'view_calendar', 'create_events', 'edit_events',
+            'view_tasks', 'create_tasks', 'edit_tasks',
+            'view_reports', 'export_data',
         ]);
 
         $this->command->info('Roles and permissions created successfully.');

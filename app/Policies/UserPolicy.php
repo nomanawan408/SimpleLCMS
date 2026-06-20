@@ -35,4 +35,14 @@ class UserPolicy
             && $user->hasPermissionTo('delete_users')
             && $user->id !== $target->id;
     }
+
+    public function editAny(User $user): bool
+    {
+        return $user->is_active && $user->hasPermissionTo('edit_users');
+    }
+
+    public function deleteAny(User $user): bool
+    {
+        return $user->is_active && $user->hasPermissionTo('delete_users');
+    }
 }

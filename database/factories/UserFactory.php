@@ -32,7 +32,7 @@ class UserFactory extends Factory
 
     public function firmAdmin(): static
     {
-        return $this->state(fn () => ['role' => 'firm_admin']);
+        return $this->state(fn () => ['role' => 'admin']);
     }
 
     public function accounts(): static
@@ -40,9 +40,14 @@ class UserFactory extends Factory
         return $this->state(fn () => ['role' => 'accounts']);
     }
 
-    public function seniorSolicitor(): static
+    public function solicitor(): static
     {
-        return $this->state(fn () => ['role' => 'senior_solicitor']);
+        return $this->state(fn () => ['role' => 'solicitor']);
+    }
+
+    public function clerk(): static
+    {
+        return $this->state(fn () => ['role' => 'clerk']);
     }
 
     public function forFirm(Firm $firm): static

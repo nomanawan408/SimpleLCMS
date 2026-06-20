@@ -134,7 +134,9 @@ export default function Dashboard({ stats, recentMatters, upcomingTasks }: Props
                                         <div className="flex-1 min-w-0">
                                             <p className="text-sm font-medium truncate">{task.title}</p>
                                             <p className="text-xs text-muted-foreground">
-                                                Due {formatDate(task.due_date)}
+                                                {task.due_date
+                                                    ? `Due ${formatDate(task.due_date)}`
+                                                    : 'No due date'}
                                                 {task.assignee && ` · ${task.assignee.full_name}`}
                                             </p>
                                         </div>

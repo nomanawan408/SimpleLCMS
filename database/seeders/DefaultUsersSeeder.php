@@ -102,6 +102,59 @@ class DefaultUsersSeeder extends Seeder
             $matter->contacts()->attach($contact->id, ['role' => 'client']);
         }
 
+        // ── Demo Tasks ──
+        \App\Models\Task::updateOrCreate(
+            ['firm_id' => $firm->id, 'title' => 'Prepare witness statement for Smith v Jones'],
+            [
+                'matter_id'     => $matter->id,
+                'assignee_id'   => $admin->id,
+                'created_by_id' => $admin->id,
+                'description'   => 'Draft the witness statement and review with client before submission.',
+                'due_date'      => now()->addDays(2),
+                'priority'      => 'high',
+                'status'        => 'todo',
+            ]
+        );
+
+        \App\Models\Task::updateOrCreate(
+            ['firm_id' => $firm->id, 'title' => 'File bundle for upcoming hearing'],
+            [
+                'matter_id'     => $matter->id,
+                'assignee_id'   => $admin->id,
+                'created_by_id' => $admin->id,
+                'description'   => 'Compile and index the court bundle, ensure all exhibits are paginated.',
+                'due_date'      => now()->addDays(5),
+                'priority'      => 'medium',
+                'status'        => 'todo',
+            ]
+        );
+
+        \App\Models\Task::updateOrCreate(
+            ['firm_id' => $firm->id, 'title' => 'Send client care letter to John Smith'],
+            [
+                'matter_id'     => $matter->id,
+                'assignee_id'   => $admin->id,
+                'created_by_id' => $admin->id,
+                'description'   => 'Send the standard client care letter with terms of engagement.',
+                'due_date'      => now()->addDay(),
+                'priority'      => 'low',
+                'status'        => 'in_progress',
+            ]
+        );
+
+        \App\Models\Task::updateOrCreate(
+            ['firm_id' => $firm->id, 'title' => 'Review land registry documents'],
+            [
+                'matter_id'     => $matter->id,
+                'assignee_id'   => $admin->id,
+                'created_by_id' => $admin->id,
+                'description'   => 'Review the title deeds and boundary plan from Land Registry.',
+                'due_date'      => null,
+                'priority'      => 'medium',
+                'status'        => 'todo',
+            ]
+        );
+
         $this->command->info('');
         $this->command->info('=== Seed Complete ===');
         $this->command->info('');

@@ -69,8 +69,8 @@ class DashboardController extends Controller
 
         $upcomingTasks = Task::where('firm_id', $firmId)
             ->where('status', '!=', 'done')
-            ->whereDate('due_date', '>=', $today)
-            ->orderBy('due_date')
+            ->with('assignee')
+            ->orderByRaw('due_date IS NULL, due_date ASC')
             ->take(5)
             ->get();
 

@@ -110,7 +110,7 @@ class RoleController extends Controller
 
     public function update(Request $request, Role $role): RedirectResponse
     {
-        $this->authorize('update', \App\Models\User::class);
+        $this->authorize('editAny', \App\Models\User::class);
 
         // Prevent editing built-in roles
         if (in_array($role->name, self::BUILT_IN_ROLES)) {
@@ -148,7 +148,7 @@ class RoleController extends Controller
 
     public function destroy(Request $request, Role $role): RedirectResponse
     {
-        $this->authorize('delete', \App\Models\User::class);
+        $this->authorize('deleteAny', \App\Models\User::class);
 
         // Prevent deleting built-in roles
         if (in_array($role->name, self::BUILT_IN_ROLES)) {
