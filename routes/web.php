@@ -64,6 +64,8 @@ Route::middleware(['auth', 'set.tenant', 'requires.two.factor', 'redirect.super.
 
     // Matters
     Route::resource('matters', MatterController::class);
+    Route::put('/matters/{matter}/hearing-date', [MatterController::class, 'updateHearingDate'])->name('matters.hearing-date');
+    Route::put('/matters/{matter}/deadline', [MatterController::class, 'updateDeadline'])->name('matters.deadline');
     Route::post('/matters/{matter}/notes', [MatterNoteController::class, 'store'])->name('matters.notes.store');
     Route::post('/matters/{matter}/time-entries', [MatterTimeEntryController::class, 'store'])->name('matters.time-entries.store');
     Route::post('/matters/{matter}/expenses', [MatterExpenseController::class, 'store'])->name('matters.expenses.store');

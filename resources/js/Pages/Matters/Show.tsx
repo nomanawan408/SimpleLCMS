@@ -14,7 +14,7 @@ import { cn, formatCurrency, formatDate, MATTER_STATUS_LABELS, PRACTICE_AREA_LAB
 import {
     ArrowLeft, Clock, Receipt, Wallet, FileText, CheckSquare, Users, Edit, Plus, Download,
     Gavel, Calendar, TrendingUp, AlertTriangle, ChevronRight, MessageSquare, Timer,
-    Paperclip, ExternalLink, DollarSign, PoundSterling, Eye, X,
+    Paperclip, ExternalLink, DollarSign, PoundSterling, Eye, X, Pencil, Trash2,
 } from 'lucide-react';
 import type { Matter, Expense, Document, TrustEntry, User } from '@/types';
 
@@ -227,6 +227,7 @@ export default function ShowMatter({ matter, users, activeTimer: serverTimer }: 
     const [taskModalOpen, setTaskModalOpen] = useState(false);
     const [taskSaving, setTaskSaving] = useState(false);
     const [taskError, setTaskError] = useState<string | null>(null);
+    const [editingTask, setEditingTask] = useState<any>(null);
     const [taskForm, setTaskForm] = useState({
         title: '',
         description: '',
@@ -392,37 +393,89 @@ export default function ShowMatter({ matter, users, activeTimer: serverTimer }: 
     };
 
     const openTaskModal = () => {
+        setEditingTask(null);
         setTaskError(null);
         setTaskForm({ title: '', description: '', due_date: '', priority: 'medium', assignee_id: '' });
         setTaskModalOpen(true);
+    };
+
+    const openEditTask = (task: any) => {
+        setEditingTask(task);
+        setTaskError(null);
+        setTaskForm({
+            title: task.title,
+            description: task.description ?? '',
+            due_date: task.due_date ?? '',
+            priority: task.priority,
+            assignee_id: task.assignee_id ?? '',
+        });
+        setTaskModalOpen(true);
+    };
+
+    const deleteTask = async (task: any) => {
+        if (!confirm(`Delete task "${task.title}"?`)) return;
+        try {
+            const token = (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement | null)?.content;
+            const res = await fetch(`/tasks/${task.id}`, {
+                method: 'DELETE',
+                headers: { Accept: 'application/json', ...(token ? { 'X-CSRF-TOKEN': token } : {}) },
+            });
+            if (res.ok) {
+                setTasks((prev) => prev.filter((t: any) => t.id !== task.id));
+            }
+        } catch {}
     };
 
     const saveTask = async () => {
         setTaskSaving(true);
         setTaskError(null);
         try {
+            const isEdit = !!editingTask;
+            const url = isEdit ? `/tasks/${editingTask.id}` : '/tasks';
+            const method = isEdit ? 'PUT' : 'POST';
+
             const body: Record<string, unknown> = {
                 title: taskForm.title,
-                matter_id: matter.id,
                 priority: taskForm.priority,
-                status: 'todo',
             };
+            if (!isEdit) {
+                body.matter_id = matter.id;
+                body.status = 'todo';
+            } else if (editingTask) {
+                body.status = editingTask.status;
+            }
             if (taskForm.description) body.description = taskForm.description;
             if (taskForm.due_date) body.due_date = taskForm.due_date;
             if (taskForm.assignee_id) body.assignee_id = taskForm.assignee_id;
 
-            const { ok, payload } = await postJson('/tasks', body);
-            if (!ok) {
+            const token = (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement | null)?.content;
+            const res = await fetch(url, {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                    ...(token ? { 'X-CSRF-TOKEN': token } : {}),
+                },
+                body: JSON.stringify(body),
+            });
+
+            const payload = await res.json().catch(() => null);
+            if (!res.ok) {
                 const msg = payload?.errors
                     ? Object.values(payload.errors as Record<string, string[]>)?.[0]?.[0]
                     : null;
-                setTaskError(msg || payload?.message || 'Unable to add task.');
+                setTaskError(msg || payload?.message || 'Unable to save task.');
                 return;
             }
-            setTasks((prev) => [payload.task, ...prev]);
+
+            if (isEdit) {
+                setTasks((prev) => prev.map((t: any) => t.id === editingTask.id ? payload.task : t));
+            } else {
+                setTasks((prev) => [payload.task, ...prev]);
+            }
             setTaskModalOpen(false);
         } catch {
-            setTaskError('Unable to add task.');
+            setTaskError('Unable to save task.');
         } finally {
             setTaskSaving(false);
         }
@@ -1494,6 +1547,24 @@ export default function ShowMatter({ matter, users, activeTimer: serverTimer }: 
                                                             <SelectItem value="done">Done</SelectItem>
                                                         </SelectContent>
                                                     </Select>
+                                                    <div className="flex items-center gap-1 shrink-0">
+                                                        <button
+                                                            type="button"
+                                                            className="flex items-center justify-center h-7 w-7 rounded-md border border-border hover:bg-muted transition-colors"
+                                                            title="Edit task"
+                                                            onClick={() => openEditTask(task)}
+                                                        >
+                                                            <Pencil className="h-3.5 w-3.5" />
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            className="flex items-center justify-center h-7 w-7 rounded-md border border-border hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-colors"
+                                                            title="Delete task"
+                                                            onClick={() => deleteTask(task)}
+                                                        >
+                                                            <Trash2 className="h-3.5 w-3.5" />
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             ))}
                                         </div>
@@ -1762,8 +1833,8 @@ export default function ShowMatter({ matter, users, activeTimer: serverTimer }: 
             <Dialog open={taskModalOpen} onOpenChange={setTaskModalOpen}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Add task</DialogTitle>
-                        <DialogDescription>Create a task for this matter.</DialogDescription>
+                        <DialogTitle>{editingTask ? 'Edit Task' : 'Add Task'}</DialogTitle>
+                        <DialogDescription>{editingTask ? 'Update the task details.' : 'Create a task for this matter.'}</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4">
                         <div className="space-y-2">
@@ -1787,6 +1858,20 @@ export default function ShowMatter({ matter, users, activeTimer: serverTimer }: 
                                 </Select>
                             </div>
                         </div>
+                        {editingTask && (
+                            <div className="space-y-2">
+                                <Label className="text-sm font-medium">Status</Label>
+                                <Select value={editingTask.status} onValueChange={(v) => setEditingTask((p: any) => ({ ...p, status: v }))}>
+                                    <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="todo">To Do</SelectItem>
+                                        <SelectItem value="in_progress">In Progress</SelectItem>
+                                        <SelectItem value="review">Review</SelectItem>
+                                        <SelectItem value="done">Done</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
                         {users.length > 0 && (
                             <div className="space-y-2">
                                 <Label className="text-sm font-medium">Assignee</Label>
@@ -1810,7 +1895,7 @@ export default function ShowMatter({ matter, users, activeTimer: serverTimer }: 
                     <DialogFooter>
                         <Button type="button" variant="outline" onClick={() => setTaskModalOpen(false)} disabled={taskSaving}>Cancel</Button>
                         <Button type="button" onClick={saveTask} disabled={taskSaving || !taskForm.title.trim()}>
-                            {taskSaving ? 'Saving…' : 'Save'}
+                            {taskSaving ? 'Saving…' : (editingTask ? 'Update Task' : 'Add Task')}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

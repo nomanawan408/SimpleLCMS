@@ -129,6 +129,7 @@ class Matter extends Model
         $task = $this->tasks()
             ->whereIn('status', ['todo', 'in_progress'])
             ->whereNull('completed_at')
+            ->whereNotNull('due_date')
             ->orderBy('due_date')
             ->first();
         return $task?->due_date?->format('Y-m-d');

@@ -15,7 +15,12 @@
       "Bash(php artisan test --filter=AdminUserTest 2>&1)",
       "Bash(php artisan test --filter=UserModuleTest 2>&1)",
       "Bash(php artisan --version 2>&1)",
-      "Bash(php artisan route:list --path=admin/users --json 2>&1 | head -30)"
+      "Bash(php artisan route:list --path=admin/users --json 2>&1 | head -30)",
+      "Bash(npx vite build 2>&1 | tail -3)",
+      "Bash(php artisan test --filter=MatterTest 2>&1 | tail -10)",
+      "Bash(php artisan tinker --execute=\"\n\\\\$firmId = App\\\\Models\\\\Firm::first\\(\\)->id;\n\\\\$matters = App\\\\Models\\\\Matter::where\\('firm_id', \\\\$firmId\\)\n    ->with\\(['tasks' => fn\\(\\\\$q\\) => \\\\$q->whereIn\\('status', ['todo', 'in_progress']\\)->whereNull\\('completed_at'\\)->orderBy\\('due_date'\\)]\\)\n    ->get\\(\\);\n\nforeach \\(\\\\$matters as \\\\$m\\) {\n    echo \\\\$m->name . PHP_EOL;\n    echo '  next_step: ' . \\(\\\\$m->next_step ?? 'null'\\) . PHP_EOL;\n    echo '  next_deadline: ' . \\(\\\\$m->next_deadline ?? 'null'\\) . PHP_EOL;\n    echo '  tasks: ' . \\\\$m->tasks->count\\(\\) . PHP_EOL;\n    foreach \\(\\\\$m->tasks as \\\\$t\\) {\n        echo '    - ' . \\\\$t->title . ' | due=' . \\(\\\\$t->due_date?->toDateString\\(\\) ?? 'null'\\) . ' | status=' . \\\\$t->status . PHP_EOL;\n    }\n}\n\" 2>&1)",
+      "Bash(sleep 15 && cat /tmp/qoder-cli-1000/-run-media-nomanawan408-01DB5A2EB99B4DC0-LARAVEL-PROJECT-Laywer-Case-Management-simpleLawyer/72ceb468-37f4-48de-a785-0cd908b48256/tasks/5290.output | tail -5)",
+      "Bash(git diff resources/js/Pages/Tasks/Index.tsx | head -200)"
     ]
   }
 }

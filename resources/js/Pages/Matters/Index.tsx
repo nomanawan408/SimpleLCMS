@@ -5,9 +5,11 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { formatDate, MATTER_STATUS_LABELS, PRACTICE_AREA_LABELS } from '@/lib/utils';
-import { Plus, Search, X } from 'lucide-react';
+import { Plus, Search, X, Calendar, Clock } from 'lucide-react';
 import type { Matter, PaginatedData } from '@/types';
 
 interface Props {
@@ -35,6 +37,12 @@ export default function MattersIndex({ matters, filters }: Props) {
     const [area, setArea]       = useState(filters.practice_area ?? '_all');
     const debouncedSearch       = useDebounce(search, 300);
     const isFirstRun            = useRef(true);
+    const [editingHearing, setEditingHearing] = useState<Matter | null>(null);
+    const [hearingDate, setHearingDate] = useState('');
+    const [hearingSaving, setHearingSaving] = useState(false);
+    const [editingDeadline, setEditingDeadline] = useState<Matter | null>(null);
+    const [deadlineDate, setDeadlineDate] = useState('');
+    const [deadlineSaving, setDeadlineSaving] = useState(false);
 
     useEffect(() => {
         if (isFirstRun.current) { isFirstRun.current = false; return; }
@@ -152,11 +160,31 @@ export default function MattersIndex({ matters, filters }: Props) {
                                             <td className="px-4 py-3 hidden xl:table-cell text-muted-foreground">
                                                 {matter.next_step ?? '—'}
                                             </td>
-                                            <td className="px-4 py-3 hidden xl:table-cell text-muted-foreground">
-                                                {matter.next_deadline ? formatDate(matter.next_deadline) : '—'}
+                                            <td className="px-4 py-3 hidden xl:table-cell">
+                                                <button
+                                                    className="flex items-center gap-1.5 text-muted-foreground hover:text-primary transition-colors"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setEditingDeadline(matter);
+                                                        setDeadlineDate(matter.next_deadline || '');
+                                                    }}
+                                                >
+                                                    <Clock className="h-3.5 w-3.5" />
+                                                    <span>{matter.next_deadline ? formatDate(matter.next_deadline) : 'Set deadline'}</span>
+                                                </button>
                                             </td>
-                                            <td className="px-4 py-3 hidden xl:table-cell text-muted-foreground">
-                                                {matter.hearing_date ? formatDate(matter.hearing_date) : '—'}
+                                            <td className="px-4 py-3 hidden xl:table-cell">
+                                                <button
+                                                    className="flex items-center gap-1.5 text-muted-foreground hover:text-primary transition-colors"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setEditingHearing(matter);
+                                                        setHearingDate(matter.hearing_date || '');
+                                                    }}
+                                                >
+                                                    <Calendar className="h-3.5 w-3.5" />
+                                                    <span>{matter.hearing_date ? formatDate(matter.hearing_date) : 'Set date'}</span>
+                                                </button>
                                             </td>
                                             <td className="px-4 py-3 hidden xl:table-cell text-muted-foreground">
                                                 {formatDate(matter.opened_at)}
@@ -190,6 +218,136 @@ export default function MattersIndex({ matters, filters }: Props) {
                     )}
                 </CardContent>
             </Card>
+            {/* Deadline Dialog */}
+            <Dialog open={!!editingDeadline} onOpenChange={(open) => { if (!open) setEditingDeadline(null); }}>
+                <DialogContent className="max-w-sm">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Clock className="h-5 w-5 text-warning" />
+                            Deadline
+                        </DialogTitle>
+                        <DialogDescription>
+                            {editingDeadline?.name}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-3 py-2">
+                        <Label htmlFor="deadline_date">Next deadline</Label>
+                        <Input
+                            id="deadline_date"
+                            type="date"
+                            value={deadlineDate}
+                            onChange={(e) => setDeadlineDate(e.target.value)}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                            This updates the due date on the next open task for this matter.
+                        </p>
+                    </div>
+                    <DialogFooter className="gap-2">
+                        {editingDeadline?.next_deadline && (
+                            <Button
+                                variant="outline"
+                                className="text-destructive hover:text-destructive"
+                                disabled={deadlineSaving}
+                                onClick={() => {
+                                    setDeadlineSaving(true);
+                                    router.put(`/matters/${editingDeadline.id}/deadline`, {
+                                        deadline: null,
+                                    }, {
+                                        preserveScroll: true,
+                                        preserveState: true,
+                                        onFinish: () => { setDeadlineSaving(false); setEditingDeadline(null); },
+                                    });
+                                }}
+                            >
+                                Clear Deadline
+                            </Button>
+                        )}
+                        <Button variant="outline" onClick={() => setEditingDeadline(null)} disabled={deadlineSaving}>
+                            Cancel
+                        </Button>
+                        <Button
+                            disabled={!deadlineDate || deadlineSaving}
+                            onClick={() => {
+                                if (!editingDeadline) return;
+                                setDeadlineSaving(true);
+                                router.put(`/matters/${editingDeadline.id}/deadline`, {
+                                    deadline: deadlineDate,
+                                }, {
+                                    preserveScroll: true,
+                                    preserveState: true,
+                                    onFinish: () => { setDeadlineSaving(false); setEditingDeadline(null); },
+                                });
+                            }}
+                        >
+                            {deadlineSaving ? 'Saving…' : 'Save'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Hearing Date Dialog */}
+            <Dialog open={!!editingHearing} onOpenChange={(open) => { if (!open) setEditingHearing(null); }}>
+                <DialogContent className="max-w-sm">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Calendar className="h-5 w-5 text-primary" />
+                            Hearing Date
+                        </DialogTitle>
+                        <DialogDescription>
+                            {editingHearing?.name}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-3 py-2">
+                        <Label htmlFor="hearing_date">Court hearing date</Label>
+                        <Input
+                            id="hearing_date"
+                            type="date"
+                            value={hearingDate}
+                            onChange={(e) => setHearingDate(e.target.value)}
+                        />
+                    </div>
+                    <DialogFooter className="gap-2">
+                        {editingHearing?.hearing_date && (
+                            <Button
+                                variant="outline"
+                                className="text-destructive hover:text-destructive"
+                                disabled={hearingSaving}
+                                onClick={() => {
+                                    setHearingSaving(true);
+                                    router.put(`/matters/${editingHearing.id}/hearing-date`, {
+                                        hearing_date: null,
+                                    }, {
+                                        preserveScroll: true,
+                                        preserveState: true,
+                                        onFinish: () => { setHearingSaving(false); setEditingHearing(null); },
+                                    });
+                                }}
+                            >
+                                Clear Date
+                            </Button>
+                        )}
+                        <Button variant="outline" onClick={() => setEditingHearing(null)} disabled={hearingSaving}>
+                            Cancel
+                        </Button>
+                        <Button
+                            disabled={!hearingDate || hearingSaving}
+                            onClick={() => {
+                                if (!editingHearing) return;
+                                setHearingSaving(true);
+                                router.put(`/matters/${editingHearing.id}/hearing-date`, {
+                                    hearing_date: hearingDate,
+                                }, {
+                                    preserveScroll: true,
+                                    preserveState: true,
+                                    onFinish: () => { setHearingSaving(false); setEditingHearing(null); },
+                                });
+                            }}
+                        >
+                            {hearingSaving ? 'Saving…' : 'Save'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </AppLayout>
     );
 }

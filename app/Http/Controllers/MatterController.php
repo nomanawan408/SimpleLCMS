@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\Matter\StoreMatterRequest;
 use App\Http\Requests\Matter\UpdateMatterRequest;
+use App\Models\CalendarEvent;
 use App\Models\Contact;
 use App\Models\Matter;
+use App\Models\Task;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -162,6 +164,89 @@ class MatterController extends Controller
         activity()->causedBy($request->user())->performedOn($matter)->log('deleted');
 
         return redirect()->route('matters.index')->with('success', 'Matter deleted.');
+    }
+
+    public function updateHearingDate(Matter $matter, Request $request): RedirectResponse
+    {
+        $this->authorize('update', $matter);
+
+        $validated = $request->validate([
+            'hearing_date' => ['nullable', 'date'],
+        ]);
+
+        $date = $validated['hearing_date'] ?? null;
+
+        $existing = CalendarEvent::where('matter_id', $matter->id)
+            ->where('is_court_date', true)
+            ->where('start_at', '>=', now())
+            ->orderBy('start_at')
+            ->first();
+
+        if ($date) {
+            if ($existing) {
+                $existing->update(['start_at' => $date . ' 10:00:00']);
+            } else {
+                CalendarEvent::create([
+                    'firm_id'       => $matter->firm_id,
+                    'matter_id'     => $matter->id,
+                    'created_by_id' => $request->user()->id,
+                    'title'         => 'Court Hearing — ' . $matter->name,
+                    'type'          => 'court_date',
+                    'start_at'      => $date . ' 10:00:00',
+                    'end_at'        => $date . ' 11:00:00',
+                    'is_court_date' => true,
+                ]);
+            }
+        } elseif ($existing) {
+            $existing->delete();
+        }
+
+        return back()->with('success', 'Hearing date updated.');
+    }
+
+    public function updateDeadline(Matter $matter, Request $request): RedirectResponse
+    {
+        $this->authorize('update', $matter);
+
+        $validated = $request->validate([
+            'deadline' => ['nullable', 'date'],
+        ]);
+
+        $date = $validated['deadline'] ?? null;
+
+        // Find the task that currently represents the deadline (earliest non-null due_date)
+        $task = $matter->tasks()
+            ->whereIn('status', ['todo', 'in_progress'])
+            ->whereNull('completed_at')
+            ->whereNotNull('due_date')
+            ->orderBy('due_date')
+            ->first();
+
+        if ($task) {
+            $task->update(['due_date' => $date]);
+        } elseif ($date) {
+            // No task has a due_date — update the first open task or create one
+            $firstTask = $matter->tasks()
+                ->whereIn('status', ['todo', 'in_progress'])
+                ->whereNull('completed_at')
+                ->first();
+
+            if ($firstTask) {
+                $firstTask->update(['due_date' => $date]);
+            } else {
+                Task::create([
+                    'firm_id'       => $matter->firm_id,
+                    'matter_id'     => $matter->id,
+                    'created_by_id' => $request->user()->id,
+                    'title'         => 'Deadline — ' . $matter->name,
+                    'priority'      => 'high',
+                    'status'        => 'todo',
+                    'due_date'      => $date,
+                ]);
+            }
+        }
+
+        return back()->with('success', 'Deadline updated.');
     }
 
     private function generateMatterNumber(string $firmId): string
