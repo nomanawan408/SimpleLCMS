@@ -22,6 +22,13 @@ export interface Firm {
     invoice_sequence: number;
     vat_rate: number;
     payment_terms_days: number;
+    bank_name: string | null;
+    bank_sort_code: string | null;
+    bank_account_number: string | null;
+    bank_account_name: string | null;
+    bank_iban: string | null;
+    bank_swift_code: string | null;
+    payment_instructions: string | null;
 }
 
 export interface User {
@@ -48,7 +55,11 @@ export interface Contact {
     name: string;
     email: string | null;
     phone: string | null;
+    phone_secondary: string | null;
     company_number: string | null;
+    contact_person_name: string | null;
+    contact_person_email: string | null;
+    contact_person_phone: string | null;
     lead_status: 'enquiry' | 'consultation_booked' | 'engaged' | 'matter_opened' | 'declined' | null;
     gdpr_consent_at: string | null;
     created_at: string;
@@ -56,6 +67,7 @@ export interface Contact {
     national_insurance_number?: string | null;
     dob?: string | null;
     source?: string | null;
+    source_detail?: string | null;
     tags?: string[] | null;
     matters?: Matter[];
 }

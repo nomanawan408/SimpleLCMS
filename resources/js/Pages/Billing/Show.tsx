@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, Mail, CreditCard, CheckCircle, Printer, XCircle, Send } from 'lucide-react';
+import { ArrowLeft, Mail, CreditCard, CheckCircle, Printer, XCircle, Send, Download } from 'lucide-react';
 import { cn, formatCurrency, formatDate } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import type { Invoice } from '@/types';
@@ -129,10 +129,18 @@ export default function ShowInvoice({ invoice }: Props) {
                             Back to Billing
                         </Link>
                     </Button>
-                    <Button variant="outline" size="sm" onClick={() => window.print()}>
-                        <Printer className="h-4 w-4 mr-2" />
-                        Print
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        <Button variant="outline" size="sm" onClick={() => window.print()}>
+                            <Printer className="h-4 w-4 mr-2" />
+                            Print
+                        </Button>
+                        <Button variant="outline" size="sm" asChild>
+                            <a href={`/billing/${invoice.id}/pdf`} target="_blank">
+                                <Download className="h-4 w-4 mr-2" />
+                                Download PDF
+                            </a>
+                        </Button>
+                    </div>
                 </div>
 
                 {/* Overdue warning */}

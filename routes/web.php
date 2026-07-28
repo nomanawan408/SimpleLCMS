@@ -19,8 +19,10 @@ use App\Http\Controllers\MatterController;
 use App\Http\Controllers\MatterNoteController;
 use App\Http\Controllers\MatterTimeEntryController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\FirmSetupController;
 use App\Http\Controllers\SuperAdmin\DashboardController as SuperAdminDashboardController;
 use App\Http\Controllers\SuperAdmin\FirmController as SuperAdminFirmController;
+use App\Http\Controllers\SuperAdmin\UserController as SuperAdminUserController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\TimeController;
 use App\Http\Controllers\TransactionController;
@@ -47,6 +49,10 @@ Route::middleware('guest')->group(function () {
 
     // Socialite routes removed to enforce simple email/password login
 });
+
+// --- Firm Setup (public token link) ---
+Route::get('/firm/setup/{token}', [FirmSetupController::class, 'show'])->name('firm.setup.complete');
+Route::put('/firm/setup/{token}', [FirmSetupController::class, 'update'])->name('firm.setup.update');
 
 // --- Two-Factor ---
 Route::middleware('auth')->group(function () {
@@ -82,6 +88,7 @@ Route::middleware(['auth', 'set.tenant', 'requires.two.factor', 'redirect.super.
     Route::delete('/billing/{invoice}', [InvoiceController::class, 'destroy'])->name('billing.destroy');
     Route::post('/billing/{invoice}/payments', [InvoiceController::class, 'recordPayment'])->name('billing.payments.store');
     Route::post('/billing/{invoice}/send-email', [InvoiceController::class, 'sendEmail'])->name('billing.send-email');
+    Route::get('/billing/{invoice}/pdf', [InvoiceController::class, 'downloadPdf'])->name('billing.pdf');
 
     // Time Tracking / Check-in & Check-out
     Route::post('/time/checkin',  [TimeController::class, 'checkIn'])->name('time.checkin');
@@ -153,6 +160,12 @@ Route::middleware(['auth', 'requires.two.factor'])->prefix('superadmin')->name('
 
     Route::get('/firms', [SuperAdminFirmController::class, 'index'])->name('firms.index');
     Route::post('/firms', [SuperAdminFirmController::class, 'store'])->name('firms.store');
+    Route::get('/firms/{firm}', [SuperAdminFirmController::class, 'show'])->name('firms.show');
     Route::put('/firms/{firm}', [SuperAdminFirmController::class, 'update'])->name('firms.update');
     Route::delete('/firms/{firm}', [SuperAdminFirmController::class, 'destroy'])->name('firms.destroy');
+
+    Route::get('/users', [SuperAdminUserController::class, 'index'])->name('users.index');
+    Route::put('/users/{user}', [SuperAdminUserController::class, 'update'])->name('users.update');
+    Route::delete('/users/{user}', [SuperAdminUserController::class, 'destroy'])->name('users.destroy');
+    Route::put('/users/{user}/reset-password', [SuperAdminUserController::class, 'resetPassword'])->name('users.reset-password');
 });

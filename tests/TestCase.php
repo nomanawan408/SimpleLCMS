@@ -55,17 +55,17 @@ abstract class TestCase extends BaseTestCase
         $admin->update(['is_system' => true]);
         $admin->syncPermissions([
             'view_dashboard',
-            'manage_matters', 'view_matters', 'create_matters', 'edit_matters',
-            'manage_contacts', 'view_contacts', 'create_contacts', 'edit_contacts',
-            'manage_time_entries', 'view_time_entries', 'create_time_entries', 'edit_time_entries',
-            'manage_expenses', 'view_expenses', 'create_expenses', 'edit_expenses',
-            'manage_invoices', 'view_invoices', 'create_invoices', 'edit_invoices',
-            'manage_trust', 'view_trust', 'create_trust_entries', 'edit_trust_entries',
-            'manage_documents', 'view_documents', 'upload_documents',
+            'manage_matters', 'view_matters', 'create_matters', 'edit_matters', 'delete_matters',
+            'manage_contacts', 'view_contacts', 'create_contacts', 'edit_contacts', 'delete_contacts',
+            'manage_time_entries', 'view_time_entries', 'create_time_entries', 'edit_time_entries', 'delete_time_entries',
+            'manage_expenses', 'view_expenses', 'create_expenses', 'edit_expenses', 'delete_expenses',
+            'manage_invoices', 'view_invoices', 'create_invoices', 'edit_invoices', 'delete_invoices',
+            'manage_trust', 'view_trust', 'create_trust_entries', 'edit_trust_entries', 'delete_trust_entries',
+            'manage_documents', 'view_documents', 'upload_documents', 'delete_documents',
             'manage_users', 'view_users', 'create_users', 'edit_users', 'delete_users',
-            'view_firm_settings',
-            'manage_calendar', 'view_calendar', 'create_events', 'edit_events',
-            'manage_tasks', 'view_tasks', 'create_tasks', 'edit_tasks',
+            'manage_firm', 'view_firm_settings', 'edit_firm_settings',
+            'manage_calendar', 'view_calendar', 'create_events', 'edit_events', 'delete_events',
+            'manage_tasks', 'view_tasks', 'create_tasks', 'edit_tasks', 'delete_tasks',
             'view_reports', 'export_data',
         ]);
 

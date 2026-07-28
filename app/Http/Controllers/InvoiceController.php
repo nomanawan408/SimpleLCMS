@@ -9,6 +9,7 @@ use App\Models\Matter;
 use App\Models\Payment;
 use App\Models\TimeEntry;
 use App\Models\Expense;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
@@ -166,6 +167,33 @@ class InvoiceController extends Controller
             $invoiceId = $invoice->id;
         });
 
+        // Auto-send invoice email to client contact if action is 'send'
+        if (($validated['action'] ?? 'draft') === 'send' && $invoiceId) {
+            $invoice = Invoice::with(['matter.contacts'])->find($invoiceId);
+            $firm = $user->firm;
+
+            $clientContact = $invoice->matter->contacts()
+                ->wherePivotIn('role', ['client', 'claimant', 'applicant', 'petitioner'])
+                ->first()
+                ?? $invoice->matter->contacts()->first();
+
+            if ($clientContact && $clientContact->email) {
+                try {
+                    Mail::to($clientContact->email)
+                        ->send(new InvoiceMail($invoice, $firm, $clientContact->name, $clientContact->email));
+
+                    activity()->causedBy($user)->performedOn($invoice)->withProperties([
+                        'sent_to' => $clientContact->email,
+                    ])->log('invoice_emailed');
+                } catch (\Exception $e) {
+                    // Invoice was created successfully, email failed - log but don't block
+                    activity()->causedBy($user)->performedOn($invoice)->withProperties([
+                        'error' => $e->getMessage(),
+                    ])->log('invoice_email_failed');
+                }
+            }
+        }
+
         return redirect()->route('billing.show', $invoiceId)
             ->with('success', 'Invoice created successfully.');
     }
@@ -212,8 +240,10 @@ class InvoiceController extends Controller
     {
         $this->authorize('update', $invoice);
 
+        $maxAmount = $invoice->amount_outstanding;
+
         $validated = $request->validate([
-            'amount'  => 'required|numeric|min:0.01',
+            'amount'  => ['required', 'numeric', 'min:0.01', 'max:' . $maxAmount],
             'method'  => 'required|in:cash,cheque,bank_transfer,stripe_card,stripe_sepa',
             'paid_at' => 'required|date',
             'notes'   => 'nullable|string',
@@ -287,6 +317,42 @@ class InvoiceController extends Controller
         } catch (\Exception $e) {
             return back()->with('error', "Failed to send email: {$e->getMessage()}");
         }
+    }
+
+    public function downloadPdf(Invoice $invoice)
+    {
+        $this->authorize('view', $invoice);
+
+        $invoice->load(['matter', 'matter.contacts', 'lineItems']);
+        $firm = auth()->user()->firm;
+
+        $clientContact = $invoice->matter->contacts()
+            ->wherePivotIn('role', ['client', 'claimant', 'applicant', 'petitioner'])
+            ->first()
+            ?? $invoice->matter->contacts()->first();
+
+        $clientName = $clientContact?->name ?? 'Valued Client';
+
+        $lineItems = $invoice->lineItems;
+        $bankDetails = [
+            'bank_name'           => $firm->bank_name,
+            'bank_account_name'   => $firm->bank_account_name,
+            'bank_sort_code'      => $firm->bank_sort_code,
+            'bank_account_number' => $firm->bank_account_number,
+            'bank_iban'           => $firm->bank_iban,
+            'bank_swift_code'     => $firm->bank_swift_code,
+            'payment_instructions'=> $firm->payment_instructions,
+        ];
+
+        $pdf = Pdf::loadView('invoices.pdf', [
+            'invoice'     => $invoice,
+            'firm'        => $firm,
+            'clientName'  => $clientName,
+            'lineItems'   => $lineItems,
+            'bankDetails' => $bankDetails,
+        ]);
+
+        return $pdf->download("invoice-{$invoice->invoice_number}.pdf");
     }
 
     private function getNextInvoiceNumber(string $firmId): string

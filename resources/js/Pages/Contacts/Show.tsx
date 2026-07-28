@@ -5,12 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { cn, formatDate, CONTACT_TYPE_LABELS, LEAD_STATUS_LABELS } from '@/lib/utils';
-import { ArrowLeft, Mail, Phone, MapPin, Edit, Briefcase, User, Building2 } from 'lucide-react';
-import type { Contact, Matter } from '@/types';
+import { cn, formatDate, formatCurrency, CONTACT_TYPE_LABELS, LEAD_STATUS_LABELS } from '@/lib/utils';
+import { ArrowLeft, Mail, Phone, MapPin, Edit, Briefcase, User, Building2, Receipt, CreditCard } from 'lucide-react';
+import type { Contact, Matter, Invoice } from '@/types';
 
 interface Props {
     contact: Contact & { matters: Matter[] };
+    invoices: (Invoice & { matter?: { id: string; name: string; matter_number: string }; payments?: { id: string; amount: number; method: string; paid_at: string }[] })[];
 }
 
 const typeVariant: Record<string, any> = {
@@ -22,7 +23,7 @@ const leadVariant: Record<string, any> = {
     matter_opened: 'success', declined: 'destructive',
 };
 
-export default function ShowContact({ contact }: Props) {
+export default function ShowContact({ contact, invoices = [] }: Props) {
     const getTabFromLocation = () => {
         if (typeof window === 'undefined') return 'dashboard';
         return new URL(window.location.href).searchParams.get('tab') ?? 'dashboard';
@@ -332,7 +333,81 @@ export default function ShowContact({ contact }: Props) {
                         <CardTitle className="text-base tracking-tight">{tab.charAt(0).toUpperCase() + tab.slice(1)}</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <p className="text-sm text-muted-foreground">Coming soon.</p>
+                        {tab === 'billing' ? (
+                            <div>
+                                {invoices.length === 0 ? (
+                                    <div className="text-center py-8 text-sm text-muted-foreground">
+                                        <Receipt className="h-8 w-8 mx-auto mb-2 text-muted-foreground/30" />
+                                        No invoices for this contact yet.
+                                    </div>
+                                ) : (
+                                    <div className="space-y-3">
+                                        {invoices.map(invoice => {
+                                            const totalPaid = (invoice.payments ?? []).reduce((s, p) => s + Number(p.amount), 0);
+                                            const outstanding = Math.max(0, Number(invoice.total) - totalPaid);
+                                            return (
+                                                <Link
+                                                    key={invoice.id}
+                                                    href={`/billing/${invoice.id}`}
+                                                    className="group flex items-center justify-between p-3 rounded-md border border-border/40 hover:bg-muted/30 transition-colors"
+                                                >
+                                                    <div>
+                                                        <p className="text-sm font-medium group-hover:text-primary transition-colors">{invoice.invoice_number}</p>
+                                                        <p className="text-xs text-muted-foreground">
+                                                            {invoice.matter?.name ?? 'Matter'} · Issued {formatDate(invoice.created_at)}
+                                                        </p>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <p className="text-sm font-semibold">{formatCurrency(Number(invoice.total))}</p>
+                                                        <Badge
+                                                            variant={
+                                                                invoice.status === 'paid' ? 'success'
+                                                                : invoice.status === 'sent' && outstanding > 0 ? 'warning'
+                                                                : 'secondary'
+                                                            }
+                                                            className="text-xs capitalize"
+                                                        >
+                                                            {invoice.status}
+                                                        </Badge>
+                                                    </div>
+                                                </Link>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+                        ) : tab === 'transactions' ? (
+                            <div>
+                                {invoices.flatMap(inv => (inv.payments ?? []).map(p => ({ ...p, invoice_number: inv.invoice_number }))).length === 0 ? (
+                                    <div className="text-center py-8 text-sm text-muted-foreground">
+                                        <CreditCard className="h-8 w-8 mx-auto mb-2 text-muted-foreground/30" />
+                                        No transactions for this contact yet.
+                                    </div>
+                                ) : (
+                                    <div className="space-y-3">
+                                        {invoices.flatMap(inv =>
+                                            (inv.payments ?? []).map(p => ({
+                                                ...p,
+                                                invoice_number: inv.invoice_number,
+                                                matter_name: inv.matter?.name,
+                                            }))
+                                        ).sort((a, b) => new Date(b.paid_at).getTime() - new Date(a.paid_at).getTime()).map(payment => (
+                                            <div key={payment.id} className="flex items-center justify-between p-3 rounded-md border border-border/40">
+                                                <div>
+                                                    <p className="text-sm font-medium">{formatDate(payment.paid_at)} · {payment.method.replace(/_/g, ' ')}</p>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {payment.invoice_number}{payment.matter_name ? ` · ${payment.matter_name}` : ''}
+                                                    </p>
+                                                </div>
+                                                <span className="text-sm font-semibold text-success">{formatCurrency(Number(payment.amount))}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            <p className="text-sm text-muted-foreground">Coming soon.</p>
+                        )}
                     </CardContent>
                 </Card>
             )}

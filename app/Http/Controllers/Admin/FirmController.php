@@ -14,7 +14,8 @@ class FirmController extends Controller
     public function setup(Request $request): Response
     {
         return Inertia::render('Admin/FirmSetup', [
-            'firm' => $request->user()->firm,
+            'firm'         => $request->user()->firm,
+            'isSuperAdmin' => $request->user()->hasRole('super_admin'),
         ]);
     }
 

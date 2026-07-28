@@ -116,7 +116,7 @@ export default function CreateInvoice({ matters, unbilledTime, unbilledExpenses,
 
     const mkItem = (overrides: Partial<LineItem>): LineItem => ({
         id: Math.random().toString(36).slice(2, 11),
-        description: '', quantity: 1, unit_rate: 0, amount: 0, vat_amount: 0, type: 'fixed',
+        description: '', quantity: 1, unit_rate: 0, amount: 0, type: 'fixed',
         ...overrides,
         vat_amount: round2((overrides.amount ?? 0) * data.vat_rate / 100),
     });
@@ -555,7 +555,7 @@ export default function CreateInvoice({ matters, unbilledTime, unbilledExpenses,
                             className="gap-2"
                         >
                             <Send className="h-4 w-4" />
-                            {processing && data.action === 'send' ? 'Creating…' : 'Create & Mark Sent'}
+                            {processing && data.action === 'send' ? 'Creating & Sending…' : 'Create & Send to Client'}
                         </Button>
                     </div>
                 </form>

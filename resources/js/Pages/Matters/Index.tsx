@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { formatDate, MATTER_STATUS_LABELS, PRACTICE_AREA_LABELS } from '@/lib/utils';
-import { Plus, Search, X, Calendar, Clock } from 'lucide-react';
+import { Plus, Search, X, Calendar, Clock, ListTodo } from 'lucide-react';
 import type { Matter, PaginatedData } from '@/types';
 
 interface Props {
@@ -43,6 +43,7 @@ export default function MattersIndex({ matters, filters }: Props) {
     const [editingDeadline, setEditingDeadline] = useState<Matter | null>(null);
     const [deadlineDate, setDeadlineDate] = useState('');
     const [deadlineSaving, setDeadlineSaving] = useState(false);
+    const [viewingTasks, setViewingTasks] = useState<Matter | null>(null);
 
     useEffect(() => {
         if (isFirstRun.current) { isFirstRun.current = false; return; }
@@ -157,8 +158,22 @@ export default function MattersIndex({ matters, filters }: Props) {
                                                     {MATTER_STATUS_LABELS[matter.status]}
                                                 </Badge>
                                             </td>
-                                            <td className="px-4 py-3 hidden xl:table-cell text-muted-foreground">
-                                                {matter.next_step ?? '—'}
+                                            <td className="px-4 py-3 hidden xl:table-cell">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-muted-foreground truncate max-w-[120px]">{matter.next_step ?? '—'}</span>
+                                                    {matter.tasks && matter.tasks.length > 0 && (
+                                                        <button
+                                                            className="shrink-0 text-muted-foreground hover:text-primary transition-colors"
+                                                            title={`View all ${matter.tasks.length} tasks`}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setViewingTasks(matter);
+                                                            }}
+                                                        >
+                                                            <ListTodo className="h-4 w-4" />
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </td>
                                             <td className="px-4 py-3 hidden xl:table-cell">
                                                 <button
@@ -346,6 +361,61 @@ export default function MattersIndex({ matters, filters }: Props) {
                             {hearingSaving ? 'Saving…' : 'Save'}
                         </Button>
                     </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Upcoming Tasks Dialog */}
+            <Dialog open={!!viewingTasks} onOpenChange={(open) => { if (!open) setViewingTasks(null); }}>
+                <DialogContent className="max-w-md max-h-[75vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <ListTodo className="h-5 w-5 text-primary" />
+                            Upcoming Tasks
+                        </DialogTitle>
+                        <DialogDescription>{viewingTasks?.name}</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-2 py-2">
+                        {viewingTasks?.tasks && viewingTasks.tasks.length > 0 ? (
+                            viewingTasks.tasks.map((task) => (
+                                <div key={task.id} className="flex items-start gap-3 rounded-lg border border-border/60 p-3">
+                                    <div className="mt-0.5">
+                                        {task.status === 'in_progress' ? (
+                                            <div className="h-2.5 w-2.5 rounded-full bg-primary animate-pulse" />
+                                        ) : (
+                                            <div className="h-2.5 w-2.5 rounded-full bg-muted-foreground/40" />
+                                        )}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-medium leading-snug">{task.title}</p>
+                                        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1">
+                                            {task.due_date && (
+                                                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                                    <Clock className="h-3 w-3" />
+                                                    {formatDate(task.due_date)}
+                                                </span>
+                                            )}
+                                            <Badge
+                                                variant={
+                                                    task.priority === 'high' ? 'destructive' :
+                                                    task.priority === 'low' ? 'secondary' : 'outline'
+                                                }
+                                                className="text-[10px] capitalize"
+                                            >
+                                                {task.priority}
+                                            </Badge>
+                                            {task.assignee && (
+                                                <span className="text-xs text-muted-foreground">
+                                                    → {task.assignee.full_name}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))
+                        ) : (
+                            <p className="text-sm text-muted-foreground text-center py-4">No upcoming tasks.</p>
+                        )}
+                    </div>
                 </DialogContent>
             </Dialog>
         </AppLayout>

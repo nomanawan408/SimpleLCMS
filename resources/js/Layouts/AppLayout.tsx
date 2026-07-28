@@ -43,6 +43,7 @@ const adminItems: NavItem[] = [
 const superAdminNavItems: NavItem[] = [
     { label: 'Dashboard',    href: '/superadmin/dashboard', icon: LayoutDashboard, routeName: 'superadmin.dashboard' },
     { label: 'Manage Firms', href: '/superadmin/firms',     icon: Building2,       routeName: 'superadmin.firms.index' },
+    { label: 'Manage Users', href: '/superadmin/users',     icon: Shield,          routeName: 'superadmin.users.index' },
 ];
 
 interface AppLayoutProps {
@@ -72,7 +73,7 @@ export default function AppLayout({ children, title }: AppLayoutProps) {
                         <span className="text-xs font-bold text-white">SLCM</span>
                     </div>
                     <div>
-                        <p className="text-base font-bold text-white tracking-tight">Simple Law Practice</p>
+                        <p className="text-base font-bold text-white tracking-tight">Simple Law</p>
                         <p className="text-[10px] uppercase tracking-[0.22em] text-white/50 font-medium">
                             {isSuperAdmin ? 'Platform Admin' : 'Case Management'}
                         </p>

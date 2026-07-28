@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Contact;
+use App\Models\Invoice;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
@@ -91,8 +92,16 @@ class ContactController extends Controller
             'matters' => fn ($q) => $q->with('responsibleUser')->orderBy('opened_at', 'desc'),
         ]);
 
+        // Load invoices for this contact's matters
+        $matterIds = $contact->matters->pluck('id');
+        $invoices = Invoice::whereIn('matter_id', $matterIds)
+            ->with(['matter', 'payments'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
         return Inertia::render('Contacts/Show', [
-            'contact' => $contact,
+            'contact'  => $contact,
+            'invoices' => $invoices,
         ]);
     }
 

@@ -1,4 +1,4 @@
-import { Head, useForm } from '@inertiajs/react';
+import { Head, useForm, Link } from '@inertiajs/react';
 import { useState } from 'react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { formatDate } from '@/lib/utils';
-import { Building2, Plus, Pencil, Trash2 } from 'lucide-react';
+import { Building2, Plus, Pencil, Trash2, Eye } from 'lucide-react';
 
 interface FirmRow {
     id: string;
@@ -56,6 +56,8 @@ const emptyForm = {
     timezone: 'Europe/London',
     default_hourly_rate: '250',
     vat_rate: '20',
+    admin_name: '',
+    admin_email: '',
 };
 
 export default function FirmsIndex({ firms }: Props) {
@@ -173,6 +175,11 @@ export default function FirmsIndex({ firms }: Props) {
                                             <td className="px-4 py-3 text-muted-foreground">{formatDate(firm.created_at)}</td>
                                             <td className="px-4 py-3">
                                                 <div className="flex items-center justify-end gap-1">
+                                                    <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+                                                        <Link href={`/superadmin/firms/${firm.id}`} title="View Details">
+                                                            <Eye className="h-3.5 w-3.5" />
+                                                        </Link>
+                                                    </Button>
                                                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(firm)}>
                                                         <Pencil className="h-3.5 w-3.5" />
                                                     </Button>
@@ -259,6 +266,26 @@ export default function FirmsIndex({ firms }: Props) {
                             </div>
                         )}
 
+                        {/* Admin Person Details (only on create) */}
+                        {!editingFirm && (
+                            <>
+                                <div className="border-t border-border/60 pt-4 mt-2">
+                                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">Firm Admin Account</p>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="admin_name">Admin full name *</Label>
+                                    <Input id="admin_name" value={data.admin_name} onChange={(e) => setData('admin_name', e.target.value)} placeholder="John Smith" />
+                                    {errors.admin_name && <p className="text-xs text-destructive">{errors.admin_name}</p>}
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="admin_email">Admin email *</Label>
+                                    <Input id="admin_email" type="email" value={data.admin_email} onChange={(e) => setData('admin_email', e.target.value)} placeholder="john@lawfirm.co.uk" />
+                                    <p className="text-xs text-muted-foreground">A setup link will be sent to this email.</p>
+                                    {errors.admin_email && <p className="text-xs text-destructive">{errors.admin_email}</p>}
+                                </div>
+                            </>
+                        )}
+
                         <div className="grid grid-cols-3 gap-4">
                             <div className="space-y-2">
                                 <Label htmlFor="city">City</Label>
@@ -277,7 +304,7 @@ export default function FirmsIndex({ firms }: Props) {
                         <DialogFooter>
                             <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
                             <Button type="submit" disabled={processing}>
-                                {processing ? 'Saving…' : editingFirm ? 'Update Firm' : 'Create Firm'}
+                                {processing ? 'Saving…' : editingFirm ? 'Update Firm' : 'Create & Send Invite'}
                             </Button>
                         </DialogFooter>
                     </form>

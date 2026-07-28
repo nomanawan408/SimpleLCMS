@@ -141,7 +141,7 @@ class RoleController extends Controller
 
         app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 
-        activity()->causedBy($request->user())->performedOn($role)->log('role_updated');
+        activity()->causedBy($request->user())->log('role_updated');
 
         return back()->with('success', "Role '{$role->name}' updated.");
     }

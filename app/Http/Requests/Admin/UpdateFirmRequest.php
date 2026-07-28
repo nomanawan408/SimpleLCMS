@@ -13,8 +13,7 @@ class UpdateFirmRequest extends FormRequest
 
     public function rules(): array
     {
-        return [
-            'name' => ['required', 'string', 'max:255'],
+        $rules = [
             'vat_number' => ['nullable', 'string', 'max:50'],
             'sra_number' => ['nullable', 'string', 'max:50'],
             'address_line1' => ['nullable', 'string', 'max:255'],
@@ -23,7 +22,6 @@ class UpdateFirmRequest extends FormRequest
             'county' => ['nullable', 'string', 'max:100'],
             'postcode' => ['nullable', 'string', 'max:10'],
             'phone' => ['nullable', 'string', 'max:50'],
-            'email' => ['nullable', 'email', 'max:255'],
             'website' => ['nullable', 'url', 'max:255'],
             'timezone' => ['nullable', 'string'],
             'default_hourly_rate' => ['nullable', 'numeric', 'min:0'],
@@ -38,5 +36,13 @@ class UpdateFirmRequest extends FormRequest
             'bank_swift_code' => ['nullable', 'string', 'max:20'],
             'payment_instructions' => ['nullable', 'string', 'max:2000'],
         ];
+
+        // Only super_admin can change name and email
+        if ($this->user()->hasRole('super_admin')) {
+            $rules['name'] = ['sometimes', 'string', 'max:255'];
+            $rules['email'] = ['sometimes', 'email', 'max:255'];
+        }
+
+        return $rules;
     }
 }

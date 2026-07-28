@@ -26,7 +26,7 @@ class InvoiceMail extends Mailable
     {
         return new Envelope(
             from: new Address(
-                $this->firm->email ?? 'noreply@simplelaw.co.uk',
+                config('mail.from.address'),
                 $this->firm->name,
             ),
             subject: "Invoice {$this->invoice->invoice_number} from {$this->firm->name}",

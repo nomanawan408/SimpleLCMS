@@ -3,10 +3,14 @@
 namespace App\Http\Controllers\SuperAdmin;
 
 use App\Http\Controllers\Controller;
+use App\Mail\FirmSetupInviteMail;
 use App\Models\Firm;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -39,6 +43,18 @@ class FirmController extends Controller
         ]);
     }
 
+    public function show(Request $request, Firm $firm): Response
+    {
+        abort_unless($request->user()->hasRole('super_admin'), 403);
+
+        $firm->loadCount(['users', 'matters']);
+        $firm->load(['users' => fn ($q) => $q->orderBy('full_name')]);
+
+        return Inertia::render('SuperAdmin/Firms/Show', [
+            'firm' => $firm,
+        ]);
+    }
+
     public function store(Request $request): RedirectResponse
     {
         abort_unless($request->user()->hasRole('super_admin'), 403);
@@ -57,19 +73,60 @@ class FirmController extends Controller
             'timezone'           => ['nullable', 'string', 'max:50'],
             'default_hourly_rate'=> ['nullable', 'numeric', 'min:0'],
             'vat_rate'           => ['nullable', 'numeric', 'min:0', 'max:100'],
+            // Admin person details
+            'admin_name'         => ['required', 'string', 'max:255'],
+            'admin_email'        => ['required', 'email', 'max:255', 'unique:users,email'],
         ]);
 
-        $firm = Firm::create([
-            ...$validated,
-            'invoice_prefix'     => strtoupper(Str::substr($validated['name'], 0, 3)),
-            'invoice_sequence'   => 1,
-            'payment_terms_days' => 30,
-        ]);
+        $setupToken = Str::random(64);
+
+        DB::transaction(function () use ($validated, $setupToken, &$firm, &$admin) {
+            $firm = Firm::create([
+                'name'               => $validated['name'],
+                'slug'               => $validated['slug'],
+                'email'              => $validated['email'] ?? null,
+                'phone'              => $validated['phone'] ?? null,
+                'plan'               => $validated['plan'],
+                'subscription_status'=> $validated['subscription_status'],
+                'trial_ends_at'      => $validated['trial_ends_at'] ?? null,
+                'address_line1'      => $validated['address_line1'] ?? null,
+                'city'               => $validated['city'] ?? null,
+                'postcode'           => $validated['postcode'] ?? null,
+                'timezone'           => $validated['timezone'] ?? 'Europe/London',
+                'default_hourly_rate'=> $validated['default_hourly_rate'] ?? 250,
+                'vat_rate'           => $validated['vat_rate'] ?? 20,
+                'invoice_prefix'     => strtoupper(Str::substr($validated['name'], 0, 3)),
+                'invoice_sequence'   => 1,
+                'payment_terms_days' => 30,
+                'setup_token'        => $setupToken,
+            ]);
+
+            $tempPassword = Str::random(12);
+            $admin = User::create([
+                'firm_id'            => $firm->id,
+                'full_name'          => $validated['admin_name'],
+                'email'              => $validated['admin_email'],
+                'password'           => Hash::make($tempPassword),
+                'role'               => 'admin',
+                'is_active'          => true,
+                'email_verified_at'  => now(),
+            ]);
+            $admin->syncRoles(['admin']);
+        });
+
+        // Send setup invitation email
+        $setupUrl = url("/firm/setup/{$setupToken}");
+        try {
+            Mail::to($validated['admin_email'])
+                ->send(new FirmSetupInviteMail($firm, $validated['admin_name'], $validated['admin_email'], $setupUrl));
+        } catch (\Exception $e) {
+            // Email failed but firm was created — log and continue
+        }
 
         activity()->causedBy($request->user())->performedOn($firm)->log('firm_created');
 
         return redirect()->route('superadmin.firms.index')
-            ->with('success', "Firm '{$firm->name}' created.");
+            ->with('success', "Firm '{$firm->name}' created. Setup link sent to {$validated['admin_email']}.");
     }
 
     public function update(Request $request, Firm $firm): RedirectResponse
