@@ -25,7 +25,7 @@ interface Props {
 }
 
 export default function EditContact({ contact }: Props) {
-    const { data, setData, post, processing, errors } = useForm({
+    const { data, setData, put, processing, errors } = useForm({
         type: contact.type,
         name: contact.name,
         email: contact.email || '',
@@ -50,7 +50,7 @@ export default function EditContact({ contact }: Props) {
 
     const submit = (e: React.FormEvent) => {
         e.preventDefault();
-        post(`/contacts/${contact.id}`);
+        put(`/contacts/${contact.id}`);
     };
 
     const handleDelete = () => {
