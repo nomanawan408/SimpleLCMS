@@ -39,13 +39,22 @@ class TaskController extends Controller
             $query->where('matter_id', $request->matter_id);
         }
 
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('title', 'like', "%{$search}%")
+                  ->orWhere('description', 'like', "%{$search}%")
+                  ->orWhereHas('matter', fn($mq) => $mq->where('name', 'like', "%{$search}%"));
+            });
+        }
+
         $tasks = $query->paginate(25)->withQueryString();
 
         return Inertia::render('Tasks/Index', [
             'tasks'   => $tasks,
             'users'   => User::where('firm_id', $firmId)->where('is_active', true)->get(['id', 'full_name']),
             'matters' => Matter::where('firm_id', $firmId)->orderBy('name')->get(['id', 'name', 'matter_number']),
-            'filters' => $request->only('status', 'priority', 'assignee_id', 'matter_id'),
+            'filters' => $request->only('status', 'priority', 'assignee_id', 'matter_id', 'search'),
         ]);
     }
 

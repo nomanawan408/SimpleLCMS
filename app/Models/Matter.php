@@ -106,7 +106,9 @@ class Matter extends Model
 
     public function getTrustBalanceAttribute(): float
     {
-        return (float) $this->trustEntries()->latest()->value('balance_after') ?? 0;
+        $receipts = (float) $this->trustEntries()->where('type', 'receipt')->sum('amount');
+        $disbursements = (float) $this->trustEntries()->where('type', 'disbursement')->sum('amount');
+        return $receipts - $disbursements;
     }
 
     public function getUnbilledTimeValueAttribute(): float

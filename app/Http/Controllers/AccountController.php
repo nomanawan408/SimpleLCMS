@@ -28,11 +28,14 @@ class AccountController extends Controller
 
         $entries = $query->paginate(30)->withQueryString();
 
+        $trustTotals = TrustEntry::where('firm_id', $firmId)
+            ->selectRaw("SUM(CASE WHEN type = 'receipt' THEN amount ELSE 0 END) as total_receipts, SUM(CASE WHEN type = 'disbursement' THEN amount ELSE 0 END) as total_disbursements")
+            ->first();
+
         $summary = [
-            'total_receipts'      => TrustEntry::where('firm_id', $firmId)->where('type', 'receipt')->sum('amount'),
-            'total_disbursements' => TrustEntry::where('firm_id', $firmId)->where('type', 'disbursement')->sum('amount'),
-            'balance'             => TrustEntry::where('firm_id', $firmId)->where('type', 'receipt')->sum('amount')
-                                   - TrustEntry::where('firm_id', $firmId)->where('type', 'disbursement')->sum('amount'),
+            'total_receipts'      => (float) ($trustTotals->total_receipts ?? 0),
+            'total_disbursements' => (float) ($trustTotals->total_disbursements ?? 0),
+            'balance'             => (float) ($trustTotals->total_receipts ?? 0) - (float) ($trustTotals->total_disbursements ?? 0),
         ];
 
         // Firm bank account details
