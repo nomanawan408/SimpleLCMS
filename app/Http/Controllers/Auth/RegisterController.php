@@ -42,10 +42,10 @@ class RegisterController extends Controller
             'full_name' => $request->full_name,
             'email'     => $request->email,
             'password'  => Hash::make($request->password),
-            'role'      => 'administrator',
+            'role'      => 'firm_admin',
         ]);
 
-        $user->assignRole('admin');
+        $user->assignRole('firm_admin');
 
         event(new Registered($user));
 

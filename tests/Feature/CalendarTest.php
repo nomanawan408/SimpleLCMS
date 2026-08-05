@@ -60,7 +60,7 @@ class CalendarTest extends TestCase
 
     public function test_can_delete_event(): void
     {
-        [$firm, $user] = $this->createFirmAndUser();
+        [$firm, $user] = $this->createFirmAndAdmin();
         $event = CalendarEvent::factory()->forFirm($firm, $user)->create();
 
         $this->actingAsUser($user)->deleteJson("/calendar/{$event->id}")

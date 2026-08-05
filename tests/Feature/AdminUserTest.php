@@ -81,7 +81,7 @@ class AdminUserTest extends TestCase
     {
         [$firm, $admin] = $this->createFirmAndAdmin();
 
-        $validRoles = ['admin', 'administrator', 'solicitor', 'lawyer', 'barrister', 'clerk', 'consultant', 'paralegal', 'secretary', 'manager', 'accounts'];
+        $validRoles = ['firm_admin', 'solicitor', 'lawyer', 'barrister', 'clerk', 'consultant', 'paralegal', 'secretary', 'manager', 'accounts'];
 
         foreach ($validRoles as $i => $role) {
             $this->actingAsUser($admin)->post('/admin/users', [

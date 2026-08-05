@@ -36,7 +36,7 @@ export interface User {
     firm_id: string;
     full_name: string;
     email: string;
-    role: 'solicitor' | 'lawyer' | 'barrister' | 'clerk' | 'consultant' | 'administrator' | 'manager' | 'accounts';
+    role: 'super_admin' | 'firm_admin' | 'admin' | 'solicitor' | 'lawyer' | 'barrister' | 'paralegal' | 'secretary' | 'clerk' | 'consultant' | 'administrator' | 'manager' | 'accounts';
     roles?: string[];
     permissions?: string[];
     phone: string | null;

@@ -64,7 +64,7 @@ class DocumentTest extends TestCase
     public function test_can_delete_document(): void
     {
         Storage::fake('local');
-        [$firm, $user] = $this->createFirmAndUser();
+        [$firm, $user] = $this->createFirmAndAdmin();
         $matter = Matter::factory()->forFirm($firm, $user)->create();
 
         $doc = Document::create([

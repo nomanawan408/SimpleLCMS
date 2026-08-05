@@ -169,7 +169,7 @@ class TimeEntryTest extends TestCase
 
     public function test_can_delete_unbilled_entry(): void
     {
-        [$firm, $user] = $this->createFirmAndUser();
+        [$firm, $user] = $this->createFirmAndAdmin();
         $matter = Matter::factory()->forFirm($firm, $user)->create();
         $entry  = TimeEntry::factory()->forMatter($matter)->forUser($user)->create();
 
@@ -181,7 +181,7 @@ class TimeEntryTest extends TestCase
 
     public function test_cannot_delete_billed_entry(): void
     {
-        [$firm, $user] = $this->createFirmAndUser();
+        [$firm, $user] = $this->createFirmAndAdmin();
         $matter = Matter::factory()->forFirm($firm, $user)->create();
         $entry  = TimeEntry::factory()->billed()->forMatter($matter)->forUser($user)->create();
 

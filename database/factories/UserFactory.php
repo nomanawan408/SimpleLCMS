@@ -32,7 +32,7 @@ class UserFactory extends Factory
 
     public function firmAdmin(): static
     {
-        return $this->state(fn () => ['role' => 'admin']);
+        return $this->state(fn () => ['role' => 'firm_admin']);
     }
 
     public function accounts(): static

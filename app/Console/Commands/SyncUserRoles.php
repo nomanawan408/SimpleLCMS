@@ -13,14 +13,19 @@ use Spatie\Permission\Models\Role;
 class SyncUserRoles extends Command
 {
     private const ROLE_MAP = [
-        'administrator' => 'admin',
-        'manager'       => 'admin',
+        'super_admin'   => 'super_admin',
+        'admin'         => 'firm_admin',
+        'administrator' => 'firm_admin',
+        'firm_admin'    => 'firm_admin',
+        'manager'       => 'manager',
         'solicitor'     => 'solicitor',
-        'lawyer'        => 'solicitor',
-        'barrister'     => 'solicitor',
-        'clerk'         => 'paralegal',
-        'consultant'    => 'paralegal',
-        'accounts'      => 'secretary',
+        'lawyer'        => 'lawyer',
+        'barrister'     => 'barrister',
+        'paralegal'     => 'paralegal',
+        'secretary'     => 'secretary',
+        'clerk'         => 'clerk',
+        'consultant'    => 'consultant',
+        'accounts'      => 'accounts',
     ];
 
     public function handle(): int

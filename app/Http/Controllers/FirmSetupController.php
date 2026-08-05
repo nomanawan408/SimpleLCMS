@@ -66,7 +66,7 @@ class FirmSetupController extends Controller
             'setup_token'        => null,
         ]);
 
-        $admin = User::where('firm_id', $firm->id)->where('role', 'admin')->first();
+        $admin = User::where('firm_id', $firm->id)->where('role', 'firm_admin')->first();
         if ($admin) {
             $admin->update(['password' => Hash::make($password)]);
         }

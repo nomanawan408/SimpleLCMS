@@ -107,11 +107,11 @@ class FirmController extends Controller
                 'full_name'          => $validated['admin_name'],
                 'email'              => $validated['admin_email'],
                 'password'           => Hash::make($tempPassword),
-                'role'               => 'admin',
+                'role'               => 'firm_admin',
                 'is_active'          => true,
                 'email_verified_at'  => now(),
             ]);
-            $admin->syncRoles(['admin']);
+            $admin->syncRoles(['firm_admin']);
         });
 
         // Send setup invitation email

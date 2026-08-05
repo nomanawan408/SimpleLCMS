@@ -51,9 +51,9 @@ abstract class TestCase extends BaseTestCase
         $superAdmin->update(['is_system' => true]);
         $superAdmin->syncPermissions(Permission::all());
 
-        $admin = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
-        $admin->update(['is_system' => true]);
-        $admin->syncPermissions([
+        $firmAdmin = Role::firstOrCreate(['name' => 'firm_admin', 'guard_name' => 'web']);
+        $firmAdmin->update(['is_system' => true]);
+        $firmAdmin->syncPermissions([
             'view_dashboard',
             'manage_matters', 'view_matters', 'create_matters', 'edit_matters', 'delete_matters',
             'manage_contacts', 'view_contacts', 'create_contacts', 'edit_contacts', 'delete_contacts',
@@ -76,11 +76,9 @@ abstract class TestCase extends BaseTestCase
             'view_matters', 'create_matters', 'edit_matters',
             'view_contacts', 'create_contacts', 'edit_contacts',
             'view_time_entries', 'create_time_entries', 'edit_time_entries',
-            'view_expenses', 'create_expenses',
             'view_documents', 'upload_documents',
-            'view_calendar', 'create_events',
+            'view_calendar', 'create_events', 'edit_events',
             'view_tasks', 'create_tasks', 'edit_tasks',
-            'view_reports',
         ]);
 
         $paralegal = Role::firstOrCreate(['name' => 'paralegal', 'guard_name' => 'web']);
@@ -107,7 +105,7 @@ abstract class TestCase extends BaseTestCase
             'view_tasks',
         ]);
 
-        foreach (['clerk', 'lawyer', 'barrister', 'consultant', 'manager', 'accounts', 'administrator'] as $name) {
+        foreach (['clerk', 'lawyer', 'barrister', 'consultant', 'manager', 'accounts'] as $name) {
             Role::firstOrCreate(['name' => $name, 'guard_name' => 'web']);
         }
     }
@@ -116,7 +114,7 @@ abstract class TestCase extends BaseTestCase
     {
         $firm  = Firm::factory()->create($firmAttrs);
         $admin = User::factory()->firmAdmin()->forFirm($firm)->create($userAttrs);
-        $admin->assignRole('admin');
+        $admin->assignRole('firm_admin');
         return [$firm, $admin];
     }
 

@@ -46,7 +46,7 @@ class AppServiceProvider extends ServiceProvider
 
         // Admin panel access: admin role or manage_users permission
         Gate::define('admin-panel', fn (User $user): bool =>
-            $user->is_active && ($user->hasRole('admin') || $user->hasPermissionTo('manage_users'))
+            $user->is_active && ($user->hasRole('firm_admin') || $user->hasPermissionTo('manage_users'))
         );
     }
 }

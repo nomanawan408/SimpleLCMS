@@ -18,6 +18,8 @@ class TimeController extends Controller
 {
     public function index(Request $request): Response
     {
+        abort_unless($request->user()->hasPermissionTo('view_time_entries'), 403);
+
         $user   = $request->user();
         $firmId = $user->firm_id;
         $canManageAll = $user->hasPermissionTo('manage_time_entries');
@@ -89,6 +91,8 @@ class TimeController extends Controller
 
     public function store(Request $request): SymfonyResponse
     {
+        abort_unless($request->user()->hasPermissionTo('create_time_entries'), 403);
+
         $user = $request->user();
 
         $validated = $request->validate([
@@ -134,6 +138,8 @@ class TimeController extends Controller
 
     public function update(Request $request, TimeEntry $entry): SymfonyResponse
     {
+        abort_unless($request->user()->hasPermissionTo('edit_time_entries'), 403);
+
         if ($entry->firm_id !== $request->user()->firm_id) abort(403);
 
         if ($entry->is_locked || $entry->billed) {
@@ -169,6 +175,8 @@ class TimeController extends Controller
 
     public function destroy(Request $request, TimeEntry $entry): SymfonyResponse
     {
+        abort_unless($request->user()->hasPermissionTo('delete_time_entries'), 403);
+
         if ($entry->firm_id !== $request->user()->firm_id) abort(403);
 
         if ($entry->is_locked || $entry->billed) {
@@ -401,6 +409,8 @@ class TimeController extends Controller
 
     public function createInvoice(Request $request): SymfonyResponse
     {
+        abort_unless($request->user()->hasPermissionTo('create_invoices'), 403);
+
         $user   = $request->user();
         $firmId = $user->firm_id;
 

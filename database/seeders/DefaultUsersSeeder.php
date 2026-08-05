@@ -59,14 +59,14 @@ class DefaultUsersSeeder extends Seeder
             [
                 'full_name'         => 'Admin User',
                 'password'          => Hash::make('password'),
-                'role'              => 'admin',
+                'role'              => 'firm_admin',
                 'email_verified_at' => now(),
                 'phone'             => '+44 7700 000002',
                 'is_active'         => true,
                 'totp_enabled'      => false,
             ]
         );
-        $admin->syncRoles(['admin']);
+        $admin->syncRoles(['firm_admin']);
 
         // ── Demo Contact ──
         Contact::updateOrCreate(

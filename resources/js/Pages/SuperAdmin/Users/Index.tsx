@@ -44,6 +44,7 @@ interface Props {
 
 const roleVariant: Record<string, 'default' | 'success' | 'warning' | 'destructive' | 'secondary' | 'info'> = {
     super_admin: 'destructive',
+    firm_admin: 'default',
     admin: 'default',
     administrator: 'default',
     solicitor: 'info',
@@ -253,8 +254,7 @@ export default function UsersIndex({ users, firms, filters }: Props) {
                                 <SelectTrigger><SelectValue /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="super_admin">Super Admin</SelectItem>
-                                    <SelectItem value="admin">Admin</SelectItem>
-                                    <SelectItem value="administrator">Administrator</SelectItem>
+                                    <SelectItem value="firm_admin">Firm Admin</SelectItem>
                                     <SelectItem value="manager">Manager</SelectItem>
                                     <SelectItem value="solicitor">Solicitor</SelectItem>
                                     <SelectItem value="lawyer">Lawyer</SelectItem>

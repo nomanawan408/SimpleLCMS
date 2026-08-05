@@ -425,7 +425,7 @@ class UserModuleTest extends TestCase
     {
         [$firm, $admin] = $this->createFirmAndAdmin();
 
-        $adminRole = Role::where('name', 'admin')->first();
+        $adminRole = Role::where('name', 'firm_admin')->first();
 
         $this->actingAsUser($admin)->put("/admin/roles/{$adminRole->id}", [
             'name'        => 'changed_admin',
@@ -490,13 +490,13 @@ class UserModuleTest extends TestCase
     {
         [$firm, $admin] = $this->createFirmAndAdmin();
 
-        $adminRole = Role::where('name', 'admin')->first();
+        $adminRole = Role::where('name', 'firm_admin')->first();
 
         $this->actingAsUser($admin)
             ->delete("/admin/roles/{$adminRole->id}")
             ->assertSessionHasErrors('name');
 
-        $this->assertDatabaseHas('roles', ['name' => 'admin']);
+        $this->assertDatabaseHas('roles', ['name' => 'firm_admin']);
     }
 
     public function test_cannot_delete_role_from_another_firm(): void
@@ -548,11 +548,11 @@ class UserModuleTest extends TestCase
         $user->assignRole('solicitor');
 
         $this->actingAsUser($admin)->put("/admin/users/{$user->id}", [
-            'role' => 'admin',
+            'role' => 'firm_admin',
         ])->assertRedirect();
 
         $user->refresh();
-        $this->assertTrue($user->hasRole('admin'));
+        $this->assertTrue($user->hasRole('firm_admin'));
     }
 
     public function test_user_can_have_multiple_roles(): void
@@ -572,7 +572,7 @@ class UserModuleTest extends TestCase
     {
         [$firm, $admin] = $this->createFirmAndAdmin();
 
-        $validRoles = ['admin', 'administrator', 'solicitor', 'lawyer', 'barrister', 'clerk', 'consultant', 'manager', 'accounts'];
+        $validRoles = ['firm_admin', 'solicitor', 'lawyer', 'barrister', 'clerk', 'consultant', 'manager', 'accounts'];
 
         foreach ($validRoles as $i => $role) {
             $this->actingAsUser($admin)->post('/admin/users', [
@@ -596,7 +596,7 @@ class UserModuleTest extends TestCase
             'email'                 => 'old@lawfirm.co.uk',
             'password'              => 'Password123!',
             'password_confirmation' => 'Password123!',
-            'role'                  => 'firm_admin',
+            'role'                  => 'admin',
         ])->assertSessionHasErrors('role');
     }
 

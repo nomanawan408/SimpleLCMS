@@ -17,20 +17,21 @@ interface NavItem {
     icon: React.ComponentType<{ className?: string }>;
     routeName: string;
     adminOnly?: boolean;
+    permission?: string;
 }
 
 const navItems: NavItem[] = [
     { label: 'Dashboard',  href: '/dashboard',   icon: LayoutDashboard, routeName: 'dashboard' },
-    { label: 'Matters',    href: '/matters',      icon: Briefcase,       routeName: 'matters.index' },
-    { label: 'Contacts',   href: '/contacts',     icon: Users,           routeName: 'contacts.index' },
-    { label: 'Documents',  href: '/documents',    icon: FileText,        routeName: 'documents.index' },
-    { label: 'Time',         href: '/time',         icon: Clock,       routeName: 'time.index' },
-    { label: 'Billing',      href: '/billing',      icon: Receipt,     routeName: 'billing.index' },
-    { label: 'Transactions', href: '/transactions', icon: CreditCard,  routeName: 'transactions.index' },
-    { label: 'Calendar',     href: '/calendar',     icon: Calendar,    routeName: 'calendar.index' },
-    { label: 'Tasks',      href: '/tasks',        icon: CheckSquare,     routeName: 'tasks.index' },
+    { label: 'Matters',    href: '/matters',      icon: Briefcase,       routeName: 'matters.index',  permission: 'view_matters' },
+    { label: 'Contacts',   href: '/contacts',     icon: Users,           routeName: 'contacts.index', permission: 'view_contacts' },
+    { label: 'Documents',  href: '/documents',    icon: FileText,        routeName: 'documents.index', permission: 'view_documents' },
+    { label: 'Time',         href: '/time',         icon: Clock,       routeName: 'time.index',       permission: 'view_time_entries' },
+    { label: 'Billing',      href: '/billing',      icon: Receipt,     routeName: 'billing.index',    permission: 'view_invoices' },
+    { label: 'Transactions', href: '/transactions', icon: CreditCard,  routeName: 'transactions.index', permission: 'view_invoices' },
+    { label: 'Calendar',     href: '/calendar',     icon: Calendar,    routeName: 'calendar.index',   permission: 'view_calendar' },
+    { label: 'Tasks',      href: '/tasks',        icon: CheckSquare,     routeName: 'tasks.index',     permission: 'view_tasks' },
     { label: 'Activities', href: '/activities',   icon: Activity,        routeName: 'activities.index' },
-    { label: 'Reports',    href: '/reports',      icon: BarChart2,       routeName: 'reports.index' },
+    { label: 'Reports',    href: '/reports',      icon: BarChart2,       routeName: 'reports.index',   permission: 'view_reports' },
     { label: 'Accounts',   href: '/accounts',     icon: Landmark,        routeName: 'accounts.index' },
 ];
 
@@ -59,6 +60,11 @@ export default function AppLayout({ children, title }: AppLayoutProps) {
 
     const isActive = (item: NavItem) => url.startsWith(item.href);
     const isSuperAdmin = user.roles?.includes('super_admin') ?? false;
+    const isFirmAdmin = user.roles?.includes('firm_admin') ?? false;
+
+    const visibleNavItems = navItems.filter(
+        (item) => !item.permission || user.permissions?.includes(item.permission),
+    );
 
     const handleLogout = () => {
         router.post('/logout');
@@ -93,7 +99,7 @@ export default function AppLayout({ children, title }: AppLayoutProps) {
 
             {/* Nav */}
             <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-                {(isSuperAdmin ? superAdminNavItems : navItems).map((item) => (
+                {(isSuperAdmin ? superAdminNavItems : visibleNavItems).map((item) => (
                     <Link
                         key={item.routeName}
                         href={item.href}
@@ -113,7 +119,7 @@ export default function AppLayout({ children, title }: AppLayoutProps) {
                     </Link>
                 ))}
 
-                {!isSuperAdmin && (user.roles?.some((r: string) => ['super_admin', 'admin'].includes(r)) || user.permissions?.includes('manage_users')) && (
+                {!isSuperAdmin && (isFirmAdmin || user.permissions?.includes('manage_users')) && (
                     <>
                         <div className="pt-5 pb-2">
                             <p className="px-3 text-[11px] font-semibold text-white/40 uppercase tracking-[0.15em]">Admin</p>

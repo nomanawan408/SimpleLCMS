@@ -15,6 +15,8 @@ class DocumentController extends Controller
 {
     public function index(Request $request): Response
     {
+        abort_unless($request->user()->hasPermissionTo('view_documents'), 403);
+
         $firmId = $request->user()->firm_id;
 
         $query = Document::where('firm_id', $firmId)
@@ -36,10 +38,13 @@ class DocumentController extends Controller
 
     public function store(Request $request): SymfonyResponse
     {
+        abort_unless($request->user()->hasPermissionTo('upload_documents'), 403);
+
         $request->validate([
             'file'             => ['required', 'file', 'max:20480'],
             'matter_id'        => ['required', 'uuid', 'exists:matters,id'],
             'is_client_visible' => ['boolean'],
+            'folder'           => ['nullable', 'string', 'max:255'],
         ]);
 
         $matter = Matter::findOrFail($request->matter_id);
@@ -60,7 +65,7 @@ class DocumentController extends Controller
             'name'             => $file->getClientOriginalName(),
             'original_name'    => $file->getClientOriginalName(),
             's3_key'           => $path,
-            'folder'           => 'General',
+            'folder'           => $request->input('folder', 'General'),
             'mime_type'        => $file->getClientMimeType(),
             'size_bytes'       => $file->getSize(),
             'is_client_visible' => $request->boolean('is_client_visible'),
@@ -80,6 +85,8 @@ class DocumentController extends Controller
 
     public function view(Request $request, Document $document): StreamedResponse
     {
+        abort_unless($request->user()->hasPermissionTo('view_documents'), 403);
+
         if ($document->firm_id !== $request->user()->firm_id) {
             abort(403);
         }
@@ -107,6 +114,8 @@ class DocumentController extends Controller
 
     public function download(Request $request, Document $document): StreamedResponse
     {
+        abort_unless($request->user()->hasPermissionTo('view_documents'), 403);
+
         if ($document->firm_id !== $request->user()->firm_id) {
             abort(403);
         }
@@ -122,6 +131,8 @@ class DocumentController extends Controller
 
     public function destroy(Request $request, Document $document): SymfonyResponse
     {
+        abort_unless($request->user()->hasPermissionTo('delete_documents'), 403);
+
         if ($document->firm_id !== $request->user()->firm_id) {
             abort(403);
         }

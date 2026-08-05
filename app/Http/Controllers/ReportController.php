@@ -15,6 +15,8 @@ class ReportController extends Controller
 {
     public function index(Request $request): Response
     {
+        abort_unless($request->user()->hasPermissionTo('view_reports'), 403);
+
         $firmId = $request->user()->firm_id;
 
         $financialSummary = [

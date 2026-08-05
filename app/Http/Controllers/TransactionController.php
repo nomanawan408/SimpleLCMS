@@ -13,6 +13,8 @@ class TransactionController extends Controller
 {
     public function index(Request $request): Response
     {
+        abort_unless($request->user()->hasPermissionTo('view_invoices'), 403);
+
         $user   = $request->user();
         $firmId = $user->firm_id;
 
@@ -90,6 +92,8 @@ class TransactionController extends Controller
 
     public function store(Request $request)
     {
+        abort_unless($request->user()->hasPermissionTo('manage_invoices'), 403);
+
         $user   = $request->user();
         $firmId = $user->firm_id;
 

@@ -16,6 +16,8 @@ class TaskController extends Controller
 {
     public function index(Request $request): Response
     {
+        abort_unless($request->user()->hasPermissionTo('view_tasks'), 403);
+
         $firmId = $request->user()->firm_id;
 
         $query = Task::where('firm_id', $firmId)
@@ -60,6 +62,8 @@ class TaskController extends Controller
 
     public function store(Request $request): SymfonyResponse
     {
+        abort_unless($request->user()->hasPermissionTo('create_tasks'), 403);
+
         $validated = $request->validate([
             'title'       => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
@@ -96,6 +100,8 @@ class TaskController extends Controller
 
     public function update(Request $request, Task $task): SymfonyResponse
     {
+        abort_unless($request->user()->hasPermissionTo('edit_tasks'), 403);
+
         if ($task->firm_id !== $request->user()->firm_id) {
             abort(403);
         }
@@ -129,6 +135,8 @@ class TaskController extends Controller
 
     public function destroy(Request $request, Task $task): SymfonyResponse
     {
+        abort_unless($request->user()->hasPermissionTo('delete_tasks'), 403);
+
         if ($task->firm_id !== $request->user()->firm_id) {
             abort(403);
         }

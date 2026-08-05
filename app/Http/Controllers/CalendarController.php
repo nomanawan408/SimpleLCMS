@@ -14,6 +14,8 @@ class CalendarController extends Controller
 {
     public function index(Request $request): Response
     {
+        abort_unless($request->user()->hasPermissionTo('view_calendar'), 403);
+
         $firmId = $request->user()->firm_id;
         $year   = (int) ($request->query('year', now()->year));
         $month  = (int) ($request->query('month', now()->month));
@@ -85,6 +87,8 @@ class CalendarController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        abort_unless($request->user()->hasPermissionTo('create_events'), 403);
+
         $validated = $request->validate([
             'title'        => ['required', 'string', 'max:255'],
             'type'         => ['required', 'in:appointment,court_date,deadline,consultation,other'],
@@ -116,6 +120,8 @@ class CalendarController extends Controller
 
     public function update(Request $request, CalendarEvent $event): JsonResponse
     {
+        abort_unless($request->user()->hasPermissionTo('edit_events'), 403);
+
         if ($event->firm_id !== $request->user()->firm_id) {
             abort(403);
         }
@@ -143,6 +149,8 @@ class CalendarController extends Controller
 
     public function destroy(Request $request, CalendarEvent $event): JsonResponse
     {
+        abort_unless($request->user()->hasPermissionTo('delete_events'), 403);
+
         if ($event->firm_id !== $request->user()->firm_id) {
             abort(403);
         }

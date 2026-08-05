@@ -74,34 +74,30 @@ class RolePermissionSeeder extends Seeder
             Permission::firstOrCreate(['name' => $permission, 'guard_name' => 'web']);
         }
 
-        // ── Super Admin ──
+        // ── Super Admin (SaaS platform owner — not scoped to a firm) ──
         $superAdmin = Role::firstOrCreate(['name' => 'super_admin', 'guard_name' => 'web']);
-        $superAdmin->update(['is_system' => true, 'description' => 'Full platform access with all permissions']);
+        $superAdmin->update(['is_system' => true, 'description' => 'SaaS platform owner with full platform access']);
         $superAdmin->syncPermissions(Permission::all());
 
-        // ── Admin ──
-        $admin = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
-        $admin->update(['is_system' => true, 'description' => 'Firm administrator with full operational access']);
-        $admin->syncPermissions(Permission::all());
+        // ── Firm Admin (consolidated from legacy admin / administrator) ──
+        $firmAdmin = Role::firstOrCreate(['name' => 'firm_admin', 'guard_name' => 'web']);
+        $firmAdmin->update(['is_system' => true, 'description' => 'Firm administrator with full operational, financial and administrative access']);
+        $firmAdmin->syncPermissions(Permission::all());
 
-        // ── Administrator ──
-        $administrator = Role::firstOrCreate(['name' => 'administrator', 'guard_name' => 'web']);
-        $administrator->update(['is_system' => true, 'description' => 'Administrator with broad operational access']);
-        $administrator->syncPermissions([
-            'view_dashboard',
-            'manage_matters', 'view_matters', 'create_matters', 'edit_matters', 'delete_matters',
-            'manage_contacts', 'view_contacts', 'create_contacts', 'edit_contacts', 'delete_contacts',
-            'manage_time_entries', 'view_time_entries', 'create_time_entries', 'edit_time_entries',
-            'manage_expenses', 'view_expenses', 'create_expenses', 'edit_expenses',
-            'manage_invoices', 'view_invoices', 'create_invoices', 'edit_invoices',
-            'manage_documents', 'view_documents', 'upload_documents', 'delete_documents',
-            'manage_calendar', 'view_calendar', 'create_events', 'edit_events', 'delete_events',
-            'manage_tasks', 'view_tasks', 'create_tasks', 'edit_tasks', 'delete_tasks',
-            'manage_trust', 'view_trust', 'create_trust_entries', 'edit_trust_entries',
-            'manage_users', 'view_users', 'create_users', 'edit_users', 'delete_users',
-            'view_firm_settings', 'edit_firm_settings', 'manage_firm',
-            'view_reports', 'export_data',
-        ]);
+        // Merge any legacy admin / administrator roles into firm_admin (reassign
+        // users, carry over permissions, then drop the legacy roles).
+        foreach (['admin', 'administrator'] as $legacyName) {
+            $legacy = Role::where('name', $legacyName)->where('guard_name', 'web')->first();
+            if (! $legacy) {
+                continue;
+            }
+
+            foreach (\App\Models\User::role($legacyName)->get() as $user) {
+                $user->assignRole('firm_admin');
+            }
+            $firmAdmin->givePermissionTo($legacy->permissions->pluck('name'));
+            $legacy->delete();
+        }
 
         // ── Manager ──
         $manager = Role::firstOrCreate(['name' => 'manager', 'guard_name' => 'web']);
@@ -111,13 +107,9 @@ class RolePermissionSeeder extends Seeder
             'manage_matters', 'view_matters', 'create_matters', 'edit_matters',
             'manage_contacts', 'view_contacts', 'create_contacts', 'edit_contacts',
             'manage_time_entries', 'view_time_entries', 'create_time_entries', 'edit_time_entries',
-            'manage_expenses', 'view_expenses', 'create_expenses', 'edit_expenses',
-            'view_invoices', 'create_invoices', 'edit_invoices',
             'manage_documents', 'view_documents', 'upload_documents',
             'manage_calendar', 'view_calendar', 'create_events', 'edit_events', 'delete_events',
             'manage_tasks', 'view_tasks', 'create_tasks', 'edit_tasks', 'delete_tasks',
-            'view_reports', 'export_data',
-            'view_users',
         ]);
 
         // ── Solicitor ──
@@ -128,12 +120,9 @@ class RolePermissionSeeder extends Seeder
             'view_matters', 'create_matters', 'edit_matters',
             'view_contacts', 'create_contacts', 'edit_contacts',
             'view_time_entries', 'create_time_entries', 'edit_time_entries',
-            'view_expenses', 'create_expenses', 'edit_expenses',
-            'view_invoices', 'create_invoices', 'edit_invoices',
             'view_documents', 'upload_documents',
             'view_calendar', 'create_events', 'edit_events',
             'view_tasks', 'create_tasks', 'edit_tasks',
-            'view_reports',
         ]);
 
         // ── Lawyer ──
@@ -144,12 +133,9 @@ class RolePermissionSeeder extends Seeder
             'view_matters', 'create_matters', 'edit_matters',
             'view_contacts', 'create_contacts', 'edit_contacts',
             'view_time_entries', 'create_time_entries', 'edit_time_entries',
-            'view_expenses', 'create_expenses', 'edit_expenses',
-            'view_invoices', 'create_invoices', 'edit_invoices',
             'view_documents', 'upload_documents',
             'view_calendar', 'create_events', 'edit_events',
             'view_tasks', 'create_tasks', 'edit_tasks',
-            'view_reports',
         ]);
 
         // ── Barrister ──
@@ -160,11 +146,9 @@ class RolePermissionSeeder extends Seeder
             'view_matters', 'edit_matters',
             'view_contacts',
             'view_time_entries', 'create_time_entries',
-            'view_invoices',
             'view_documents', 'upload_documents',
             'view_calendar', 'create_events', 'edit_events',
             'view_tasks', 'create_tasks',
-            'view_reports',
         ]);
 
         // ── Paralegal ──
@@ -175,7 +159,6 @@ class RolePermissionSeeder extends Seeder
             'view_matters',
             'view_contacts', 'create_contacts', 'edit_contacts',
             'view_time_entries', 'create_time_entries',
-            'view_expenses', 'create_expenses',
             'view_documents', 'upload_documents',
             'view_calendar', 'create_events',
             'view_tasks', 'create_tasks', 'edit_tasks',
@@ -189,7 +172,6 @@ class RolePermissionSeeder extends Seeder
             'view_matters',
             'view_contacts',
             'view_time_entries',
-            'view_expenses',
             'view_documents', 'upload_documents',
             'view_calendar', 'create_events',
             'view_tasks',
@@ -216,14 +198,12 @@ class RolePermissionSeeder extends Seeder
             'view_matters',
             'view_contacts',
             'view_time_entries', 'create_time_entries',
-            'view_invoices',
             'view_documents', 'upload_documents',
             'view_calendar', 'create_events',
             'view_tasks', 'create_tasks', 'edit_tasks',
-            'view_reports',
         ]);
 
-        // ── Accounts ──
+        // ── Accounts (financial role, retained as-is) ──
         $accounts = Role::firstOrCreate(['name' => 'accounts', 'guard_name' => 'web']);
         $accounts->update(['is_system' => true, 'description' => 'Accounts role with billing and financial access']);
         $accounts->syncPermissions([
@@ -239,6 +219,8 @@ class RolePermissionSeeder extends Seeder
             'view_tasks',
             'view_reports', 'export_data',
         ]);
+
+        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 
         $this->command->info('Roles and permissions updated successfully.');
     }

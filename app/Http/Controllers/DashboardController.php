@@ -41,26 +41,6 @@ class DashboardController extends Controller
             ->whereBetween('date', [$monthStart, $today])
             ->sum('duration_minutes') / 60;
 
-        $hoursBilled = TimeEntry::where('firm_id', $firmId)
-            ->where('billed', true)
-            ->whereBetween('date', [$monthStart, $today])
-            ->sum('duration_minutes') / 60;
-
-        $totalInvoiced     = Invoice::where('firm_id', $firmId)->sum('total');
-        $outstandingInvoices = Invoice::where('firm_id', $firmId)
-            ->whereIn('status', ['sent', 'partial'])
-            ->sum('total');
-
-        $totalReceived = (float) Payment::where('firm_id', $firmId)->sum('amount');
-
-        $pendingAmount = (float) Invoice::where('firm_id', $firmId)
-            ->whereNotIn('status', ['paid', 'cancelled'])
-            ->sum(DB::raw('GREATEST(0, total - COALESCE((SELECT SUM(amount) FROM payments WHERE payments.invoice_id = invoices.id), 0))'));
-
-        $trustReceipts      = TrustEntry::where('firm_id', $firmId)->where('type', 'receipt')->sum('amount');
-        $trustDisbursements = TrustEntry::where('firm_id', $firmId)->where('type', 'disbursement')->sum('amount');
-        $trustBalance       = $trustReceipts - $trustDisbursements;
-
         $openMattersCount = Matter::where('firm_id', $firmId)
             ->where('status', 'open')
             ->count();
@@ -83,20 +63,50 @@ class DashboardController extends Controller
             ->take(5)
             ->get();
 
+        // Financial KPIs + billing data are only exposed to roles that can view
+        // invoices (firm_admin, accounts). Everyone else gets a restricted,
+        // non-financial dashboard scoped to their tasks and matters.
+        $viewFinancial = $user->hasPermissionTo('view_invoices');
+
+        $stats = [
+            'hours_today'         => round($hoursToday, 1),
+            'hours_week'          => round($hoursWeek, 1),
+            'hours_month'         => round($hoursMonth, 1),
+            'open_matters'        => $openMattersCount,
+            'overdue_tasks'       => $overdueTasks,
+        ];
+
+        if ($viewFinancial) {
+            $hoursBilled = TimeEntry::where('firm_id', $firmId)
+                ->where('billed', true)
+                ->whereBetween('date', [$monthStart, $today])
+                ->sum('duration_minutes') / 60;
+
+            $totalInvoiced       = Invoice::where('firm_id', $firmId)->sum('total');
+            $outstandingInvoices = Invoice::where('firm_id', $firmId)
+                ->whereIn('status', ['sent', 'partial'])
+                ->sum('total');
+
+            $totalReceived = (float) Payment::where('firm_id', $firmId)->sum('amount');
+
+            $pendingAmount = (float) Invoice::where('firm_id', $firmId)
+                ->whereNotIn('status', ['paid', 'cancelled'])
+                ->sum(DB::raw('GREATEST(0, total - COALESCE((SELECT SUM(amount) FROM payments WHERE payments.invoice_id = invoices.id), 0))'));
+
+            $trustReceipts      = TrustEntry::where('firm_id', $firmId)->where('type', 'receipt')->sum('amount');
+            $trustDisbursements = TrustEntry::where('firm_id', $firmId)->where('type', 'disbursement')->sum('amount');
+
+            $stats['hours_billed']          = round($hoursBilled, 1);
+            $stats['total_invoiced']        = (float) $totalInvoiced;
+            $stats['outstanding_invoices']  = $outstandingInvoices;
+            $stats['total_received']        = $totalReceived;
+            $stats['pending_amount']        = $pendingAmount;
+            $stats['trust_balance']         = $trustReceipts - $trustDisbursements;
+        }
+
         return Inertia::render('Dashboard', [
-            'stats' => [
-                'hours_today'         => round($hoursToday, 1),
-                'hours_week'          => round($hoursWeek, 1),
-                'hours_month'         => round($hoursMonth, 1),
-                'hours_billed'        => round($hoursBilled, 1),
-                'total_invoiced'      => (float) $totalInvoiced,
-                'outstanding_invoices'=> $outstandingInvoices,
-                'total_received'      => $totalReceived,
-                'pending_amount'      => $pendingAmount,
-                'trust_balance'       => $trustBalance,
-                'open_matters'        => $openMattersCount,
-                'overdue_tasks'       => $overdueTasks,
-            ],
+            'stats'         => $stats,
+            'viewFinancial' => $viewFinancial,
             'recentMatters' => $recentMatters,
             'upcomingTasks' => $upcomingTasks,
         ]);
