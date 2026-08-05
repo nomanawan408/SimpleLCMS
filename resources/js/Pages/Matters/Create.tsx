@@ -16,6 +16,7 @@ interface Props {
     users: User[];
     contacts: Contact[];
     prefill_contact_id?: string | null;
+    viewFinancial: boolean;
 }
 
 const FEE_ARRANGEMENT_HINTS: Record<string, string> = {
@@ -25,7 +26,7 @@ const FEE_ARRANGEMENT_HINTS: Record<string, string> = {
     retainer:    'Client pays an upfront amount held on account, topped up as required.',
 };
 
-export default function CreateMatter({ users, contacts, prefill_contact_id }: Props) {
+export default function CreateMatter({ users, contacts, prefill_contact_id, viewFinancial }: Props) {
     const [contactList, setContactList] = useState<Contact[]>(contacts);
     const [contactModalOpen, setContactModalOpen] = useState(false);
     const [contactSaving, setContactSaving] = useState(false);
@@ -243,6 +244,7 @@ export default function CreateMatter({ users, contacts, prefill_contact_id }: Pr
                             <Separator />
 
                             {/* ── Fee Arrangement ── */}
+                            {viewFinancial && (
                             <div className="space-y-4">
                                 <h3 className="text-sm font-semibold text-foreground">Fee Arrangement</h3>
 
@@ -401,6 +403,7 @@ export default function CreateMatter({ users, contacts, prefill_contact_id }: Pr
                                     </div>
                                 )}
                             </div>
+                            )}
 
                             <Separator />
 

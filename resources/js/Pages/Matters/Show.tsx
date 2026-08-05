@@ -32,6 +32,7 @@ interface Props {
         unbilled_time_value?: number;
     };
     users: { id: string; full_name: string }[];
+    viewFinancial: boolean;
     activeTimer: {
         matter_id: string;
         matter_name: string;
@@ -45,7 +46,7 @@ interface Props {
     } | null;
 }
 
-export default function ShowMatter({ matter, users, activeTimer: serverTimer }: Props) {
+export default function ShowMatter({ matter, users, viewFinancial, activeTimer: serverTimer }: Props) {
     const [notes, setNotes] = useState<any[]>(matter.notes ?? []);
     const [timeEntries, setTimeEntries] = useState<any[]>(matter.time_entries ?? []);
     const [expenses, setExpenses] = useState<any[]>(matter.expenses ?? []);
@@ -626,7 +627,7 @@ export default function ShowMatter({ matter, users, activeTimer: serverTimer }: 
                                         {PRACTICE_AREA_LABELS[matter.practice_area]}
                                     </span>
                                 )}
-                                {matter.fee_arrangement && (
+                                {viewFinancial && matter.fee_arrangement && (
                                     <span className="flex items-center gap-1">
                                         <PoundSterling className="h-3.5 w-3.5" />
                                         {matter.fee_arrangement.replace(/_/g, ' ')}
@@ -692,6 +693,7 @@ export default function ShowMatter({ matter, users, activeTimer: serverTimer }: 
             </Card>
 
             {/* Financial Summary Strip */}
+            {viewFinancial && (
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5">
                 {[
                     { label: 'Unbilled Time', value: formatCurrency(matter.unbilled_time_value || 0), colour: 'text-primary',     bg: 'bg-primary/8' },
@@ -706,6 +708,7 @@ export default function ShowMatter({ matter, users, activeTimer: serverTimer }: 
                     </div>
                 ))}
             </div>
+            )}
 
             {/* Tabs */}
             <div className="mb-5 border-b border-border/60 overflow-x-auto">
@@ -713,11 +716,13 @@ export default function ShowMatter({ matter, users, activeTimer: serverTimer }: 
                     {[
                         { key: 'dashboard', label: 'Overview',     count: null },
                         { key: 'time',      label: 'Time',          count: timeEntries.length || null },
-                        { key: 'expenses',  label: 'Expenses',      count: expenses.length || null },
+                        ...(viewFinancial ? [
+                            { key: 'expenses',  label: 'Expenses',      count: expenses.length || null },
+                            { key: 'billing',   label: 'Billing',       count: matter.invoices?.length || null },
+                            { key: 'trust',     label: 'Trust Account', count: null },
+                        ] : []),
                         { key: 'documents', label: 'Documents',     count: documents.length || null },
                         { key: 'tasks',     label: 'Tasks',         count: tasks.filter((t: any) => t.status !== 'done').length || null },
-                        { key: 'billing',   label: 'Billing',       count: matter.invoices?.length || null },
-                        { key: 'trust',     label: 'Trust Account', count: null },
                     ].map((t) => (
                         <button
                             key={t.key}

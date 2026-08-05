@@ -69,6 +69,7 @@ class MatterController extends Controller
                 ->orderBy('name')
                 ->get(['id', 'name', 'type', 'email']),
             'prefill_contact_id' => $prefillContactId,
+            'viewFinancial' => $request->user()->canAccessFinancials(),
         ]);
     }
 
@@ -101,25 +102,35 @@ class MatterController extends Controller
     {
         $this->authorize('view', $matter);
 
+        $viewFinancial = $request->user()->canAccessFinancials();
+
         $matter->load([
             'responsibleUser', 'originatingUser', 'contacts',
             'notes' => fn ($q) => $q->latest()->take(10),
             'notes.user',
             'tasks' => fn ($q) => $q->where('status', '!=', 'done')->orderBy('due_date'),
-            'invoices' => fn ($q) => $q->latest()->take(5),
             'timeEntries' => fn ($q) => $q->latest()->take(10),
             'timeEntries.user',
-            'expenses' => fn ($q) => $q->latest()->take(10),
             'documents' => fn ($q) => $q->latest()->take(10),
             'documents.uploadedBy',
-            'trustEntries' => fn ($q) => $q->latest()->take(10),
         ]);
+
+        // Financial relations (invoices, expenses, trust entries) are only
+        // loaded for roles that can view financials (firm_admin, accounts).
+        if ($viewFinancial) {
+            $matter->load([
+                'invoices' => fn ($q) => $q->latest()->take(5),
+                'expenses' => fn ($q) => $q->latest()->take(10),
+                'trustEntries' => fn ($q) => $q->latest()->take(10),
+            ]);
+        }
 
         return Inertia::render('Matters/Show', [
             'matter' => $matter,
             'users'  => User::where('firm_id', $matter->firm_id)
                 ->where('is_active', true)
                 ->get(['id', 'full_name']),
+            'viewFinancial' => $viewFinancial,
             'activeTimer' => session('active_timer_' . $request->user()->id),
         ]);
     }
@@ -141,6 +152,7 @@ class MatterController extends Controller
             'contacts' => Contact::where('firm_id', $firmId)
                 ->orderBy('name')
                 ->get(['id', 'name', 'type', 'email']),
+            'viewFinancial' => $request->user()->canAccessFinancials(),
         ]);
     }
 

@@ -96,4 +96,12 @@ class User extends Authenticatable
     {
         return $this->hasRole('super_admin') || $this->hasRole('firm_admin');
     }
+
+    public function canAccessFinancials(): bool
+    {
+        return $this->hasPermissionTo('view_invoices')
+            || $this->hasPermissionTo('view_trust')
+            || $this->hasPermissionTo('view_expenses')
+            || $this->hasPermissionTo('view_reports');
+    }
 }

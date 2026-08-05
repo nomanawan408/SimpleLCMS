@@ -13,6 +13,8 @@ class AccountController extends Controller
 {
     public function index(Request $request): Response
     {
+        abort_unless($request->user()->hasPermissionTo('view_trust'), 403);
+
         $firmId = $request->user()->firm_id;
         $firm   = $request->user()->firm;
 

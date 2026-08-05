@@ -19,6 +19,8 @@ class InvoiceController extends Controller
 {
     public function index(Request $request)
     {
+        abort_unless($request->user()->hasPermissionTo('view_invoices'), 403);
+
         $user = auth()->user();
         $firmId = $user->firm_id;
 
@@ -62,8 +64,10 @@ class InvoiceController extends Controller
         ]);
     }
 
-    public function create()
+    public function create(Request $request)
     {
+        abort_unless($request->user()->hasPermissionTo('create_invoices'), 403);
+
         $user = auth()->user();
         $firmId = $user->firm_id;
 
@@ -102,6 +106,8 @@ class InvoiceController extends Controller
 
     public function store(Request $request)
     {
+        abort_unless($request->user()->hasPermissionTo('create_invoices'), 403);
+
         $user = auth()->user();
         $firmId = $user->firm_id;
 

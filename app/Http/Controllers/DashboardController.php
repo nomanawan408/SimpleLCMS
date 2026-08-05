@@ -64,9 +64,9 @@ class DashboardController extends Controller
             ->get();
 
         // Financial KPIs + billing data are only exposed to roles that can view
-        // invoices (firm_admin, accounts). Everyone else gets a restricted,
+        // financials (firm_admin, accounts). Everyone else gets a restricted,
         // non-financial dashboard scoped to their tasks and matters.
-        $viewFinancial = $user->hasPermissionTo('view_invoices');
+        $viewFinancial = $user->canAccessFinancials();
 
         $stats = [
             'hours_today'         => round($hoursToday, 1),

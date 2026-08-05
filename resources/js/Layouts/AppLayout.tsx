@@ -32,7 +32,7 @@ const navItems: NavItem[] = [
     { label: 'Tasks',      href: '/tasks',        icon: CheckSquare,     routeName: 'tasks.index',     permission: 'view_tasks' },
     { label: 'Activities', href: '/activities',   icon: Activity,        routeName: 'activities.index' },
     { label: 'Reports',    href: '/reports',      icon: BarChart2,       routeName: 'reports.index',   permission: 'view_reports' },
-    { label: 'Accounts',   href: '/accounts',     icon: Landmark,        routeName: 'accounts.index' },
+    { label: 'Accounts',   href: '/accounts',     icon: Landmark,        routeName: 'accounts.index', permission: 'view_trust' },
 ];
 
 const adminItems: NavItem[] = [

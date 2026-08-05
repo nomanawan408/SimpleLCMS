@@ -14,6 +14,7 @@ interface Props {
     matter: Matter & { contacts: Contact[] };
     users: User[];
     contacts: Contact[];
+    viewFinancial: boolean;
 }
 
 const FEE_ARRANGEMENT_HINTS: Record<string, string> = {
@@ -23,7 +24,7 @@ const FEE_ARRANGEMENT_HINTS: Record<string, string> = {
     retainer:    'Client pays an upfront amount held on account, topped up as required.',
 };
 
-export default function EditMatter({ matter, users, contacts }: Props) {
+export default function EditMatter({ matter, users, contacts, viewFinancial }: Props) {
     const cf = (matter.custom_fields as Record<string, string>) ?? {};
 
     const { data, setData, put, processing, errors } = useForm({
@@ -177,6 +178,7 @@ export default function EditMatter({ matter, users, contacts }: Props) {
                             <Separator />
 
                             {/* ── Fee Arrangement ── */}
+                            {viewFinancial && (
                             <div className="space-y-4">
                                 <h3 className="text-sm font-semibold text-foreground">Fee Arrangement</h3>
 
@@ -311,6 +313,7 @@ export default function EditMatter({ matter, users, contacts }: Props) {
                                     </div>
                                 )}
                             </div>
+                            )}
 
                             <Separator />
 
