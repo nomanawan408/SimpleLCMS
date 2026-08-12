@@ -705,7 +705,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                     {/* Key facts */}
                     <div className="mt-5 flex flex-wrap gap-x-8 gap-y-5 border-t border-border/60 pt-5">
                         {matter.practice_area && (
-                            <div className="min-w-[140px]">
+                            <div className="min-w-[160px]">
                                 <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
                                     <Gavel className="h-3.5 w-3.5" />
                                     Practice Area
@@ -716,7 +716,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                             </div>
                         )}
                         {matter.responsible_user && (
-                            <div className="min-w-[180px]">
+                            <div className="min-w-[160px]">
                                 <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
                                     <Users className="h-3.5 w-3.5" />
                                     Handling Solicitor
@@ -731,19 +731,8 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                 </div>
                             </div>
                         )}
-                        {matter.matter_number && (
-                            <div className="min-w-[140px]">
-                                <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                    <FileText className="h-3.5 w-3.5" />
-                                    Case Reference
-                                </p>
-                                <p className="mt-1 font-mono text-sm font-semibold text-foreground tabular-nums">
-                                    {matter.matter_number}
-                                </p>
-                            </div>
-                        )}
                         {matter.opened_at && (
-                            <div className="min-w-[140px]">
+                            <div className="min-w-[160px]">
                                 <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
                                     <Calendar className="h-3.5 w-3.5" />
                                     Opened
@@ -768,13 +757,24 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                             </div>
                         )}
                         {(matter as any).hearing_date && (
-                            <div className="min-w-[140px]">
+                            <div className="min-w-[160px]">
                                 <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
                                     <CalendarClock className="h-3.5 w-3.5" />
                                     Next Hearing
                                 </p>
                                 <p className="mt-1 text-sm font-medium text-warning">
                                     {formatDate((matter as any).hearing_date)}
+                                </p>
+                            </div>
+                        )}
+                        {matter.matter_number && (
+                            <div className="min-w-[160px]">
+                                <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                    <FileText className="h-3.5 w-3.5" />
+                                    Case Reference
+                                </p>
+                                <p className="mt-1 font-mono text-sm font-semibold text-foreground tabular-nums">
+                                    {matter.matter_number}
                                 </p>
                             </div>
                         )}
