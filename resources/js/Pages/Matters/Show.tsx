@@ -15,6 +15,7 @@ import {
     ArrowLeft, Clock, Receipt, Wallet, FileText, CheckSquare, Users, Edit, Plus, Download,
     Gavel, Calendar, TrendingUp, AlertTriangle, ChevronRight, MessageSquare, Timer,
     Paperclip, ExternalLink, DollarSign, PoundSterling, Eye, X, Pencil, Trash2,
+    Landmark, CalendarClock,
 } from 'lucide-react';
 import type { Matter, Expense, Document, TrustEntry, User } from '@/types';
 
@@ -559,6 +560,31 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
         archived:            'secondary',
     };
 
+    const statusAccent: Record<string, string> = {
+        open:                'bg-success',
+        pending_court_date:  'bg-warning',
+        awaiting_client:     'bg-warning',
+        awaiting_opponent:   'bg-primary/40',
+        on_hold:             'bg-muted-foreground/40',
+        closed:              'bg-foreground/70',
+        archived:            'bg-muted-foreground/40',
+    };
+
+    const feeSummary = (() => {
+        const cf = (matter as any).custom_fields ?? {};
+        switch (matter.fee_arrangement) {
+            case 'hourly_rate':   return cf.hourly_rate ? `£${cf.hourly_rate}/hr` : null;
+            case 'fixed_fee':     return cf.fixed_fee_amount ? `£${cf.fixed_fee_amount}` : null;
+            case 'contingency':   return cf.contingency_percentage ? `${cf.contingency_percentage}%` : null;
+            case 'retainer':      return cf.retainer_amount ? `£${cf.retainer_amount}` : null;
+            default:              return null;
+        }
+    })();
+
+    const daysUntil = matter.next_deadline
+        ? Math.ceil((new Date(matter.next_deadline).getTime() - Date.now()) / 86400000)
+        : null;
+
     const totalInvoiced  = (matter.invoices ?? []).reduce((s: number, i: any) => s + Number(i.total || 0), 0);
     const totalPaid      = (matter.invoices ?? []).reduce((s: number, i: any) => s + Number(i.amount_paid || 0), 0);
     const totalOutstanding = Math.max(0, totalInvoiced - totalPaid);
@@ -609,86 +635,150 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
             </div>
 
             {/* Matter Header Card */}
-            <Card className="surface-card mb-5">
-                <CardContent className="p-5">
-                    <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <Card className="surface-card mb-5 overflow-hidden">
+                <div className={cn('h-1 w-full', statusAccent[matter.status] ?? 'bg-muted')} />
+                <CardContent className="p-5 sm:p-6">
+                    <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
                         <div className="flex-1 min-w-0">
-                            <div className="flex flex-wrap items-center gap-2 mb-1">
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 mb-2.5">
                                 <Badge variant={statusVariant[matter.status] ?? 'default'} className="text-xs font-semibold">
                                     {MATTER_STATUS_LABELS[matter.status]}
                                 </Badge>
-                                <span className="text-xs text-muted-foreground font-mono">{matter.matter_number}</span>
                             </div>
-                            <h1 className="text-xl font-bold tracking-tight mb-1">{matter.name}</h1>
-                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-                                {matter.practice_area && (
-                                    <span className="flex items-center gap-1">
-                                        <Gavel className="h-3.5 w-3.5" />
-                                        {PRACTICE_AREA_LABELS[matter.practice_area]}
-                                    </span>
-                                )}
-                                {viewFinancial && matter.fee_arrangement && (
-                                    <span className="flex items-center gap-1">
-                                        <PoundSterling className="h-3.5 w-3.5" />
-                                        {matter.fee_arrangement.replace(/_/g, ' ')}
-                                        {matter.fee_arrangement === 'hourly_rate' && (matter as any).custom_fields?.hourly_rate && (
-                                            <span className="ml-1 font-semibold text-primary">
-                                                £{(matter as any).custom_fields.hourly_rate}/hr
-                                            </span>
-                                        )}
-                                        {matter.fee_arrangement === 'fixed_fee' && (matter as any).custom_fields?.fixed_fee_amount && (
-                                            <span className="ml-1 font-semibold text-primary">
-                                                £{(matter as any).custom_fields.fixed_fee_amount}
-                                            </span>
-                                        )}
-                                        {matter.fee_arrangement === 'contingency' && (matter as any).custom_fields?.contingency_percentage && (
-                                            <span className="ml-1 font-semibold text-primary">
-                                                {(matter as any).custom_fields.contingency_percentage}%
-                                            </span>
-                                        )}
-                                        {matter.fee_arrangement === 'retainer' && (matter as any).custom_fields?.retainer_amount && (
-                                            <span className="ml-1 font-semibold text-primary">
-                                                £{(matter as any).custom_fields.retainer_amount}
-                                            </span>
-                                        )}
-                                    </span>
-                                )}
-                                {matter.opened_at && (
-                                    <span className="flex items-center gap-1">
-                                        <Calendar className="h-3.5 w-3.5" />
-                                        Opened {formatDate(matter.opened_at)}
-                                    </span>
-                                )}
-                                {matter.responsible_user && (
-                                    <span>{matter.responsible_user.full_name}</span>
-                                )}
-                            </div>
+                            <h1 className="text-2xl font-bold tracking-tight leading-tight text-foreground">
+                                {matter.name}
+                            </h1>
                             {matter.description && (
-                                <p className="mt-2 text-sm text-muted-foreground line-clamp-2">{matter.description}</p>
+                                <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground line-clamp-2">
+                                    {matter.description}
+                                </p>
                             )}
                         </div>
 
-                        {/* Court info */}
-                        {(matter.court || matter.court_reference) && (
-                            <div className="shrink-0 text-right hidden md:block">
-                                {matter.court && <p className="text-sm font-medium">{matter.court}</p>}
-                                {matter.court_reference && <p className="text-xs text-muted-foreground">Ref: {matter.court_reference}</p>}
-                                {(matter as any).hearing_date && (
-                                    <p className="text-xs text-warning font-medium mt-1">
-                                        Hearing {formatDate((matter as any).hearing_date)}
-                                    </p>
-                                )}
+                        {/* Fee arrangement highlight */}
+                        {viewFinancial && matter.fee_arrangement && (
+                            <div className="shrink-0">
+                                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+                                    Fee Arrangement
+                                </p>
+                                <div className="inline-flex items-center gap-2.5 rounded-lg border border-primary/15 bg-primary/[0.06] px-3.5 py-2">
+                                    <PoundSterling className="h-4 w-4 text-primary shrink-0" />
+                                    <div>
+                                        <p className="text-sm font-semibold text-foreground capitalize leading-tight">
+                                            {matter.fee_arrangement.replace(/_/g, ' ')}
+                                        </p>
+                                        {feeSummary && (
+                                            <p className="text-xs font-semibold text-primary tabular-nums leading-tight">
+                                                {feeSummary}
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
                         )}
                     </div>
 
                     {/* Deadline alert */}
                     {matter.next_deadline && new Date(matter.next_deadline) <= new Date(Date.now() + 7 * 86400000) && (
-                        <div className="mt-3 flex items-center gap-2 px-3 py-2 rounded-md bg-warning/10 text-warning text-sm border border-warning/20">
-                            <AlertTriangle className="h-4 w-4 shrink-0" />
-                            <span>Deadline coming up: <strong>{formatDate(matter.next_deadline)}</strong></span>
+                        <div className="mt-5 flex items-start gap-2.5 rounded-lg border border-warning/25 bg-warning/10 px-3.5 py-2.5">
+                            <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
+                            <p className="text-sm text-warning">
+                                <span className="font-medium">Upcoming deadline</span>
+                                <span className="mx-1.5 text-warning/50">|</span>
+                                <strong className="font-semibold">{formatDate(matter.next_deadline)}</strong>
+                                {daysUntil !== null && daysUntil >= 0 && (
+                                    <span>
+                                        <span className="mx-1.5 text-warning/50">·</span>
+                                        {daysUntil === 0 ? 'due today' : `due in ${daysUntil} day${daysUntil === 1 ? '' : 's'}`}
+                                    </span>
+                                )}
+                                {daysUntil !== null && daysUntil < 0 && (
+                                    <span>
+                                        <span className="mx-1.5 text-warning/50">·</span>
+                                        overdue by {Math.abs(daysUntil)} day{Math.abs(daysUntil) === 1 ? '' : 's'}
+                                    </span>
+                                )}
+                            </p>
                         </div>
                     )}
+
+                    {/* Key facts */}
+                    <div className="mt-5 flex flex-wrap gap-x-8 gap-y-5 border-t border-border/60 pt-5">
+                        {matter.practice_area && (
+                            <div className="min-w-[140px]">
+                                <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                    <Gavel className="h-3.5 w-3.5" />
+                                    Practice Area
+                                </p>
+                                <p className="mt-1 text-sm font-medium text-foreground">
+                                    {PRACTICE_AREA_LABELS[matter.practice_area]}
+                                </p>
+                            </div>
+                        )}
+                        {matter.responsible_user && (
+                            <div className="min-w-[180px]">
+                                <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                    <Users className="h-3.5 w-3.5" />
+                                    Handling Solicitor
+                                </p>
+                                <div className="mt-1 flex items-center gap-2">
+                                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-500/15 text-brand-600 text-[11px] font-bold shrink-0">
+                                        {matter.responsible_user.full_name[0]}
+                                    </span>
+                                    <p className="text-sm font-medium text-foreground truncate">
+                                        {matter.responsible_user.full_name}
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+                        {matter.matter_number && (
+                            <div className="min-w-[140px]">
+                                <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                    <FileText className="h-3.5 w-3.5" />
+                                    Case Reference
+                                </p>
+                                <p className="mt-1 font-mono text-sm font-semibold text-foreground tabular-nums">
+                                    {matter.matter_number}
+                                </p>
+                            </div>
+                        )}
+                        {matter.opened_at && (
+                            <div className="min-w-[140px]">
+                                <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                    <Calendar className="h-3.5 w-3.5" />
+                                    Opened
+                                </p>
+                                <p className="mt-1 text-sm font-medium text-foreground">
+                                    {formatDate(matter.opened_at)}
+                                </p>
+                            </div>
+                        )}
+                        {(matter.court || matter.court_reference) && (
+                            <div className="min-w-[160px]">
+                                <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                    <Landmark className="h-3.5 w-3.5" />
+                                    Court
+                                </p>
+                                {matter.court && (
+                                    <p className="mt-1 text-sm font-medium text-foreground">{matter.court}</p>
+                                )}
+                                {matter.court_reference && (
+                                    <p className="text-xs text-muted-foreground">Ref: {matter.court_reference}</p>
+                                )}
+                            </div>
+                        )}
+                        {(matter as any).hearing_date && (
+                            <div className="min-w-[140px]">
+                                <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                    <CalendarClock className="h-3.5 w-3.5" />
+                                    Next Hearing
+                                </p>
+                                <p className="mt-1 text-sm font-medium text-warning">
+                                    {formatDate((matter as any).hearing_date)}
+                                </p>
+                            </div>
+                        )}
+                    </div>
                 </CardContent>
             </Card>
 
@@ -867,10 +957,10 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                                     <Link key={contact.id} href={`/contacts/${contact.id}`}
                                                         className="flex items-center gap-2 group">
                                                         <span className="h-7 w-7 rounded-full bg-muted text-muted-foreground text-xs font-bold flex items-center justify-center shrink-0 group-hover:bg-primary/15 group-hover:text-primary transition-colors">
-                                                            {contact.name[0]}
+                                                            {(contact.full_name || contact.name)[0]}
                                                         </span>
                                                         <div className="min-w-0 flex-1">
-                                                            <p className="text-sm font-medium group-hover:text-primary transition-colors truncate">{contact.name}</p>
+                                                            <p className="text-sm font-medium group-hover:text-primary transition-colors truncate">{contact.full_name || contact.name}</p>
                                                             <p className="text-xs text-muted-foreground capitalize">
                                                                 {(contact.pivot?.role || 'client').replace(/_/g, ' ')}
                                                             </p>

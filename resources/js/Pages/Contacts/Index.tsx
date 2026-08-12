@@ -122,7 +122,7 @@ export default function ContactsIndex({ contacts, filters }: Props) {
                                             onClick={() => router.visit(`/contacts/${contact.id}`)}
                                         >
                                             <td className="px-4 py-3">
-                                                <p className="font-medium">{contact.name}</p>
+                                                <p className="font-medium">{contact.full_name || contact.name}</p>
                                                 {contact.type === 'company' && contact.company_number && (
                                                     <p className="text-xs text-muted-foreground">#{contact.company_number}</p>
                                                 )}

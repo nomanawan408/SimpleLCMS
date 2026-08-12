@@ -302,6 +302,7 @@ class InvoiceController extends Controller
 
         $firm        = $request->user()->firm;
         $clientName  = $validated['recipient_name']
+                    ?? $invoice->matter?->contacts?->first()?->full_name
                     ?? $invoice->matter?->contacts?->first()?->name
                     ?? 'Valued Client';
         $clientEmail = $validated['recipient_email'];

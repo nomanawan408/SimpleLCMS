@@ -82,6 +82,7 @@ export default {
             },
             fontFamily: {
                 sans: ['Inter', 'Geist Sans', ...defaultTheme.fontFamily.sans],
+                mono: ['JetBrains Mono', ...defaultTheme.fontFamily.mono],
             },
             keyframes: {
                 'accordion-down': {

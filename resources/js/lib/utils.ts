@@ -89,6 +89,10 @@ export const CONTACT_TYPE_LABELS: Record<string, string> = {
     other_party: 'Other Party',
 };
 
+export const PREFIX_OPTIONS: string[] = [
+    'Mr', 'Mrs', 'Ms', 'Miss', 'Dr', 'Prof', 'Sir', 'Dame', 'Rev', 'Hon',
+];
+
 export const LEAD_STATUS_LABELS: Record<string, string> = {
     enquiry: 'Enquiry',
     consultation_booked: 'Consultation Booked',

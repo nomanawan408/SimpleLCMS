@@ -17,8 +17,13 @@ class ContactController extends Controller
         $this->authorize('viewAny', Contact::class);
 
         $contacts = Contact::where('firm_id', $request->user()->firm_id)
-            ->when($request->search, fn ($q) => $q->where('name', 'like', "%{$request->search}%")
-                ->orWhere('email', 'like', "%{$request->search}%"))
+            ->when($request->search, fn ($q, $search) => $q->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('first_name', 'like', "%{$search}%")
+                  ->orWhere('last_name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%")
+                  ->orWhere('phone', 'like', "%{$search}%");
+            }))
             ->when($request->type, fn ($q) => $q->where('type', $request->type))
             ->when($request->lead_status, fn ($q) => $q->where('lead_status', $request->lead_status))
             ->orderBy('name')
@@ -43,6 +48,10 @@ class ContactController extends Controller
 
         $validated = $request->validate([
             'type'       => ['required', 'in:individual,company,other_party'],
+            'prefix'     => ['nullable', 'string', 'max:20'],
+            'first_name' => ['nullable', 'string', 'max:255'],
+            'middle_name'=> ['nullable', 'string', 'max:255'],
+            'last_name'  => ['nullable', 'string', 'max:255'],
             'name'       => ['required', 'string', 'max:255'],
             'email'      => ['nullable', 'email', 'max:255'],
             'phone'      => ['nullable', 'string', 'max:50'],
@@ -119,6 +128,10 @@ class ContactController extends Controller
 
         $contact->update($request->validate([
             'type'       => ['sometimes', 'in:individual,company,other_party'],
+            'prefix'     => ['nullable', 'string', 'max:20'],
+            'first_name' => ['nullable', 'string', 'max:255'],
+            'middle_name'=> ['nullable', 'string', 'max:255'],
+            'last_name'  => ['nullable', 'string', 'max:255'],
             'name'       => ['sometimes', 'string', 'max:255'],
             'email'      => ['nullable', 'email'],
             'phone'      => ['nullable', 'string'],

@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft } from 'lucide-react';
-import { CONTACT_TYPE_LABELS, LEAD_STATUS_LABELS } from '@/lib/utils';
+import { CONTACT_TYPE_LABELS, LEAD_STATUS_LABELS, PREFIX_OPTIONS } from '@/lib/utils';
 
 const SOURCE_DETAIL_LABELS: Record<string, { label: string; placeholder: string }> = {
     social_media:  { label: 'Platform', placeholder: 'e.g. LinkedIn, Facebook, Instagram…' },
@@ -21,6 +21,10 @@ const SOURCE_DETAIL_LABELS: Record<string, { label: string; placeholder: string 
 export default function CreateContact() {
     const { data, setData, post, processing, errors } = useForm({
         type: 'individual',
+        prefix: '',
+        first_name: '',
+        middle_name: '',
+        last_name: '',
         name: '',
         email: '',
         phone: '',
@@ -36,11 +40,25 @@ export default function CreateContact() {
             city: '',
             county: '',
             postcode: '',
+            country: '',
         },
         lead_status: '',
         source: '',
         source_detail: '',
     });
+
+    const composeName = (prefix: string, first: string, middle: string, last: string, type: string) => {
+        if (type === 'company') return '';
+        return [prefix, first, middle, last].filter(Boolean).join(' ');
+    };
+
+    const handleFieldChange = (field: string, value: string) => {
+        setData(field as any, value);
+        if (['prefix', 'first_name', 'middle_name', 'last_name'].includes(field)) {
+            const updated = { prefix: data.prefix, first_name: data.first_name, middle_name: data.middle_name, last_name: data.last_name, [field]: value };
+            setData('name', composeName(updated.prefix, updated.first_name, updated.middle_name, updated.last_name, data.type));
+        }
+    };
 
     const submit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -50,6 +68,8 @@ export default function CreateContact() {
     const updateAddress = (field: string, value: string) => {
         setData('address', { ...data.address, [field]: value });
     };
+
+    const isIndividual = data.type === 'individual' || data.type === 'other_party';
 
     return (
         <AppLayout title="New Contact">
@@ -73,7 +93,15 @@ export default function CreateContact() {
                         <form onSubmit={submit} className="space-y-6">
                             <div className="space-y-3">
                                 <Label className="text-sm font-medium">Contact Type *</Label>
-                                <Select value={data.type} onValueChange={(v) => setData('type', v)}>
+                                <Select value={data.type} onValueChange={(v) => {
+                                    setData('type', v);
+                                    if (v === 'company') {
+                                        setData('prefix', '');
+                                        setData('first_name', '');
+                                        setData('middle_name', '');
+                                        setData('last_name', '');
+                                    }
+                                }}>
                                     <SelectTrigger className="h-11">
                                         <SelectValue placeholder="Select type" />
                                     </SelectTrigger>
@@ -85,18 +113,81 @@ export default function CreateContact() {
                                 </Select>
                             </div>
 
-                            <div className="space-y-3">
-                                <Label htmlFor="name" className="text-sm font-medium">Name *</Label>
-                                <Input
-                                    id="name"
-                                    autoFocus
-                                    value={data.name}
-                                    onChange={(e) => setData('name', e.target.value)}
-                                    placeholder={data.type === 'company' ? 'Company Ltd' : 'John Smith'}
-                                    className="h-11"
-                                />
-                                {errors.name && <p className="text-xs text-destructive mt-1">{errors.name}</p>}
-                            </div>
+                            {isIndividual ? (
+                                <>
+                                    <div className="grid grid-cols-4 gap-3">
+                                        <div className="space-y-3">
+                                            <Label className="text-sm font-medium">Prefix</Label>
+                                            <Select value={data.prefix} onValueChange={(v) => handleFieldChange('prefix', v)}>
+                                                <SelectTrigger className="h-11">
+                                                    <SelectValue placeholder="—" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {PREFIX_OPTIONS.map((p) => (
+                                                        <SelectItem key={p} value={p}>{p}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div className="space-y-3 col-span-3">
+                                            <Label htmlFor="first_name" className="text-sm font-medium">First Name *</Label>
+                                            <Input
+                                                id="first_name"
+                                                autoFocus
+                                                value={data.first_name}
+                                                onChange={(e) => handleFieldChange('first_name', e.target.value)}
+                                                placeholder="John"
+                                                className="h-11"
+                                            />
+                                            {errors.first_name && <p className="text-xs text-destructive mt-1">{errors.first_name}</p>}
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div className="space-y-3">
+                                            <Label htmlFor="middle_name" className="text-sm font-medium">Middle Name</Label>
+                                            <Input
+                                                id="middle_name"
+                                                value={data.middle_name}
+                                                onChange={(e) => handleFieldChange('middle_name', e.target.value)}
+                                                placeholder="Michael"
+                                                className="h-11"
+                                            />
+                                        </div>
+                                        <div className="space-y-3">
+                                            <Label htmlFor="last_name" className="text-sm font-medium">Last Name *</Label>
+                                            <Input
+                                                id="last_name"
+                                                value={data.last_name}
+                                                onChange={(e) => handleFieldChange('last_name', e.target.value)}
+                                                placeholder="Smith"
+                                                className="h-11"
+                                            />
+                                            {errors.last_name && <p className="text-xs text-destructive mt-1">{errors.last_name}</p>}
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-1">
+                                        <Label className="text-xs text-muted-foreground">Full Name (auto-generated)</Label>
+                                        <p className="text-sm font-medium text-foreground/80 bg-muted/30 rounded-md px-3 py-2">
+                                            {data.name || '—'}
+                                        </p>
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="space-y-3">
+                                    <Label htmlFor="name" className="text-sm font-medium">Company Name *</Label>
+                                    <Input
+                                        id="name"
+                                        autoFocus
+                                        value={data.name}
+                                        onChange={(e) => setData('name', e.target.value)}
+                                        placeholder="Company Ltd"
+                                        className="h-11"
+                                    />
+                                    {errors.name && <p className="text-xs text-destructive mt-1">{errors.name}</p>}
+                                </div>
+                            )}
 
                             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                                 <div className="space-y-3">
@@ -223,6 +314,12 @@ export default function CreateContact() {
                                         className="h-11"
                                     />
                                 </div>
+                                <Input
+                                    value={data.address.country}
+                                    onChange={(e) => updateAddress('country', e.target.value)}
+                                    placeholder="Country"
+                                    className="h-11"
+                                />
                             </div>
 
                             <div className="space-y-3">

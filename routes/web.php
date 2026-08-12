@@ -23,6 +23,7 @@ use App\Http\Controllers\FirmSetupController;
 use App\Http\Controllers\SuperAdmin\DashboardController as SuperAdminDashboardController;
 use App\Http\Controllers\SuperAdmin\FirmController as SuperAdminFirmController;
 use App\Http\Controllers\SuperAdmin\UserController as SuperAdminUserController;
+use App\Http\Controllers\SuperAdmin\BackupController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\TimeController;
 use App\Http\Controllers\TransactionController;
@@ -168,4 +169,11 @@ Route::middleware(['auth', 'requires.two.factor'])->prefix('superadmin')->name('
     Route::put('/users/{user}', [SuperAdminUserController::class, 'update'])->name('users.update');
     Route::delete('/users/{user}', [SuperAdminUserController::class, 'destroy'])->name('users.destroy');
     Route::put('/users/{user}/reset-password', [SuperAdminUserController::class, 'resetPassword'])->name('users.reset-password');
+    
+    // Backup System
+    Route::get('/backups', [BackupController::class, 'index'])->name('backups.index');
+    Route::post('/backups', [BackupController::class, 'store'])->name('backups.store');
+    Route::get('/backups/{filename}', [BackupController::class, 'download'])->name('backups.download');
+    Route::post('/backups/restore', [BackupController::class, 'restore'])->name('backups.restore');
+    Route::delete('/backups/{filename}', [BackupController::class, 'destroy'])->name('backups.destroy');
 });

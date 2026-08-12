@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, Plus, Info } from 'lucide-react';
 import type { User, Contact } from '@/types';
+import { PREFIX_OPTIONS } from '@/lib/utils';
 
 interface Props {
     users: User[];
@@ -34,6 +35,10 @@ export default function CreateMatter({ users, contacts, prefill_contact_id, view
 
     const [newContact, setNewContact] = useState({
         type: 'individual' as 'individual' | 'company' | 'other_party',
+        prefix: '',
+        first_name: '',
+        middle_name: '',
+        last_name: '',
         name: '',
         email: '',
         phone: '',
@@ -69,14 +74,23 @@ export default function CreateMatter({ users, contacts, prefill_contact_id, view
 
     const openContactModal = () => {
         setContactModalError(null);
-        setNewContact({ type: 'individual', name: '', email: '', phone: '' });
+        setNewContact({ type: 'individual', prefix: '', first_name: '', middle_name: '', last_name: '', name: '', email: '', phone: '' });
         setContactModalOpen(true);
+    };
+
+    const composeQuickName = (prefix: string, first: string, middle: string, last: string, type: string) => {
+        if (type === 'company') return '';
+        return [prefix, first, middle, last].filter(Boolean).join(' ');
     };
 
     const saveNewContact = async () => {
         setContactSaving(true);
         setContactModalError(null);
         try {
+            const composedName = newContact.type === 'company'
+                ? newContact.name
+                : composeQuickName(newContact.prefix, newContact.first_name, newContact.middle_name, newContact.last_name, newContact.type);
+
             const token = (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement | null)?.content;
             const res = await fetch('/contacts', {
                 method: 'POST',
@@ -87,7 +101,11 @@ export default function CreateMatter({ users, contacts, prefill_contact_id, view
                 },
                 body: JSON.stringify({
                     type: newContact.type,
-                    name: newContact.name,
+                    prefix: newContact.prefix || null,
+                    first_name: newContact.first_name || null,
+                    middle_name: newContact.middle_name || null,
+                    last_name: newContact.last_name || null,
+                    name: composedName,
                     email: newContact.email || null,
                     phone: newContact.phone || null,
                 }),
@@ -173,7 +191,7 @@ export default function CreateMatter({ users, contacts, prefill_contact_id, view
                                     <SelectContent>
                                         {contactList.map((c) => (
                                             <SelectItem key={c.id} value={c.id}>
-                                                {c.name}{c.email ? ` (${c.email})` : ''}
+                                                {c.full_name || c.name}{c.email ? ` (${c.email})` : ''}
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
@@ -473,15 +491,67 @@ export default function CreateMatter({ users, contacts, prefill_contact_id, view
                             </Select>
                         </div>
 
-                        <div className="space-y-2">
-                            <Label className="text-sm font-medium">Name *</Label>
-                            <Input
-                                value={newContact.name}
-                                onChange={(e) => setNewContact((p) => ({ ...p, name: e.target.value }))}
-                                className="h-11"
-                                placeholder={newContact.type === 'company' ? 'Company name' : 'Full name'}
-                            />
-                        </div>
+                        {newContact.type === 'company' ? (
+                            <div className="space-y-2">
+                                <Label className="text-sm font-medium">Company Name *</Label>
+                                <Input
+                                    value={newContact.name}
+                                    onChange={(e) => setNewContact((p) => ({ ...p, name: e.target.value }))}
+                                    className="h-11"
+                                    placeholder="Company name"
+                                />
+                            </div>
+                        ) : (
+                            <>
+                                <div className="grid grid-cols-4 gap-2">
+                                    <div className="space-y-2">
+                                        <Label className="text-sm font-medium">Prefix</Label>
+                                        <Select
+                                            value={newContact.prefix}
+                                            onValueChange={(v) => setNewContact((p) => ({ ...p, prefix: v }))}
+                                        >
+                                            <SelectTrigger className="h-11">
+                                                <SelectValue placeholder="—" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {PREFIX_OPTIONS.map((p) => (
+                                                    <SelectItem key={p} value={p}>{p}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-2 col-span-3">
+                                        <Label className="text-sm font-medium">First Name *</Label>
+                                        <Input
+                                            value={newContact.first_name}
+                                            onChange={(e) => setNewContact((p) => ({ ...p, first_name: e.target.value }))}
+                                            className="h-11"
+                                            placeholder="First name"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <div className="space-y-2">
+                                        <Label className="text-sm font-medium">Middle Name</Label>
+                                        <Input
+                                            value={newContact.middle_name}
+                                            onChange={(e) => setNewContact((p) => ({ ...p, middle_name: e.target.value }))}
+                                            className="h-11"
+                                            placeholder="Middle name"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label className="text-sm font-medium">Last Name *</Label>
+                                        <Input
+                                            value={newContact.last_name}
+                                            onChange={(e) => setNewContact((p) => ({ ...p, last_name: e.target.value }))}
+                                            className="h-11"
+                                            placeholder="Last name"
+                                        />
+                                    </div>
+                                </div>
+                            </>
+                        )}
 
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <div className="space-y-2">
@@ -514,7 +584,7 @@ export default function CreateMatter({ users, contacts, prefill_contact_id, view
                         <Button
                             type="button"
                             onClick={saveNewContact}
-                            disabled={contactSaving || !newContact.name.trim()}
+                            disabled={contactSaving || (newContact.type === 'company' ? !newContact.name.trim() : !newContact.first_name.trim() || !newContact.last_name.trim())}
                         >
                             {contactSaving ? 'Saving…' : 'Save contact'}
                         </Button>

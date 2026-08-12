@@ -83,7 +83,7 @@ class MatterController extends Controller
         $matter = Matter::create([
             ...$request->validated(),
             'firm_id'       => $request->user()->firm_id,
-            'matter_number' => $this->generateMatterNumber($request->user()->firm_id),
+            'matter_number' => $this->generateMatterNumber($request->user()->firm_id, $request->contact_ids[0] ?? null),
             'opened_at'     => now(),
         ]);
 
@@ -261,9 +261,40 @@ class MatterController extends Controller
         return back()->with('success', 'Deadline updated.');
     }
 
-    private function generateMatterNumber(string $firmId): string
+    private function generateMatterNumber(string $firmId, ?string $contactId = null): string
     {
-        $count = Matter::where('firm_id', $firmId)->withTrashed()->count() + 1;
-        return 'M-' . now()->year . '-' . str_pad($count, 4, '0', STR_PAD_LEFT);
+        $datePart = now()->format('Ymd');
+
+        $initials = 'XX';
+        if ($contactId) {
+            $contact = Contact::where('id', $contactId)->first();
+            if ($contact) {
+                $parts = array_filter([
+                    $contact->first_name,
+                    $contact->last_name,
+                ]);
+                if (count($parts) >= 2) {
+                    $initials = strtoupper(mb_substr($parts[0], 0, 1) . mb_substr($parts[1], 0, 1));
+                } elseif (count($parts) === 1) {
+                    $initials = strtoupper(mb_substr($parts[0], 0, 2));
+                } else {
+                    $nameParts = array_filter(explode(' ', trim($contact->name ?? '')));
+                    if (count($nameParts) >= 2) {
+                        $initials = strtoupper(mb_substr($nameParts[0], 0, 1) . mb_substr($nameParts[1], 0, 1));
+                    } elseif (count($nameParts) === 1) {
+                        $initials = strtoupper(mb_substr($nameParts[0], 0, 2));
+                    }
+                }
+            }
+        }
+
+        $prefix = "{$datePart}-{$initials}";
+
+        $serial = Matter::where('firm_id', $firmId)
+            ->where('matter_number', 'like', "{$prefix}-%")
+            ->withTrashed()
+            ->count() + 1;
+
+        return $prefix . '-' . str_pad($serial, 5, '0', STR_PAD_LEFT);
     }
 }

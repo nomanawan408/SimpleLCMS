@@ -3,7 +3,7 @@ import { Link, router, usePage } from '@inertiajs/react';
 import {
     LayoutDashboard, Briefcase, Users, FileText, Clock, Receipt,
     Calendar, CheckSquare, LogOut, Menu, Bell, Search,
-    Building2, Shield, Activity, BarChart2, Landmark, CreditCard,
+    Building2, Shield, Activity, BarChart2, Landmark, CreditCard, Database,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -45,6 +45,7 @@ const superAdminNavItems: NavItem[] = [
     { label: 'Dashboard',    href: '/superadmin/dashboard', icon: LayoutDashboard, routeName: 'superadmin.dashboard' },
     { label: 'Manage Firms', href: '/superadmin/firms',     icon: Building2,       routeName: 'superadmin.firms.index' },
     { label: 'Manage Users', href: '/superadmin/users',     icon: Shield,          routeName: 'superadmin.users.index' },
+    { label: 'System Backup', href: '/superadmin/backups',  icon: Database,        routeName: 'superadmin.backups.index' },
 ];
 
 interface AppLayoutProps {

@@ -103,7 +103,7 @@ export default function ShowInvoice({ invoice }: Props) {
 
     const clientContacts  = contacts.filter(c => ['client','claimant','applicant'].includes(c.pivot?.role ?? ''));
     const displayContacts = clientContacts.length ? clientContacts : contacts;
-    const clientName      = displayContacts.map(c => c.name).join(', ') || null;
+    const clientName      = displayContacts.map(c => c.full_name || c.name).join(', ') || null;
 
     const handleRecordPayment = (e: React.FormEvent) => {
         e.preventDefault();

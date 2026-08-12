@@ -73,7 +73,7 @@ export default function CreateInvoice({ matters, unbilledTime, unbilledExpenses,
         if (!selectedMatter?.contacts?.length) return null;
         const clients = selectedMatter.contacts.filter(c => ['client','claimant','applicant'].includes(c.pivot?.role ?? ''));
         const list = clients.length ? clients : selectedMatter.contacts;
-        return list.map(c => c.name).join(', ');
+        return list.map(c => c.full_name || c.name).join(', ');
     }, [selectedMatter]);
 
     const handleMatterChange = (matterId: string) => {
@@ -240,7 +240,7 @@ export default function CreateInvoice({ matters, unbilledTime, unbilledExpenses,
                                             <SelectItem value="_none">Select matter…</SelectItem>
                                             {matters.map(m => {
                                                 const clients = (m.contacts ?? []).filter(c => ['client','claimant','applicant'].includes(c.pivot?.role ?? ''));
-                                                const label   = clients.length ? clients.map(c => c.name).join(', ') : (m.contacts?.[0]?.name ?? '');
+                                                const label   = clients.length ? clients.map(c => c.full_name || c.name).join(', ') : (m.contacts?.[0]?.full_name ?? m.contacts?.[0]?.name ?? '');
                                                 return (
                                                     <SelectItem key={m.id} value={m.id}>
                                                         {m.matter_number} — {m.name}{label ? ` (${label})` : ''}

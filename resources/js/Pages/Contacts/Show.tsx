@@ -49,8 +49,8 @@ export default function ShowContact({ contact, invoices = [] }: Props) {
     const relatedMatters = allMatters.filter((m: any) => (m.pivot?.role || 'client') !== 'client');
 
     return (
-        <AppLayout title={contact.name}>
-            <Head title={contact.name} />
+        <AppLayout title={contact.full_name || contact.name}>
+            <Head title={contact.full_name || contact.name} />
 
             <div className="mb-5 flex items-center justify-between">
                 <Button asChild variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground -ml-2">
@@ -81,7 +81,7 @@ export default function ShowContact({ contact, invoices = [] }: Props) {
                                     </Badge>
                                 )}
                             </div>
-                            <h1 className="text-xl font-bold tracking-tight mb-1">{contact.name}</h1>
+                            <h1 className="text-xl font-bold tracking-tight mb-1">{contact.full_name || contact.name}</h1>
                             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
                                 {contact.email && (
                                     <span className="flex items-center gap-1">
@@ -100,6 +100,7 @@ export default function ShowContact({ contact, invoices = [] }: Props) {
                                         <MapPin className="h-3.5 w-3.5" />
                                         {[
                                             (contact.address as any).city,
+                                            (contact.address as any).country,
                                             (contact.address as any).postcode,
                                         ].filter(Boolean).join(', ')}
                                     </span>
@@ -276,6 +277,9 @@ export default function ShowContact({ contact, invoices = [] }: Props) {
                                                         (contact.address as any).postcode,
                                                     ].filter(Boolean).join(', ')}
                                                 </p>
+                                                {(contact.address as any).country && (
+                                                    <p>{(contact.address as any).country}</p>
+                                                )}
                                             </div>
                                         </div>
                                     </>

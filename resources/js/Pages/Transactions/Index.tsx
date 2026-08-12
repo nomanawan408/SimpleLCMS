@@ -199,7 +199,7 @@ export default function TransactionsIndex({ transactions, stats, matters, openIn
                                 <tbody className="divide-y divide-border/60">
                                     {transactions.data.map((tx) => {
                                         const contacts = tx.invoice?.matter?.contacts ?? [];
-                                        const clientName = contacts.map((c) => c.name).join(', ') || '—';
+                                        const clientName = contacts.map((c) => c.full_name || c.name).join(', ') || '—';
                                         return (
                                             <tr key={tx.id} className="hover:bg-muted/30 transition-colors">
                                                 <td className="px-4 py-3 whitespace-nowrap text-muted-foreground text-sm">

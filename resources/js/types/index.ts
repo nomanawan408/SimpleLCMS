@@ -52,7 +52,12 @@ export interface Contact {
     id: string;
     firm_id: string;
     type: 'individual' | 'company' | 'other_party';
+    prefix: string | null;
+    first_name: string | null;
+    middle_name: string | null;
+    last_name: string | null;
     name: string;
+    full_name?: string;
     email: string | null;
     phone: string | null;
     phone_secondary: string | null;
@@ -63,7 +68,14 @@ export interface Contact {
     lead_status: 'enquiry' | 'consultation_booked' | 'engaged' | 'matter_opened' | 'declined' | null;
     gdpr_consent_at: string | null;
     created_at: string;
-    address?: any;
+    address?: {
+        line1?: string;
+        line2?: string;
+        city?: string;
+        county?: string;
+        postcode?: string;
+        country?: string;
+    };
     national_insurance_number?: string | null;
     dob?: string | null;
     source?: string | null;
@@ -102,6 +114,8 @@ export interface Matter {
     next_deadline?: string | null;
     client_names?: string | null;
     hearing_date?: string | null;
+    court?: string | null;
+    court_reference?: string | null;
     created_at: string;
 }
 

@@ -141,9 +141,10 @@ class Matter extends Model
     {
         $clients = $this->contacts()
             ->wherePivotIn('role', ['client', 'claimant', 'applicant', 'petitioner'])
-            ->pluck('name');
+            ->get()
+            ->map(fn ($c) => $c->full_name ?: $c->name);
         if ($clients->isEmpty()) {
-            $clients = $this->contacts()->pluck('name');
+            $clients = $this->contacts()->get()->map(fn ($c) => $c->full_name ?: $c->name);
         }
         return $clients->isEmpty() ? null : $clients->join(', ');
     }

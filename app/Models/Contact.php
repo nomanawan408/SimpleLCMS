@@ -20,7 +20,8 @@ class Contact extends Model
     public $incrementing = false;
 
     protected $fillable = [
-        'firm_id', 'type', 'name', 'email', 'phone', 'phone_secondary',
+        'firm_id', 'type', 'prefix', 'first_name', 'middle_name', 'last_name',
+        'name', 'email', 'phone', 'phone_secondary',
         'address', 'national_insurance_number', 'dob', 'company_number',
         'contact_person_name', 'contact_person_email', 'contact_person_phone',
         'id_verification_status', 'source', 'source_detail', 'tags', 'gdpr_consent_at',
@@ -39,6 +40,38 @@ class Contact extends Model
             'conflict_check_cleared_at' => 'datetime',
             'marketing_consent'         => 'boolean',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::saving(function (Contact $contact) {
+            if ($contact->type !== 'company') {
+                $parts = array_filter([
+                    $contact->prefix,
+                    $contact->first_name,
+                    $contact->middle_name,
+                    $contact->last_name,
+                ]);
+                $contact->name = implode(' ', $parts) ?: $contact->name;
+            }
+        });
+    }
+
+    public function getFullNameAttribute(): string
+    {
+        $parts = array_filter([
+            $this->prefix,
+            $this->first_name,
+            $this->middle_name,
+            $this->last_name,
+        ]);
+
+        return implode(' ', $parts) ?: ($this->name ?? '');
+    }
+
+    public function getAddressCountryAttribute(): ?string
+    {
+        return $this->address['country'] ?? null;
     }
 
     public function getActivitylogOptions(): LogOptions
