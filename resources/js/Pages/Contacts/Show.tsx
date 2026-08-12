@@ -4,9 +4,8 @@ import AppLayout from '@/Layouts/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
 import { cn, formatDate, formatCurrency, CONTACT_TYPE_LABELS, LEAD_STATUS_LABELS } from '@/lib/utils';
-import { ArrowLeft, Mail, Phone, MapPin, Edit, Briefcase, User, Building2, Receipt, CreditCard } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, MapPin, Edit, Briefcase, User, Building2, Receipt, CreditCard, Calendar } from 'lucide-react';
 import type { Contact, Matter, Invoice } from '@/types';
 
 interface Props {
@@ -21,6 +20,15 @@ const typeVariant: Record<string, any> = {
 const leadVariant: Record<string, any> = {
     enquiry: 'secondary', consultation_booked: 'info', engaged: 'warning',
     matter_opened: 'success', declined: 'destructive',
+};
+
+const leadAccent: Record<string, string> = {
+    enquiry: 'bg-muted-foreground/40', consultation_booked: 'bg-info', engaged: 'bg-warning',
+    matter_opened: 'bg-success', declined: 'bg-destructive',
+};
+
+const typeAccent: Record<string, string> = {
+    individual: 'bg-foreground/70', company: 'bg-primary/40', other_party: 'bg-warning',
 };
 
 export default function ShowContact({ contact, invoices = [] }: Props) {
@@ -67,11 +75,12 @@ export default function ShowContact({ contact, invoices = [] }: Props) {
                 </Button>
             </div>
 
-            <Card className="surface-card mb-5">
-                <CardContent className="p-5">
-                    <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div className={cn('h-1 w-full', contact.lead_status ? leadAccent[contact.lead_status] : typeAccent[contact.type])} />
+            <Card className="surface-card mb-5 overflow-hidden">
+                <CardContent className="p-5 sm:p-6">
+                    <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
                         <div className="flex-1 min-w-0">
-                            <div className="flex flex-wrap items-center gap-2 mb-1">
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 mb-2.5">
                                 <Badge variant={typeVariant[contact.type]} className="text-xs font-semibold capitalize">
                                     {CONTACT_TYPE_LABELS[contact.type] || contact.type}
                                 </Badge>
@@ -81,42 +90,82 @@ export default function ShowContact({ contact, invoices = [] }: Props) {
                                     </Badge>
                                 )}
                             </div>
-                            <h1 className="text-xl font-bold tracking-tight mb-1">{contact.full_name || contact.name}</h1>
-                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-                                {contact.email && (
-                                    <span className="flex items-center gap-1">
-                                        <Mail className="h-3.5 w-3.5" />
-                                        <a href={`mailto:${contact.email}`} className="hover:text-primary transition-colors">{contact.email}</a>
-                                    </span>
-                                )}
-                                {contact.phone && (
-                                    <span className="flex items-center gap-1">
-                                        <Phone className="h-3.5 w-3.5" />
-                                        <a href={`tel:${contact.phone}`} className="hover:text-primary transition-colors">{contact.phone}</a>
-                                    </span>
-                                )}
-                                {(contact.address as any)?.line1 && (
-                                    <span className="flex items-center gap-1">
-                                        <MapPin className="h-3.5 w-3.5" />
-                                        {[
-                                            (contact.address as any).city,
-                                            (contact.address as any).country,
-                                            (contact.address as any).postcode,
-                                        ].filter(Boolean).join(', ')}
-                                    </span>
-                                )}
-                                <span className="flex items-center gap-1">
-                                    Added {formatDate(contact.created_at)}
-                                </span>
-                            </div>
+                            <h1 className="text-2xl font-bold tracking-tight leading-tight text-foreground">
+                                {contact.full_name || contact.name}
+                            </h1>
                         </div>
 
+                        {/* Company highlight */}
                         {contact.type === 'company' && contact.company_number && (
-                            <div className="shrink-0 text-right hidden md:block">
-                                <p className="text-sm font-medium flex items-center gap-1.5 justify-end">
-                                    <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
-                                    Company #{contact.company_number}
+                            <div className="shrink-0">
+                                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+                                    Company Number
                                 </p>
+                                <div className="inline-flex items-center gap-2.5 rounded-lg border border-primary/15 bg-primary/[0.06] px-3.5 py-2">
+                                    <Building2 className="h-4 w-4 text-primary shrink-0" />
+                                    <p className="font-mono text-sm font-semibold text-foreground tabular-nums">
+                                        {contact.company_number}
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Contact facts */}
+                    <div className="mt-5 flex flex-wrap gap-x-8 gap-y-5 border-t border-border/60 pt-5">
+                        {contact.email && (
+                            <div className="min-w-[160px]">
+                                <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                    <Mail className="h-3.5 w-3.5" />
+                                    Email
+                                </p>
+                                <p className="mt-1 text-sm font-medium text-foreground break-all">
+                                    <a href={`mailto:${contact.email}`} className="hover:text-primary transition-colors">{contact.email}</a>
+                                </p>
+                            </div>
+                        )}
+                        {contact.phone && (
+                            <div className="min-w-[160px]">
+                                <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                    <Phone className="h-3.5 w-3.5" />
+                                    Phone
+                                </p>
+                                <p className="mt-1 text-sm font-medium text-foreground">
+                                    <a href={`tel:${contact.phone}`} className="hover:text-primary transition-colors">{contact.phone}</a>
+                                </p>
+                            </div>
+                        )}
+                        {(contact.address as any)?.line1 && (
+                            <div className="min-w-[200px]">
+                                <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                    <MapPin className="h-3.5 w-3.5" />
+                                    Address
+                                </p>
+                                <p className="mt-1 text-sm font-medium text-foreground">{(contact.address as any).line1}</p>
+                                {(contact.address as any).line2 && (
+                                    <p className="text-sm font-medium text-foreground">{(contact.address as any).line2}</p>
+                                )}
+                                <p className="text-xs text-muted-foreground">
+                                    {[(contact.address as any).city, (contact.address as any).county, (contact.address as any).postcode]
+                                        .filter(Boolean)
+                                        .join(', ')}
+                                </p>
+                            </div>
+                        )}
+                        <div className="min-w-[160px]">
+                            <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                <Calendar className="h-3.5 w-3.5" />
+                                Added
+                            </p>
+                            <p className="mt-1 text-sm font-medium text-foreground">{formatDate(contact.created_at)}</p>
+                        </div>
+                        {(contact as any).dob && (
+                            <div className="min-w-[160px]">
+                                <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                    <Calendar className="h-3.5 w-3.5" />
+                                    Date of Birth
+                                </p>
+                                <p className="mt-1 text-sm font-medium text-foreground">{formatDate((contact as any).dob)}</p>
                             </div>
                         )}
                     </div>
@@ -238,64 +287,6 @@ export default function ShowContact({ contact, invoices = [] }: Props) {
                     </div>
 
                     <div className="space-y-5">
-                        <Card className="surface-card">
-                            <CardHeader className="pb-3">
-                                <CardTitle className="text-base tracking-tight flex items-center gap-2">
-                                    <User className="h-4 w-4" />
-                                    Contact Details
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-4 pt-0">
-                                {contact.email && (
-                                    <div className="flex items-center gap-2.5 text-sm">
-                                        <Mail className="h-4 w-4 text-muted-foreground shrink-0" />
-                                        <a href={`mailto:${contact.email}`} className="hover:text-primary truncate transition-colors">
-                                            {contact.email}
-                                        </a>
-                                    </div>
-                                )}
-                                {contact.phone && (
-                                    <div className="flex items-center gap-2.5 text-sm">
-                                        <Phone className="h-4 w-4 text-muted-foreground shrink-0" />
-                                        <a href={`tel:${contact.phone}`} className="hover:text-primary transition-colors">
-                                            {contact.phone}
-                                        </a>
-                                    </div>
-                                )}
-                                {(contact.address as any)?.line1 && (
-                                    <>
-                                        <Separator />
-                                        <div>
-                                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Address</p>
-                                            <div className="text-sm text-muted-foreground space-y-0.5">
-                                                <p>{(contact.address as any).line1}</p>
-                                                {(contact.address as any).line2 && <p>{(contact.address as any).line2}</p>}
-                                                <p>
-                                                    {[
-                                                        (contact.address as any).city,
-                                                        (contact.address as any).county,
-                                                        (contact.address as any).postcode,
-                                                    ].filter(Boolean).join(', ')}
-                                                </p>
-                                                {(contact.address as any).country && (
-                                                    <p>{(contact.address as any).country}</p>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </>
-                                )}
-                                {(contact as any).dob && (
-                                    <>
-                                        <Separator />
-                                        <div>
-                                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Date of Birth</p>
-                                            <p className="text-sm">{formatDate((contact as any).dob)}</p>
-                                        </div>
-                                    </>
-                                )}
-                            </CardContent>
-                        </Card>
-
                         {contact.type === 'company' && ((contact as any).contact_person_name || (contact as any).contact_person_email || (contact as any).contact_person_phone) && (
                             <Card className="surface-card">
                                 <CardHeader className="pb-3">
