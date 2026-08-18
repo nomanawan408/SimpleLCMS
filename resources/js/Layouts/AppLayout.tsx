@@ -76,14 +76,12 @@ export default function AppLayout({ children, title }: AppLayoutProps) {
             {/* Logo */}
             <div className="flex h-16 items-center px-5">
                 <Link href={isSuperAdmin ? '/superadmin/dashboard' : '/dashboard'} className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-500 ring-2 ring-white shadow-lg">
-                        <span className="text-xs font-bold text-white">SLCM</span>
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white shadow-lg ring-1 ring-black/5">
+                        <img src="/assets/favicon.png" alt="Simple Law" className="h-8 w-8 object-contain" />
                     </div>
-                    <div>
+                    <div className="leading-tight">
                         <p className="text-base font-bold text-white tracking-tight">Simple Law</p>
-                         <p className="text-[10px] uppercase tracking-[0.22em] text-white font-medium">
-                            {isSuperAdmin ? 'Platform Admin' : 'Case Management'}
-                        </p>
+                        <p className="text-[10px] uppercase tracking-[0.22em] text-white/70 font-medium">case management</p>
                     </div>
                 </Link>
             </div>
