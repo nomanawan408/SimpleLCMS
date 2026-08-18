@@ -3,7 +3,6 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
@@ -16,28 +15,30 @@ return new class extends Migration
             $table->string('last_name', 255)->nullable()->after('middle_name');
         });
 
-        // Backfill name column from existing data where possible
-        // For existing contacts, the 'name' column already holds the full name.
-        // We attempt to split it into first_name / last_name for individuals.
-        DB::statement('
-            UPDATE contacts
-            SET first_name = TRIM(SUBSTRING_INDEX(name, \' \', 1)),
-                last_name  = TRIM(SUBSTRING_INDEX(name, \' \', -1))
-            WHERE type IN (\'individual\', \'other_party\')
-              AND name IS NOT NULL
-              AND name != \'\'
-              AND first_name IS NULL
-        ');
+        // Backfill names in PHP so fresh databases work consistently on MySQL,
+        // PostgreSQL, and SQLite.
+        \Illuminate\Support\Facades\DB::table('contacts')
+            ->whereIn('type', ['individual', 'other_party'])
+            ->whereNotNull('name')
+            ->where('name', '!=', '')
+            ->whereNull('first_name')
+            ->select(['id', 'name'])
+            ->orderBy('id')
+            ->each(function (object $contact): void {
+                $parts = preg_split('/\s+/', trim($contact->name), -1, PREG_SPLIT_NO_EMPTY) ?: [];
 
-        // For contacts with 3+ parts, try to fill middle_name
-        DB::statement('
-            UPDATE contacts
-            SET middle_name = TRIM(SUBSTRING_INDEX(SUBSTRING_INDEX(name, \' \', 2), \' \', -1))
-            WHERE type IN (\'individual\', \'other_party\')
-              AND name IS NOT NULL
-              AND (LENGTH(name) - LENGTH(REPLACE(name, \' \', \'\'))) >= 2
-              AND middle_name IS NULL
-        ');
+                if ($parts === []) {
+                    return;
+                }
+
+                \Illuminate\Support\Facades\DB::table('contacts')
+                    ->where('id', $contact->id)
+                    ->update([
+                        'first_name' => $parts[0],
+                        'middle_name' => count($parts) > 2 ? implode(' ', array_slice($parts, 1, -1)) : null,
+                        'last_name' => count($parts) > 1 ? $parts[count($parts) - 1] : null,
+                    ]);
+            });
     }
 
     public function down(): void

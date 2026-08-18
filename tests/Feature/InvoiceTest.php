@@ -107,6 +107,21 @@ class InvoiceTest extends TestCase
         $this->assertDatabaseHas('invoices', ['id' => $invoice->id, 'status' => 'sent']);
     }
 
+    public function test_can_cancel_invoice(): void
+    {
+        [$firm, $admin] = $this->createFirmAndAdmin();
+        $matter  = Matter::factory()->forFirm($firm, $admin)->create();
+        $invoice = Invoice::factory()->sent()->forMatter($matter)->create();
+
+        $this->actingAsUser($admin)->post("/billing/{$invoice->id}", ['status' => 'cancelled'])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('invoices', [
+            'id'     => $invoice->id,
+            'status' => 'cancelled',
+        ]);
+    }
+
     public function test_can_record_payment_on_sent_invoice(): void
     {
         [$firm, $admin] = $this->createFirmAndAdmin();

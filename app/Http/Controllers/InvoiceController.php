@@ -229,11 +229,11 @@ class InvoiceController extends Controller
             'notes'  => 'nullable|string',
         ]);
 
-        if ($request->status === 'sent' && $invoice->status === 'draft') {
+        if ($request->input('status') === 'sent' && $invoice->status === 'draft') {
             $validated['sent_at'] = now();
         }
 
-        if ($request->status === 'paid') {
+        if ($request->input('status') === 'paid') {
             $validated['paid_at'] = now();
         }
 

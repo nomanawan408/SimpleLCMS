@@ -21,18 +21,18 @@ export default {
                 background: 'hsl(var(--background))',
                 foreground: 'hsl(var(--foreground))',
                 brand: {
-                    50:  '#EDFFFB',
-                    100: '#C2FFF2',
-                    200: '#84FFE7',
-                    300: '#3FFFE1',
-                    400: '#08F9DB',
-                    500: '#00DCC4',
-                    600: '#00B2A2',
-                    700: '#008D82',
-                    800: '#006B64',
-                    900: '#065B55',
-                    950: '#003837',
-                    DEFAULT: '#00DCC4',
+                    50:  '#FFF0EB',
+                    100: '#FFD6C7',
+                    200: '#FFAD91',
+                    300: '#FF805C',
+                    400: '#FF5C2E',
+                    500: '#FF4000',
+                    600: '#E63900',
+                    700: '#BF3000',
+                    800: '#992600',
+                    900: '#7A2100',
+                    950: '#451200',
+                    DEFAULT: '#FF4000',
                 },
                 primary: {
                     DEFAULT: 'hsl(var(--primary))',
@@ -80,9 +80,9 @@ export default {
                 md: 'calc(var(--radius) - 2px)',
                 sm: 'calc(var(--radius) - 4px)',
             },
-            fontFamily: {
-                sans: ['Inter', 'Geist Sans', ...defaultTheme.fontFamily.sans],
-                mono: ['JetBrains Mono', ...defaultTheme.fontFamily.mono],
+             fontFamily: {
+                sans: ['Segoe UI', 'Arial', ...defaultTheme.fontFamily.sans],
+                mono: ['Segoe UI', 'Arial', ...defaultTheme.fontFamily.sans],
             },
             keyframes: {
                 'accordion-down': {
