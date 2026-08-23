@@ -106,10 +106,10 @@ export default function TransactionsIndex({ transactions, stats, matters, openIn
     }
 
     const statsCards = [
-        { label: 'Total Received',    value: formatCurrency(stats.total_received),      icon: PoundSterling, colour: 'text-success',     bg: 'bg-success/10' },
-        { label: 'This Month',        value: formatCurrency(stats.received_this_month),  icon: TrendingUp,    colour: 'text-primary',     bg: 'bg-primary/10' },
-        { label: 'This Week',         value: formatCurrency(stats.received_this_week),   icon: Clock,         colour: 'text-accent',      bg: 'bg-accent/10' },
-        { label: 'Outstanding',       value: formatCurrency(stats.outstanding),          icon: AlertCircle,   colour: 'text-warning',     bg: 'bg-warning/10' },
+        { label: 'Total Received',    value: formatCurrency(stats.total_received),      icon: PoundSterling, iconBg: 'bg-emerald-50', iconColor: 'text-emerald-600' },
+        { label: 'This Month',        value: formatCurrency(stats.received_this_month),  icon: TrendingUp,    iconBg: 'bg-blue-50', iconColor: 'text-blue-600' },
+        { label: 'This Week',         value: formatCurrency(stats.received_this_week),   icon: Clock,         iconBg: 'bg-slate-100', iconColor: 'text-slate-600' },
+        { label: 'Outstanding',       value: formatCurrency(stats.outstanding),          icon: AlertCircle,   iconBg: 'bg-amber-50', iconColor: 'text-amber-600' },
     ];
 
     return (
@@ -117,27 +117,25 @@ export default function TransactionsIndex({ transactions, stats, matters, openIn
             <Head title="Transactions" />
 
             <div className="flex items-center justify-between mb-6">
-                <h1 className="text-2xl font-bold tracking-tight">Transactions</h1>
+                <h1 className="text-[26px] font-extrabold tracking-tight">Transactions</h1>
                 <Button onClick={() => setRecordOpen(true)} className="gap-2">
                     <Plus className="h-4 w-4" />
                     Record Payment
                 </Button>
             </div>
 
-            {/* Stats */}
-            <div className="grid grid-cols-2 gap-4 lg:grid-cols-4 mb-6">
+            {/* Stats - enterprise matter style */}
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 mb-6">
                 {statsCards.map((s) => (
-                    <Card key={s.label} className="surface-card">
-                        <CardContent className="p-4 flex items-center gap-3">
-                            <div className={cn('p-2 rounded-md', s.bg)}>
-                                <s.icon className={cn('h-5 w-5', s.colour)} />
-                            </div>
-                            <div>
-                                <p className="text-xs text-muted-foreground uppercase tracking-wide">{s.label}</p>
-                                <p className={cn('text-xl font-bold', s.colour)}>{s.value}</p>
-                            </div>
-                        </CardContent>
-                    </Card>
+                    <div key={s.label} className="rounded-xl border border-border/60 bg-card p-5 flex items-center justify-between shadow-sm">
+                        <div>
+                            <p className="text-sm font-medium text-muted-foreground">{s.label}</p>
+                            <p className="text-[22px] font-extrabold tracking-tight tabular-nums mt-1.5 leading-none text-foreground">{s.value}</p>
+                        </div>
+                        <div className={cn('flex h-10 w-10 items-center justify-center rounded-full shrink-0', s.iconBg)}>
+                            <s.icon className={cn('h-5 w-5', s.iconColor)} />
+                        </div>
+                    </div>
                 ))}
             </div>
 
@@ -174,7 +172,7 @@ export default function TransactionsIndex({ transactions, stats, matters, openIn
             </div>
 
             {/* Table */}
-            <Card className="surface-card">
+            <Card className="rounded-2xl border border-border/60 bg-card shadow-sm overflow-hidden">
                 <CardContent className="p-0">
                     {transactions.data.length === 0 ? (
                         <div className="py-16 text-center">

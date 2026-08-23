@@ -65,66 +65,78 @@ export default function DocumentsIndex({ documents, matters, filters }: Props) {
         <AppLayout title="Documents">
             <Head title="Documents" />
 
-            <div className="flex items-center justify-between mb-6">
-                <h1 className="text-2xl font-bold tracking-tight">Documents</h1>
-                <Button onClick={() => setUploadModalOpen(true)} className="gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+                <div>
+                    <h1 className="text-[26px] font-extrabold tracking-tight">Documents</h1>
+                    <p className="text-sm text-muted-foreground mt-1">All matters share a dedicated folder — uploads from a matter go to its own folder automatically.</p>
+                </div>
+                <Button onClick={() => setUploadModalOpen(true)} className="rounded-xl gap-2 bg-primary shadow-sm">
                     <Upload className="h-4 w-4" />
                     Upload
                 </Button>
             </div>
 
             {/* Filters */}
-            <div className="flex flex-wrap items-center gap-3 mb-5">
-                <Select value={filters.matter_id || '_all'} onValueChange={(v) => setFilter('matter_id', v)}>
-                    <SelectTrigger className="w-52 h-9">
-                        <SelectValue placeholder="All matters" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="_all">All matters</SelectItem>
-                        {matters.map((m) => (
-                            <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-            </div>
+            <Card className="rounded-2xl border border-border/60 bg-card shadow-sm mb-5">
+                <CardContent className="p-4 flex flex-wrap items-center gap-3">
+                    <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                        <FileText className="h-4 w-4" /> Filter by matter
+                    </div>
+                    <Select value={filters.matter_id || '_all'} onValueChange={(v) => setFilter('matter_id', v)}>
+                        <SelectTrigger className="w-64 h-9 rounded-xl">
+                            <SelectValue placeholder="All matters" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="_all">All matters</SelectItem>
+                            {matters.map((m) => (
+                                <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </CardContent>
+            </Card>
 
-            <Card>
+            <Card className="rounded-2xl border border-border/60 bg-card shadow-sm overflow-hidden">
                 <CardContent className="p-0">
                     {documents.data.length === 0 ? (
-                        <p className="px-6 py-10 text-center text-sm text-muted-foreground">No documents found.</p>
+                        <div className="px-6 py-14 text-center">
+                            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-muted mb-3"><Paperclip className="h-6 w-6 text-muted-foreground/50" /></div>
+                            <p className="text-sm font-semibold text-foreground">No documents found</p>
+                            <p className="text-xs text-muted-foreground mt-1">Upload the first file — it will be saved to the matter&apos;s own folder.</p>
+                        </div>
                     ) : (
                         <div className="overflow-x-auto">
-                            <table className="w-full text-sm">
+                            <table className="w-full">
                                 <thead>
                                     <tr className="border-b border-border/60 bg-muted/20">
-                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs uppercase tracking-wider">Name</th>
-                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs uppercase tracking-wider">Matter</th>
-                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs uppercase tracking-wider">Uploaded by</th>
-                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs uppercase tracking-wider">Date</th>
-                                        <th className="text-right px-4 py-3 font-semibold text-foreground text-xs uppercase tracking-wider">Size</th>
-                                        <th className="px-4 py-3" />
+                                        <th className="text-left px-5 py-3.5 text-xs font-bold uppercase tracking-widest text-muted-foreground">Name</th>
+                                        <th className="text-left px-5 py-3.5 text-xs font-bold uppercase tracking-widest text-muted-foreground">Matter</th>
+                                        <th className="text-left px-5 py-3.5 text-xs font-bold uppercase tracking-widest text-muted-foreground">Uploaded by</th>
+                                        <th className="text-left px-5 py-3.5 text-xs font-bold uppercase tracking-widest text-muted-foreground">Date</th>
+                                        <th className="text-right px-5 py-3.5 text-xs font-bold uppercase tracking-widest text-muted-foreground">Size</th>
+                                        <th className="px-5 py-3.5" />
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-border/60">
+                                <tbody className="divide-y divide-border/40">
                                     {documents.data.map((doc) => (
-                                        <tr key={doc.id} className="hover:bg-muted/40 transition-colors">
-                                            <td className="px-4 py-3">
-                                                <p className="font-medium text-foreground">{doc.name}</p>
-                                                <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium mt-1 ${visibilityBadgeStyles[doc.is_client_visible ? 'success' : 'secondary']}`}>
+                                        <tr key={doc.id} className="hover:bg-muted/20 transition-colors">
+                                            <td className="px-5 py-4">
+                                                <p className="text-[14px] font-semibold text-foreground">{doc.name}</p>
+                                                <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium mt-1 ${visibilityBadgeStyles[doc.is_client_visible ? 'success' : 'secondary']}`}>
                                                     {doc.is_client_visible ? 'Client visible' : 'Internal'}
                                                 </span>
                                             </td>
-                                            <td className="px-4 py-3 text-muted-foreground">
+                                            <td className="px-5 py-4 text-[14px] text-muted-foreground">
                                                 {doc.matter ? (
-                                                    <Link href={`/matters/${doc.matter.id}`} className="hover:text-primary transition-colors">
+                                                    <Link href={`/matters/${doc.matter.id}`} className="hover:text-primary transition-colors font-medium">
                                                         {doc.matter.name}
                                                     </Link>
                                                 ) : '—'}
                                             </td>
-                                            <td className="px-4 py-3 text-muted-foreground">{(doc as any).uploadedBy?.full_name ?? '—'}</td>
-                                            <td className="px-4 py-3 text-muted-foreground">{formatDate(doc.created_at)}</td>
-                                            <td className="px-4 py-3 text-right text-muted-foreground">{formatBytes(doc.size_bytes)}</td>
-                                            <td className="px-4 py-3">
+                                            <td className="px-5 py-4 text-[14px] text-muted-foreground">{(doc as any).uploadedBy?.full_name ?? '—'}</td>
+                                            <td className="px-5 py-4 text-[14px] text-muted-foreground">{formatDate(doc.created_at)}</td>
+                                            <td className="px-5 py-4 text-right text-[14px] tabular-nums text-muted-foreground">{formatBytes(doc.size_bytes)}</td>
+                                            <td className="px-5 py-4">
                                                 <div className="flex items-center gap-1 justify-end">
                                                     <Button variant="ghost" size="icon" className="h-8 w-8" title="View" onClick={() => setViewerDoc(doc as any)}>
                                                         <Eye className="h-3.5 w-3.5" />

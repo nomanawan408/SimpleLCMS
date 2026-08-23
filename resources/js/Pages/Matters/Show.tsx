@@ -522,7 +522,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
             const fd = new FormData();
             fd.append('file', docFile);
             fd.append('matter_id', matter.id);
-            if (docFolder) fd.append('folder', docFolder);
+            fd.append('folder', matter.matter_number || matter.name);
             fd.append('is_client_visible', docClientVisible ? '1' : '0');
 
             const res = await fetch('/documents', {
@@ -640,24 +640,21 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                 </div>
             </div>
 
-            {/* Matter Header Card — Enterprise */}
-            <Card className="surface-card mb-5 overflow-hidden border-0 shadow-[0_2px_16px_rgba(0,0,0,0.06)]">
-                <div className={cn('h-1 w-full', statusAccent[matter.status] ?? 'bg-primary')} />
+            {/* Matter Header Card — Compact Enterprise */}
+            <Card className="rounded-2xl border border-border/60 bg-card shadow-sm overflow-hidden mb-4">
+                <div className={cn('h-[3px] w-full', statusAccent[matter.status] ?? 'bg-primary')} />
                 <CardContent className="p-0">
-                    {/* Top row: breadcrumb meta */}
-                    <div className="flex items-center gap-2 px-6 pt-4 text-xs text-muted-foreground">
-                        <span className="inline-flex items-center gap-1.5">
-                            <span className={cn('h-2 w-2 rounded-full', statusAccent[matter.status] ?? 'bg-primary')} />
-                            <Badge variant={statusVariant[matter.status] ?? 'default'} className="text-[11px] font-bold uppercase tracking-widest px-2.5 py-0.5">
-                                {MATTER_STATUS_LABELS[matter.status]}
-                            </Badge>
-                        </span>
-                        <span className="text-border">•</span>
-                        <span className="font-mono tabular-nums">{matter.matter_number}</span>
+                    <div className="flex items-center gap-2 px-5 pt-3.5 text-xs text-muted-foreground">
+                        <span className={cn('h-1.5 w-1.5 rounded-full', statusAccent[matter.status] ?? 'bg-primary')} />
+                        <Badge variant={statusVariant[matter.status] ?? 'default'} className="text-[11px] font-semibold uppercase tracking-widest px-2 py-0 rounded-full">
+                            {MATTER_STATUS_LABELS[matter.status]}
+                        </Badge>
+                        <span className="text-border">·</span>
+                        <span className="font-mono tabular-nums text-[11px]">{matter.matter_number}</span>
                         {daysUntil !== null && daysUntil <= 7 && (
                             <>
-                                <span className="text-border">•</span>
-                                <span className={cn('inline-flex items-center gap-1 font-medium', daysUntil < 0 ? 'text-destructive' : 'text-warning')}>
+                                <span className="text-border">·</span>
+                                <span className={cn('inline-flex items-center gap-1 text-xs font-medium', daysUntil < 0 ? 'text-destructive' : 'text-amber-600')}>
                                     <AlertTriangle className="h-3 w-3" />
                                     {daysUntil < 0 ? `Overdue ${Math.abs(daysUntil)}d` : daysUntil === 0 ? 'Due today' : `Due in ${daysUntil}d`}
                                 </span>
@@ -665,149 +662,108 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                         )}
                     </div>
 
-                    <div className="px-6 pt-3 pb-6">
-                        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="px-5 pt-2.5 pb-4">
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                             <div className="flex-1 min-w-0">
-                                <h1 className="text-[26px] font-extrabold tracking-tight leading-tight text-foreground">
+                                <h1 className="text-[20px] font-bold tracking-tight leading-tight text-foreground">
                                     {matter.name}
                                 </h1>
                                 {matter.description ? (
-                                    <p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-muted-foreground">
+                                    <p className="mt-1 max-w-2xl text-sm leading-relaxed text-muted-foreground line-clamp-1">
                                         {matter.description}
                                     </p>
                                 ) : (
-                                    <p className="mt-2 text-[13px] text-muted-foreground/60 italic">No description added</p>
+                                    <p className="mt-1 text-sm text-muted-foreground/50 italic">No description</p>
                                 )}
                             </div>
 
                             {viewFinancial && matter.fee_arrangement && (
-                                <div className="shrink-0 lg:text-right">
-                                    <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-[0.14em] mb-1.5">
-                                        Fee Arrangement
-                                    </p>
-                                    <div className="inline-flex items-center gap-3 rounded-xl border border-primary/20 bg-gradient-to-br from-primary/[0.08] to-primary/[0.02] px-4 py-2.5 shadow-sm">
-                                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow">
-                                            <PoundSterling className="h-4 w-4" />
-                                        </div>
-                                        <div className="text-left">
-                                            <p className="text-sm font-bold text-foreground capitalize leading-none">
-                                                {matter.fee_arrangement.replace(/_/g, ' ')}
-                                            </p>
-                                            {feeSummary && (
-                                                <p className="text-xs font-semibold text-primary tabular-nums mt-0.5">
-                                                    {feeSummary}
-                                                </p>
-                                            )}
-                                        </div>
-                                    </div>
+                                <div className="shrink-0 flex items-center gap-2 rounded-full border border-border/60 bg-muted/30 px-3 py-1.5">
+                                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-foreground text-background"><PoundSterling className="h-3 w-3" /></span>
+                                    <span className="text-sm font-semibold text-foreground capitalize">{matter.fee_arrangement.replace(/_/g, ' ')}</span>
+                                    {feeSummary && <span className="text-xs font-medium text-muted-foreground">· {feeSummary}</span>}
                                 </div>
                             )}
                         </div>
 
-                        {/* Deadline alert — compact enterprise */}
                         {matter.next_deadline && new Date(matter.next_deadline) <= new Date(Date.now() + 7 * 86400000) && (
-                            <div className="mt-5 flex items-center gap-3 rounded-xl border border-warning/20 bg-warning/[0.06] px-4 py-3">
-                                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-warning/15">
-                                    <AlertTriangle className="h-3.5 w-3.5 text-warning" />
-                                </div>
-                                <p className="text-sm">
-                                    <span className="font-semibold text-foreground">Upcoming deadline</span>
-                                    <span className="mx-2 text-muted-foreground/40">—</span>
-                                    <span className="font-semibold text-warning">{formatDate(matter.next_deadline)}</span>
-                                    {daysUntil !== null && daysUntil >= 0 && (
-                                        <span className="text-muted-foreground"> · {daysUntil === 0 ? 'due today' : `in ${daysUntil} day${daysUntil === 1 ? '' : 's'}`}</span>
-                                    )}
-                                    {daysUntil !== null && daysUntil < 0 && (
-                                        <span className="text-destructive font-medium"> · overdue {Math.abs(daysUntil)}d</span>
-                                    )}
-                                </p>
+                            <div className="mt-3 flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 w-fit">
+                                <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
+                                <span className="text-xs font-medium text-amber-800">Deadline {formatDate(matter.next_deadline)}</span>
+                                {daysUntil !== null && <span className="text-xs text-amber-700">{daysUntil < 0 ? `· overdue ${Math.abs(daysUntil)}d` : daysUntil === 0 ? '· today' : `· in ${daysUntil}d`}</span>}
                             </div>
                         )}
 
-                        {/* Key facts — prominent enterprise row */}
-                        <div className="mt-6 -mx-6 border-t border-border/60">
-                            <div className="grid grid-cols-2 lg:grid-cols-4 divide-x divide-y lg:divide-y-0 divide-border/60">
-                                {matter.practice_area && (
-                                    <div className="px-6 py-5">
-                                        <p className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                                            <Gavel className="h-[18px] w-[18px] text-muted-foreground" />
-                                            Practice Area
-                                        </p>
-                                        <p className="mt-2.5 text-[17px] font-bold text-foreground leading-tight">
-                                            {matter.practice_area === 'custom'
-                                                ? ((matter.custom_fields as any)?.custom_practice_area ?? 'Custom')
-                                                : (PRACTICE_AREA_LABELS[matter.practice_area] ?? matter.practice_area)}
+                        <div className="mt-4 grid grid-cols-2 lg:grid-cols-4 gap-3">
+                            {matter.practice_area && (
+                                <div className="rounded-xl border border-border/60 bg-muted/[0.18] px-3.5 py-2.5 flex items-center gap-2.5">
+                                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-50 shrink-0"><Gavel className="h-3.5 w-3.5 text-amber-600" /></span>
+                                    <div className="min-w-0">
+                                        <p className="text-[11px] font-medium text-muted-foreground leading-none">Practice Area</p>
+                                        <p className="text-sm font-semibold text-foreground truncate">
+                                            {matter.practice_area === 'custom' ? ((matter.custom_fields as any)?.custom_practice_area ?? 'Custom') : (PRACTICE_AREA_LABELS[matter.practice_area] ?? matter.practice_area)}
                                         </p>
                                     </div>
-                                )}
-                                {matter.responsible_user && (
-                                    <div className="px-6 py-5">
-                                        <p className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                                            <Users className="h-[18px] w-[18px] text-muted-foreground" />
-                                            Solicitor
-                                        </p>
-                                        <div className="mt-2.5 flex items-center gap-3">
-                                            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-foreground text-background text-sm font-bold shrink-0">
-                                                {matter.responsible_user.full_name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
-                                            </span>
-                                            <p className="text-[17px] font-bold text-foreground truncate">
-                                                {matter.responsible_user.full_name}
-                                            </p>
-                                        </div>
+                                </div>
+                            )}
+                            {matter.responsible_user && (
+                                <div className="rounded-xl border border-border/60 bg-muted/[0.18] px-3.5 py-2.5 flex items-center gap-2.5">
+                                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-foreground text-background text-xs font-bold shrink-0">
+                                        {matter.responsible_user.full_name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
+                                    </span>
+                                    <div className="min-w-0">
+                                        <p className="text-[11px] font-medium text-muted-foreground leading-none">Solicitor</p>
+                                        <p className="text-sm font-semibold text-foreground truncate">{matter.responsible_user.full_name}</p>
                                     </div>
-                                )}
-                                {matter.opened_at && (
-                                    <div className="px-6 py-5">
-                                        <p className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                                            <Calendar className="h-[18px] w-[18px] text-muted-foreground" />
-                                            Opened
-                                        </p>
-                                        <p className="mt-2.5 text-[17px] font-bold text-foreground">
-                                            {formatDate(matter.opened_at)}
-                                        </p>
+                                </div>
+                            )}
+                            {matter.opened_at && (
+                                <div className="rounded-xl border border-border/60 bg-muted/[0.18] px-3.5 py-2.5 flex items-center gap-2.5">
+                                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-50 shrink-0"><Calendar className="h-3.5 w-3.5 text-emerald-600" /></span>
+                                    <div>
+                                        <p className="text-[11px] font-medium text-muted-foreground leading-none">Opened</p>
+                                        <p className="text-sm font-semibold text-foreground">{formatDate(matter.opened_at)}</p>
                                     </div>
-                                )}
-                                {matter.matter_number && (
-                                    <div className="px-6 py-5 bg-muted/[0.12]">
-                                        <p className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                                            <FileText className="h-[18px] w-[18px] text-muted-foreground" />
-                                            Reference
-                                        </p>
-                                        <p className="mt-2.5 font-mono text-[17px] font-extrabold text-foreground tabular-nums tracking-tight">
-                                            {matter.matter_number}
-                                        </p>
+                                </div>
+                            )}
+                            {matter.matter_number && (
+                                <div className="rounded-xl border border-border/60 bg-muted/[0.18] px-3.5 py-2.5 flex items-center gap-2.5">
+                                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 shrink-0"><FileText className="h-3.5 w-3.5 text-slate-600" /></span>
+                                    <div className="min-w-0">
+                                        <p className="text-[11px] font-medium text-muted-foreground leading-none">Reference</p>
+                                        <p className="font-mono text-sm font-bold text-foreground tabular-nums">{matter.matter_number}</p>
                                     </div>
-                                )}
-                            </div>
-                            {(matter.court || matter.court_reference) && (
-                                <div className="px-6 py-3.5 flex items-center gap-6 text-sm border-t border-border/60 bg-muted/10">
-                                    <span className="inline-flex items-center gap-2 text-muted-foreground"><Landmark className="h-[18px] w-[18px]" /> Court</span>
-                                    <span className="font-semibold text-foreground text-[15px]">{matter.court || '—'}</span>
-                                    {matter.court_reference && <span className="text-muted-foreground font-mono text-sm">Ref: {matter.court_reference}</span>}
                                 </div>
                             )}
                         </div>
+                        {(matter.court || matter.court_reference) && (
+                            <div className="mt-3 flex items-center gap-3 rounded-full border border-border/60 bg-muted/20 w-fit px-3.5 py-1.5 text-sm">
+                                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-teal-50 shrink-0"><Landmark className="h-3 w-3 text-teal-600" /></span>
+                                <span className="font-medium text-foreground">{matter.court || '—'}</span>
+                                {matter.court_reference && <span className="text-muted-foreground font-mono text-xs">Ref: {matter.court_reference}</span>}
+                            </div>
+                        )}
                     </div>
                 </CardContent>
             </Card>
 
-            {/* Financial Summary Strip — Prominent */}
+            {/* Financial Summary Strip — Colored Icons */}
             {viewFinancial && (
             <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5 mb-6">
                 {[
-                    { label: 'Unbilled Time', value: formatCurrency(matter.unbilled_time_value || 0), icon: Clock },
-                    { label: 'Total Invoiced', value: formatCurrency(totalInvoiced), icon: Receipt },
-                    { label: 'Total Paid', value: formatCurrency(totalPaid), icon: Wallet },
-                    { label: 'Outstanding', value: formatCurrency(totalOutstanding), icon: TrendingUp },
-                    { label: 'Trust Balance', value: formatCurrency(trustBalance), icon: Landmark },
+                    { label: 'Unbilled Time', value: formatCurrency(matter.unbilled_time_value || 0), icon: Clock, bg: 'bg-amber-50', color: 'text-amber-600' },
+                    { label: 'Total Invoiced', value: formatCurrency(totalInvoiced), icon: Receipt, bg: 'bg-blue-50', color: 'text-blue-600' },
+                    { label: 'Total Paid', value: formatCurrency(totalPaid), icon: Wallet, bg: 'bg-emerald-50', color: 'text-emerald-600' },
+                    { label: 'Outstanding', value: formatCurrency(totalOutstanding), icon: TrendingUp, bg: 'bg-orange-50', color: 'text-orange-600' },
+                    { label: 'Trust Balance', value: formatCurrency(trustBalance), icon: Landmark, bg: 'bg-violet-50', color: 'text-violet-600' },
                 ].map((s) => (
                     <div key={s.label} className="rounded-xl border border-border/60 bg-card p-5 flex items-center justify-between shadow-sm">
                         <div>
                             <p className="text-sm font-medium text-muted-foreground">{s.label}</p>
                             <p className="text-[22px] font-extrabold tracking-tight tabular-nums text-foreground mt-1.5 leading-none">{s.value}</p>
                         </div>
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted shrink-0">
-                            <s.icon className="h-5 w-5 text-muted-foreground" />
+                        <div className={`flex h-10 w-10 items-center justify-center rounded-full shrink-0 ${s.bg}`}>
+                            <s.icon className={`h-5 w-5 ${s.color}`} />
                         </div>
                     </div>
                 ))}
@@ -2015,19 +1971,25 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
             </Dialog>
 
             <Dialog open={docModalOpen} onOpenChange={setDocModalOpen}>
-                <DialogContent>
+                <DialogContent className="rounded-2xl">
                     <DialogHeader>
                         <DialogTitle>Upload document</DialogTitle>
-                        <DialogDescription>Upload a file to this matter.</DialogDescription>
+                        <DialogDescription>File will be saved to this matter&apos;s folder. No need to choose a folder.</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4">
                         <div className="space-y-2">
                             <Label className="text-sm font-medium">File * <span className="text-muted-foreground font-normal">(max 20 MB)</span></Label>
                             <Input ref={docFileRef} type="file" onChange={(e) => setDocFile(e.target.files?.[0] ?? null)} />
                         </div>
-                        <div className="space-y-2">
-                            <Label className="text-sm font-medium">Folder</Label>
-                            <Input className="h-11" placeholder="e.g. Correspondence" value={docFolder} onChange={(e) => setDocFolder(e.target.value)} />
+                        <div className="rounded-xl bg-muted/20 border border-border/40 px-4 py-3 flex items-center gap-3">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary shrink-0">
+                                <FileText className="h-4 w-4" />
+                            </div>
+                            <div className="min-w-0">
+                                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Destination folder</p>
+                                <p className="text-sm font-semibold text-foreground truncate">{matter.matter_number} — {matter.name}</p>
+                                <p className="text-xs text-muted-foreground">Auto-created for this matter</p>
+                            </div>
                         </div>
                         <label className="flex items-center gap-2 cursor-pointer">
                             <input

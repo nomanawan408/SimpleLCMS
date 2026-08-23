@@ -121,7 +121,7 @@ export default function ReportsIndex({ financialSummary, timeByUser, mattersByPr
 
             <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Reports</h1>
+                    <h1 className="text-[26px] font-extrabold tracking-tight">Reports</h1>
                     <p className="text-sm text-muted-foreground mt-1">Financial, time and matter analytics — filter by timeframe, matter, and team.</p>
                 </div>
                 <Button variant="outline" className="gap-2 rounded-xl" asChild>
@@ -229,29 +229,27 @@ export default function ReportsIndex({ financialSummary, timeByUser, mattersByPr
 
             {tab === 'financial' && (
                 <div className="space-y-6">
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 mb-6">
                         {[
-                            { label: 'Total Invoiced', value: formatCurrency(financialSummary.total_invoiced), sub: hasActiveFilters ? 'Filtered' : 'All time', icon: PoundSterling, color: 'text-foreground', bg: 'bg-primary/10' },
-                            { label: 'Total Collected', value: formatCurrency(financialSummary.total_collected), sub: 'Payments received', icon: TrendingUp, color: 'text-success', bg: 'bg-success/10' },
-                            { label: 'Outstanding', value: formatCurrency(financialSummary.total_outstanding), sub: 'Sent + Partial', icon: BarChart3, color: 'text-warning', bg: 'bg-warning/10' },
-                            { label: 'Collection Rate', value: financialSummary.total_invoiced > 0 ? `${Math.round(financialSummary.total_collected / financialSummary.total_invoiced * 100)}%` : '—', sub: 'Collected / Invoiced', icon: PieChart, color: 'text-primary', bg: 'bg-primary/10' },
+                            { label: 'Total Invoiced', value: formatCurrency(financialSummary.total_invoiced), sub: hasActiveFilters ? 'Filtered' : 'All time', icon: PoundSterling, iconBg: 'bg-blue-50', iconColor: 'text-blue-600' },
+                            { label: 'Total Collected', value: formatCurrency(financialSummary.total_collected), sub: 'Payments received', icon: TrendingUp, iconBg: 'bg-emerald-50', iconColor: 'text-emerald-600' },
+                            { label: 'Outstanding', value: formatCurrency(financialSummary.total_outstanding), sub: 'Sent + Partial', icon: BarChart3, iconBg: 'bg-amber-50', iconColor: 'text-amber-600' },
+                            { label: 'Collection Rate', value: financialSummary.total_invoiced > 0 ? `${Math.round(financialSummary.total_collected / financialSummary.total_invoiced * 100)}%` : '—', sub: 'Collected / Invoiced', icon: PieChart, iconBg: 'bg-slate-100', iconColor: 'text-slate-600' },
                         ].map((s) => (
-                            <Card key={s.label} className="surface-card">
-                                <CardContent className="p-5">
-                                    <div className="flex items-start justify-between">
-                                        <div>
-                                            <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">{s.label}</p>
-                                            <p className={cn('text-2xl font-bold tracking-tight mt-1', s.color)}>{s.value}</p>
-                                            <p className="text-xs text-muted-foreground mt-0.5">{s.sub}</p>
-                                        </div>
-                                        <div className={cn('p-2.5 rounded-xl', s.bg)}><s.icon className={cn('h-5 w-5', s.color)} /></div>
-                                    </div>
-                                </CardContent>
-                            </Card>
+                            <div key={s.label} className="rounded-xl border border-border/60 bg-card p-5 flex items-center justify-between shadow-sm">
+                                <div>
+                                    <p className="text-sm font-medium text-muted-foreground">{s.label}</p>
+                                    <p className="text-[22px] font-extrabold tracking-tight tabular-nums mt-1.5 leading-none text-foreground">{s.value}</p>
+                                    <p className="text-xs text-muted-foreground mt-1">{s.sub}</p>
+                                </div>
+                                <div className={cn('flex h-10 w-10 items-center justify-center rounded-full shrink-0', s.iconBg)}>
+                                    <s.icon className={cn('h-5 w-5', s.iconColor)} />
+                                </div>
+                            </div>
                         ))}
                     </div>
 
-                    <Card className="surface-card">
+                    <Card className="rounded-2xl border border-border/60 bg-card shadow-sm overflow-hidden">
                         <CardHeader className="flex flex-row items-center justify-between pb-3">
                             <CardTitle className="text-base">Invoices by Matter</CardTitle>
                             <Badge variant="secondary" className="rounded-full">{financialSummary.invoices_by_matter.length} matters</Badge>
@@ -287,7 +285,7 @@ export default function ReportsIndex({ financialSummary, timeByUser, mattersByPr
             )}
 
             {tab === 'time' && (
-                <Card className="surface-card">
+                <Card className="rounded-2xl border border-border/60 bg-card shadow-sm overflow-hidden">
                     <CardHeader className="flex flex-row items-center justify-between">
                         <div><CardTitle className="text-base">Time by User</CardTitle><p className="text-xs text-muted-foreground mt-1">Billable utilisation and value — {timeByUser.length} active {timeByUser.length===1?'member':'members'} {hasActiveFilters && '· filtered'}</p></div>
                         <Badge variant="secondary" className="rounded-full">{formatCurrency(totalTimeValue)} total</Badge>
@@ -332,7 +330,7 @@ export default function ReportsIndex({ financialSummary, timeByUser, mattersByPr
             )}
 
             {tab === 'matters' && (
-                <Card className="surface-card">
+                <Card className="rounded-2xl border border-border/60 bg-card shadow-sm overflow-hidden">
                     <CardHeader><CardTitle className="text-base">Open Matters by Practice Area</CardTitle></CardHeader>
                     <CardContent className="p-6">
                         {mattersByPracticeArea.length === 0 ? (

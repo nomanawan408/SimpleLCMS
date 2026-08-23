@@ -69,7 +69,7 @@ export default function ContactsIndex({ contacts, filters }: Props) {
 
             <div className="flex flex-col gap-3 mb-6">
                 <div className="flex items-center justify-between">
-                    <h1 className="text-2xl font-bold tracking-tight">Contacts</h1>
+                    <h1 className="text-[26px] font-extrabold tracking-tight">Contacts</h1>
                     <Button asChild className="gap-2">
                         <Link href="/contacts/create"><Plus className="h-4 w-4" />New Contact</Link>
                     </Button>
@@ -106,7 +106,7 @@ export default function ContactsIndex({ contacts, filters }: Props) {
                 </div>
             </div>
 
-            <Card className="surface-card">
+            <Card className="rounded-2xl border border-border/60 bg-card shadow-sm overflow-hidden">
                 <CardContent className="p-0">
                     {contacts.data.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -126,12 +126,12 @@ export default function ContactsIndex({ contacts, filters }: Props) {
                             <table className="w-full text-sm">
                                 <thead>
                                     <tr className="border-b border-border/60 bg-muted/20">
-                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs uppercase tracking-wider">Name</th>
-                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs uppercase tracking-wider hidden md:table-cell">Email</th>
-                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs uppercase tracking-wider hidden lg:table-cell">Phone</th>
-                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs uppercase tracking-wider">Type</th>
-                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs uppercase tracking-wider hidden sm:table-cell">Lead Status</th>
-                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs uppercase tracking-wider hidden xl:table-cell">Added</th>
+                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs font-bold uppercase tracking-widest">Name</th>
+                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs font-bold uppercase tracking-widest hidden md:table-cell">Email</th>
+                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs font-bold uppercase tracking-widest hidden lg:table-cell">Phone</th>
+                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs font-bold uppercase tracking-widest">Type</th>
+                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs font-bold uppercase tracking-widest hidden sm:table-cell">Lead Status</th>
+                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs font-bold uppercase tracking-widest hidden xl:table-cell">Added</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-border/60">

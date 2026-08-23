@@ -76,7 +76,7 @@ export default function MattersIndex({ matters, filters }: Props) {
 
             <div className="flex flex-col gap-3 mb-6">
                 <div className="flex items-center justify-between">
-                    <h1 className="text-2xl font-bold tracking-tight">Matters</h1>
+                    <h1 className="text-[26px] font-extrabold tracking-tight">Matters</h1>
                     <Button asChild className="gap-2">
                         <Link href="/matters/create"><Plus className="h-4 w-4" />New Matter</Link>
                     </Button>
@@ -118,7 +118,7 @@ export default function MattersIndex({ matters, filters }: Props) {
                 </div>
             </div>
 
-            <Card className="surface-card">
+            <Card className="rounded-2xl border border-border/60 bg-card shadow-sm overflow-hidden">
                 <CardContent className="p-0">
                     {matters.data.length === 0 ? (
                         <div className="py-16 text-center">
@@ -138,15 +138,15 @@ export default function MattersIndex({ matters, filters }: Props) {
                             <table className="w-full text-sm">
                                 <thead>
                                     <tr className="border-b border-border/60 bg-muted/20">
-                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs uppercase tracking-wider">Matter</th>
-                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs uppercase tracking-wider hidden md:table-cell">Practice Area</th>
-                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs uppercase tracking-wider hidden lg:table-cell">Clients / Contact</th>
-                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs uppercase tracking-wider hidden lg:table-cell">Responsible</th>
-                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs uppercase tracking-wider">Status</th>
-                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs uppercase tracking-wider hidden xl:table-cell">Next Step</th>
-                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs uppercase tracking-wider hidden xl:table-cell">Deadline</th>
-                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs uppercase tracking-wider hidden xl:table-cell">Hearing Date</th>
-                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs uppercase tracking-wider hidden xl:table-cell">Opened</th>
+                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs font-bold uppercase tracking-widest">Matter</th>
+                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs font-bold uppercase tracking-widest hidden md:table-cell">Practice Area</th>
+                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs font-bold uppercase tracking-widest hidden lg:table-cell">Clients / Contact</th>
+                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs font-bold uppercase tracking-widest hidden lg:table-cell">Responsible</th>
+                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs font-bold uppercase tracking-widest">Status</th>
+                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs font-bold uppercase tracking-widest hidden xl:table-cell">Next Step</th>
+                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs font-bold uppercase tracking-widest hidden xl:table-cell">Deadline</th>
+                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs font-bold uppercase tracking-widest hidden xl:table-cell">Hearing Date</th>
+                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs font-bold uppercase tracking-widest hidden xl:table-cell">Opened</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-border/60">

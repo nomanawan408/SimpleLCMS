@@ -46,7 +46,7 @@ export default function ActivitiesIndex({ activities }: Props) {
             <Head title="Activity Log" />
 
             <div className="flex items-center justify-between mb-6">
-                <h1 className="text-2xl font-bold tracking-tight">Activity Log</h1>
+                <h1 className="text-[26px] font-extrabold tracking-tight">Activity Log</h1>
             </div>
 
             <Card>
@@ -58,11 +58,11 @@ export default function ActivitiesIndex({ activities }: Props) {
                             <table className="w-full text-sm">
                                 <thead>
                                     <tr className="border-b border-border/60 bg-muted/20">
-                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs uppercase tracking-wider">Date / Time</th>
-                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs uppercase tracking-wider">User</th>
-                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs uppercase tracking-wider">Action</th>
-                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs uppercase tracking-wider">Subject</th>
-                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs uppercase tracking-wider">Details</th>
+                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs font-bold uppercase tracking-widest">Date / Time</th>
+                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs font-bold uppercase tracking-widest">User</th>
+                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs font-bold uppercase tracking-widest">Action</th>
+                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs font-bold uppercase tracking-widest">Subject</th>
+                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs font-bold uppercase tracking-widest">Details</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-border/60">

@@ -420,10 +420,10 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
     }
 
     const stats_cards = [
-        { label: 'Today',          value: fmtMinutes(stats.today_minutes),       sub: `${stats.entries_today} entr${stats.entries_today === 1 ? 'y' : 'ies'}`, icon: Clock,         color: 'text-primary',  bg: 'bg-primary/10' },
-        { label: 'This Week',      value: fmtMinutes(stats.week_minutes),        sub: '',                                                                          icon: TrendingUp,    color: 'text-accent',   bg: 'bg-accent/10' },
-        { label: 'Unbilled Hours', value: fmtMinutes(stats.unbilled_minutes),    sub: 'pending billing',                                                           icon: AlertCircle,   color: 'text-warning',  bg: 'bg-warning/10' },
-        { label: 'Unbilled Value', value: formatCurrency(stats.unbilled_amount), sub: '',                                                                          icon: PoundSterling, color: 'text-success',  bg: 'bg-success/10' },
+        { label: 'Today',          value: fmtMinutes(stats.today_minutes),       sub: `${stats.entries_today} entr${stats.entries_today === 1 ? 'y' : 'ies'}`, icon: Clock,         iconBg: 'bg-blue-50', iconColor: 'text-blue-600' },
+        { label: 'This Week',      value: fmtMinutes(stats.week_minutes),        sub: 'This week',                                                               icon: TrendingUp,    iconBg: 'bg-slate-100', iconColor: 'text-slate-600' },
+        { label: 'Unbilled Hours', value: fmtMinutes(stats.unbilled_minutes),    sub: 'Pending billing',                                                         icon: AlertCircle,   iconBg: 'bg-amber-50', iconColor: 'text-amber-600' },
+        { label: 'Unbilled Value', value: formatCurrency(stats.unbilled_amount), sub: 'Billable value',                                                          icon: PoundSterling, iconBg: 'bg-emerald-50', iconColor: 'text-emerald-600' },
     ];
 
     return (
@@ -433,7 +433,7 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Time Tracking</h1>
+                    <h1 className="text-[26px] font-extrabold tracking-tight">Time Tracking</h1>
                     <p className="text-sm text-muted-foreground mt-0.5">Log, review and bill your time entries</p>
                 </div>
                 <Button onClick={() => openCreate()} className="gap-2 shadow-sm">
@@ -669,14 +669,14 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
             {/* Stats */}
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 mb-6">
                 {stats_cards.map((s) => (
-                    <div key={s.label} className="group rounded-2xl border border-border/50 bg-gradient-to-br from-card to-card/80 p-4 flex items-center gap-4 shadow-sm hover:shadow-lg hover:border-border/80 hover:-translate-y-0.5 transition-all duration-200">
-                        <div className={cn('p-2.5 rounded-xl flex-shrink-0 ring-1 ring-border/30 group-hover:scale-110 transition-transform duration-200', s.bg)}>
-                            <s.icon className={cn('h-5 w-5', s.color)} />
-                        </div>
-                        <div className="min-w-0">
-                            <p className="text-[11px] font-bold text-muted-foreground/80 uppercase tracking-widest mb-1">{s.label}</p>
-                            <p className={cn('text-2xl font-black tabular-nums leading-none', s.color)}>{s.value}</p>
+                    <div key={s.label} className="rounded-xl border border-border/60 bg-card p-5 flex items-center justify-between shadow-sm">
+                        <div>
+                            <p className="text-sm font-medium text-muted-foreground">{s.label}</p>
+                            <p className="text-[22px] font-extrabold tracking-tight tabular-nums mt-1.5 leading-none text-foreground">{s.value}</p>
                             {s.sub && <p className="text-xs text-muted-foreground mt-1">{s.sub}</p>}
+                        </div>
+                        <div className={cn('flex h-10 w-10 items-center justify-center rounded-full shrink-0', s.iconBg)}>
+                            <s.icon className={cn('h-5 w-5', s.iconColor)} />
                         </div>
                     </div>
                 ))}

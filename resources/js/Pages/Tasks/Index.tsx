@@ -162,7 +162,7 @@ export default function TasksIndex({ tasks, users, matters, filters }: Props) {
             <Head title="Tasks" />
 
             <div className="flex items-center justify-between mb-6">
-                <h1 className="text-2xl font-bold tracking-tight">Tasks</h1>
+                <h1 className="text-[26px] font-extrabold tracking-tight">Tasks</h1>
                 <Button onClick={openCreate} className="gap-2">
                     <Plus className="h-4 w-4" />
                     New Task
@@ -244,11 +244,11 @@ export default function TasksIndex({ tasks, users, matters, filters }: Props) {
                             <table className="w-full text-sm">
                                 <thead>
                                     <tr className="border-b border-border/60 bg-muted/20">
-                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs uppercase tracking-wider">Title</th>
-                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs uppercase tracking-wider">Assignee</th>
-                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs uppercase tracking-wider">Due</th>
-                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs uppercase tracking-wider">Priority</th>
-                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs uppercase tracking-wider">Status</th>
+                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs font-bold uppercase tracking-widest">Title</th>
+                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs font-bold uppercase tracking-widest">Assignee</th>
+                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs font-bold uppercase tracking-widest">Due</th>
+                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs font-bold uppercase tracking-widest">Priority</th>
+                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs font-bold uppercase tracking-widest">Status</th>
                                         <th className="px-4 py-3" />
                                     </tr>
                                 </thead>

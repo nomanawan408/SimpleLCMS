@@ -130,7 +130,7 @@ export default function FirmsIndex({ firms }: Props) {
                 </Button>
             </div>
 
-            <Card className="surface-card">
+            <Card className="rounded-2xl border border-border/60 bg-card shadow-sm overflow-hidden">
                 <CardContent className="p-0">
                     {firms.length === 0 ? (
                         <div className="px-6 py-10 text-center text-sm text-muted-foreground">

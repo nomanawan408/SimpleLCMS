@@ -117,28 +117,30 @@ export default function BillingIndex({ invoices, stats, filters, filterOptions }
 
             <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Billing</h1>
+                    <h1 className="text-[26px] font-extrabold tracking-tight">Billing</h1>
                     <p className="text-sm text-muted-foreground mt-1">Invoices, payments and outstanding — filter by timeframe, matter and team.</p>
                 </div>
                 <Button asChild className="rounded-xl gap-2 bg-primary"><Link href="/billing/create"><Plus className="h-4 w-4" /> New Invoice</Link></Button>
             </div>
 
-            {/* Stats - 4 cards */}
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-6">
+            {/* Stats - transaction style: just colored icons, values stay black */}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 mb-6">
                 {[
-                    { label: 'Outstanding', value: formatCurrency(stats.total_outstanding), icon: Clock, color: 'text-warning', bg: 'bg-warning/15' },
-                    { label: 'Overdue', value: formatCurrency(stats.overdue_amount), icon: AlertCircle, color: 'text-destructive', bg: 'bg-destructive/15' },
-                    { label: 'Collected', value: formatCurrency(stats.paid_this_month), sub: timeframe !== 'all' ? 'Filtered period' : 'This month', icon: CheckCircle, color: 'text-success', bg: 'bg-success/15' },
-                    { label: 'Drafts', value: String(stats.draft_count), icon: FileText, color: 'text-muted-foreground', bg: 'bg-muted' },
+                    { label: 'Outstanding', value: formatCurrency(stats.total_outstanding), icon: Clock, iconBg: 'bg-amber-50', iconColor: 'text-amber-600' },
+                    { label: 'Overdue', value: formatCurrency(stats.overdue_amount), icon: AlertCircle, iconBg: 'bg-red-50', iconColor: 'text-red-600' },
+                    { label: 'Collected', value: formatCurrency(stats.paid_this_month), sub: timeframe !== 'all' ? 'Filtered period' : 'This month', icon: CheckCircle, iconBg: 'bg-emerald-50', iconColor: 'text-emerald-600' },
+                    { label: 'Drafts', value: String(stats.draft_count), icon: FileText, iconBg: 'bg-slate-100', iconColor: 'text-slate-600' },
                 ].map(s => (
-                    <Card key={s.label} className="surface-card"><CardContent className="p-4 flex items-start justify-between">
+                    <div key={s.label} className="rounded-xl border border-border/60 bg-card p-5 flex items-center justify-between shadow-sm">
                         <div>
-                            <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">{s.label}</p>
-                            <p className={cn('mt-1 text-2xl font-bold tracking-tight', s.color)}>{s.value}</p>
-                            {s.sub && <p className="text-xs text-muted-foreground mt-0.5">{s.sub}</p>}
+                            <p className="text-sm font-medium text-muted-foreground">{s.label}</p>
+                            <p className="text-[22px] font-extrabold tracking-tight tabular-nums mt-1.5 leading-none text-foreground">{s.value}</p>
+                            {s.sub && <p className="text-xs text-muted-foreground mt-1">{s.sub}</p>}
                         </div>
-                        <div className={cn('p-2 rounded-xl', s.bg)}><s.icon className={cn('h-5 w-5', s.color)} /></div>
-                    </CardContent></Card>
+                        <div className={cn('flex h-10 w-10 items-center justify-center rounded-full shrink-0', s.iconBg)}>
+                            <s.icon className={cn('h-5 w-5', s.iconColor)} />
+                        </div>
+                    </div>
                 ))}
             </div>
 
@@ -212,7 +214,7 @@ export default function BillingIndex({ invoices, stats, filters, filterOptions }
             </div>
 
             {/* Invoices Table */}
-            <Card className="surface-card">
+            <Card className="rounded-2xl border border-border/60 bg-card shadow-sm overflow-hidden">
                 <CardContent className="p-0">
                     {invoices.data.length === 0 ? (
                         <div className="py-16 text-center">

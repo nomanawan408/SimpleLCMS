@@ -80,7 +80,7 @@ export default function AccountsIndex({ entries, summary, firmAccount, clientAcc
 
             <div className="flex items-center justify-between mb-6">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Accounts</h1>
+                    <h1 className="text-[26px] font-extrabold tracking-tight">Accounts</h1>
                     <p className="text-sm text-muted-foreground mt-0.5">Manage firm bank accounts, client accounts, and trust ledger</p>
                 </div>
             </div>

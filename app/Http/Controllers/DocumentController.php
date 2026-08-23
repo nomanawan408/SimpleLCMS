@@ -58,6 +58,7 @@ class DocumentController extends Controller
 
         $path = $file->store("documents/{$firmId}/{$matterId}", 'local');
 
+        $defaultFolder = $matter->matter_number ?: $matter->name;
         $document = Document::create([
             'firm_id'          => $firmId,
             'matter_id'        => $request->input('matter_id'),
@@ -65,7 +66,7 @@ class DocumentController extends Controller
             'name'             => $file->getClientOriginalName(),
             'original_name'    => $file->getClientOriginalName(),
             's3_key'           => $path,
-            'folder'           => $request->input('folder', 'General'),
+            'folder'           => $request->input('folder', $defaultFolder) ?: $defaultFolder,
             'mime_type'        => $file->getClientMimeType(),
             'size_bytes'       => $file->getSize(),
             'is_client_visible' => $request->boolean('is_client_visible'),
