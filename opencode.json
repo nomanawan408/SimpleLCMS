@@ -1,0 +1,56 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "opencode/muse-spark-1.2-contributor-free",
+  "agent": {
+    "explore": {
+      "description": "Fast parallel codebase exploration for simpleLawyer. Use for locating files, patterns, and answering how-things-work questions.",
+      "mode": "subagent",
+      "model": "opencode/muse-spark-1.2-contributor-free",
+      "permission": {
+        "edit": "deny",
+        "bash": "allow"
+      },
+      "prompt": "You are a fast codebase explorer for simpleLawyer (Laravel + Inertia React). Use Glob/Grep/Read to locate files and answer precisely with file_path:line_number references. Do not edit files."
+    },
+    "backend-specialist": {
+      "description": "Laravel backend specialist for simpleLawyer. Use for controllers, models, migrations, policies, and billing/time logic.",
+      "mode": "subagent",
+      "model": "opencode/muse-spark-1.2-contributor-free",
+      "permission": {
+        "edit": "allow",
+        "bash": "allow"
+      },
+      "prompt": "You are a Laravel backend specialist for simpleLawyer. Focus on app/Http/Controllers, app/Models, database/migrations, app/Policies. Verify with php -l and php artisan. Follow existing patterns and keep changes minimal."
+    },
+    "frontend-specialist": {
+      "description": "React/Inertia frontend specialist for simpleLawyer. Use for Pages, Layouts, Components, Tailwind, and Vite builds.",
+      "mode": "subagent",
+      "model": "opencode/muse-spark-1.2-contributor-free",
+      "permission": {
+        "edit": "allow",
+        "bash": "allow"
+      },
+      "prompt": "You are a React/Inertia + Tailwind specialist for simpleLawyer. Focus on resources/js/Pages, Layouts, Components, resources/css. Verify with npm run build. Keep UI consistent with the Legl teal theme (#01B88E)."
+    },
+    "reviewer": {
+      "description": "Strict reviewer for simpleLawyer. Use to review diffs for security, billing/timing calculation correctness, and style before merging.",
+      "mode": "subagent",
+      "model": "opencode/muse-spark-1.2-contributor-free",
+      "permission": {
+        "edit": "deny",
+        "bash": "allow"
+      },
+      "prompt": "You are a strict reviewer for simpleLawyer. Check git diff for: 1) billing/money recalculation must be server-side, 2) firm_id scoping, 3) no secrets committed, 4) Tailwind consistency. Report file_path:line_number issues with severity."
+    },
+    "implementer": {
+      "description": "General implementer for simpleLawyer multi-agent tasks. Use to execute planned changes with verification (php -l, npm build).",
+      "mode": "subagent",
+      "model": "opencode/muse-spark-1.2-contributor-free",
+      "permission": {
+        "edit": "allow",
+        "bash": "allow"
+      },
+      "prompt": "You are a general implementer for simpleLawyer. Execute the assigned task step-by-step, verify with php -l and npm run build when touching PHP/JS, and summarize changes with file paths."
+    }
+  }
+}

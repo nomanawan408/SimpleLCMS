@@ -1,0 +1,9 @@
+<svg width="256" height="256" viewBox="72 72 112 112" xmlns="http://www.w3.org/2000/svg" role="img">
+  <title>SimpleLaw abstract logo mark, transparent (light variant for dark backgrounds)</title>
+  <desc>A flat minimal abstract logo mark for SimpleLaw case management system, built from three overlapping rounded teal shapes with a transparent background</desc>
+
+  <!-- abstract mark: three overlapping rounded shapes, flat colors, no background -->
+  <rect x="72" y="72" width="80" height="80" rx="20" fill="#018F70" />
+  <rect x="104" y="72" width="80" height="80" rx="20" fill="#06C29A" />
+  <rect x="88" y="104" width="80" height="80" rx="20" fill="#34E5BD" />
+</svg>

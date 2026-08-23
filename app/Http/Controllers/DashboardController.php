@@ -82,10 +82,10 @@ class DashboardController extends Controller
                 ->whereBetween('date', [$monthStart, $today])
                 ->sum('duration_minutes') / 60;
 
-            $totalInvoiced       = Invoice::where('firm_id', $firmId)->sum('total');
+            $totalInvoiced       = Invoice::where('firm_id', $firmId)->whereNotIn('status', ['cancelled'])->sum('total');
             $outstandingInvoices = Invoice::where('firm_id', $firmId)
                 ->whereIn('status', ['sent', 'partial'])
-                ->sum('total');
+                ->sum(DB::raw('GREATEST(0, total - COALESCE((SELECT SUM(amount) FROM payments WHERE payments.invoice_id = invoices.id), 0))'));
 
             $totalReceived = (float) Payment::where('firm_id', $firmId)->sum('amount');
 

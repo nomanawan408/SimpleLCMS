@@ -46,12 +46,12 @@ const ACTIVITY_LABELS: Record<string, string> = {
 
 const ACTIVITY_COLORS: Record<string, string> = {
     advising:        'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-    drafting:        'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+    drafting:        'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary',
     research:        'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
     court_attendance:'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
     travel:          'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
     telephone:       'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400',
-    correspondence:  'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400',
+    correspondence:  'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400',
     meeting:         'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
     other:           'bg-muted text-muted-foreground',
 };
@@ -450,14 +450,14 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
                         <div className="absolute inset-0 bg-gradient-to-r from-emerald-400 via-teal-400 to-green-500" />
                         <div className="absolute inset-0 bg-[linear-gradient(90deg,transparent_0%,rgba(255,255,255,0.3)_50%,transparent_100%)] animate-shimmer" />
                     </div>
-                    <div className="p-5 sm:p-6">
-                        <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+                    <div className="p-6 sm:p-7">
+                        <div className="flex flex-col gap-6 lg:flex-row lg:items-stretch">
                             {/* Left: timer + meta */}
-                            <div className="flex-1 min-w-0">
-                                {/* Status badge */}
-                                <div className="flex items-center gap-3 mb-5">
+                            <div className="flex flex-1 flex-col gap-5 min-w-0">
+                                {/* Status badge + started time */}
+                                <div className="flex items-center gap-3">
                                     <div className={cn(
-                                        "flex items-center gap-2.5 px-3.5 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest transition-colors",
+                                        "flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-colors",
                                         isPaused
                                             ? "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400"
                                             : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400",
@@ -468,55 +468,55 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
                                         </span>
                                         {isPaused ? 'Paused' : 'Recording'}
                                     </div>
-                                    <span className="text-xs text-muted-foreground">
+                                    <span className="text-xs text-muted-foreground font-medium">
                                         Started {new Date(session.started_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                     </span>
                                 </div>
 
                                 {/* Matter info */}
-                                <p className="text-xl font-bold truncate text-foreground mb-0.5">{session.matter_name}</p>
-                                <div className="flex items-center gap-3 text-xs text-muted-foreground mb-5">
-                                    <span className="font-mono font-medium">{session.matter_number}</span>
-                                    <span className="text-border">&bull;</span>
-                                    <span>Rate: <strong className="text-foreground font-semibold">{formatCurrency(Number(checkOutRate) || 0)}/hr</strong></span>
+                                <div>
+                                    <p className="text-xl font-bold truncate text-foreground mb-1">{session.matter_name}</p>
+                                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                                        <span className="font-mono font-medium">{session.matter_number}</span>
+                                        <span className="text-border">&bull;</span>
+                                        <span>Rate: <strong className="text-foreground font-semibold">{formatCurrency(Number(checkOutRate) || 0)}/hr</strong></span>
+                                    </div>
                                 </div>
 
                                 {/* Clock display card */}
                                 <div className={cn(
-                                    "rounded-xl p-6 mb-5 transition-colors duration-300",
+                                    "rounded-xl p-6 transition-colors duration-300 flex-1 flex items-center justify-center",
                                     isPaused
                                         ? "bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200/50 dark:border-amber-800/30"
                                         : "bg-emerald-50/70 dark:bg-emerald-950/20 border border-emerald-200/50 dark:border-emerald-800/30",
                                 )}>
-                                    <p className="font-mono text-6xl font-black tabular-nums tracking-tight text-foreground leading-none">
+                                    <p className="font-mono text-6xl sm:text-7xl font-black tabular-nums tracking-tight text-foreground leading-none">
                                         {formatElapsed(elapsed)}
                                     </p>
                                 </div>
 
                                 {/* Running total */}
-                                <div className="flex flex-wrap items-center gap-3">
+                                <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
                                     <div className="inline-flex items-center gap-2 rounded-full px-4 py-2 bg-white dark:bg-black/20 border border-border/50 shadow-sm">
                                         <div className="p-1 rounded-full bg-emerald-100 dark:bg-emerald-900/50">
-                                            <PoundSterling className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+                                            <PoundSterling className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
                                         </div>
-                                        <span className="text-sm font-bold text-foreground">{formatCurrency(liveAmount)}</span>
+                                        <span className="text-base font-bold text-foreground tabular-nums">{formatCurrency(liveAmount)}</span>
                                     </div>
                                     {firmVatRate > 0 && (
                                         <span className="text-xs text-muted-foreground">
-                                            +{firmVatRate}% VAT = <span className="font-semibold text-foreground">{formatCurrency(liveAmount * (1 + firmVatRate / 100))}</span>
+                                            +{firmVatRate}% VAT = <span className="font-semibold text-foreground tabular-nums">{formatCurrency(liveAmount * (1 + firmVatRate / 100))}</span>
                                         </span>
                                     )}
                                 </div>
                             </div>
 
                             {/* Right: editable fields + actions */}
-                            <div className="flex flex-col gap-3 lg:w-72 w-full">
+                            <div className="flex flex-col gap-4 lg:w-80 shrink-0">
                                 <div className="space-y-1.5">
-                                    <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">Activity</Label>
+                                    <Label className="block text-xs font-semibold text-foreground tracking-wide">Activity</Label>
                                     <Select value={sessionActivity} onValueChange={setSessionActivity}>
-                                        <SelectTrigger className="h-10 bg-background/60 backdrop-blur-sm border-border/60 rounded-lg">
-                                            <SelectValue />
-                                        </SelectTrigger>
+                                        <SelectTrigger className="h-10 bg-background/80 border-border/60 rounded-lg w-full"><SelectValue /></SelectTrigger>
                                         <SelectContent>
                                             {Object.entries(ACTIVITY_LABELS).map(([k, v]) => (
                                                 <SelectItem key={k} value={k}>{v}</SelectItem>
@@ -525,15 +525,15 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
                                     </Select>
                                 </div>
                                 <div className="space-y-1.5">
-                                    <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">Work Notes</Label>
+                                    <Label className="block text-xs font-semibold text-foreground tracking-wide">Work Notes</Label>
                                     <Textarea
-                                        rows={3} className="resize-none text-sm bg-background/60 backdrop-blur-sm border-border/60 rounded-lg"
+                                        rows={3} className="resize-none text-sm bg-background/80 border-border/60 rounded-lg"
                                         placeholder="What are you working on?"
                                         value={sessionNotes}
                                         onChange={(e) => setSessionNotes(e.target.value)}
                                     />
                                 </div>
-                                <div className="pt-1 space-y-2">
+                                <div className="mt-auto space-y-2.5 pt-1">
                                     <Button
                                         className="w-full gap-2 h-11 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white shadow-md shadow-emerald-200 dark:shadow-emerald-900/30 rounded-lg font-semibold transition-all"
                                         onClick={() => setCheckOutOpen(true)}
@@ -561,7 +561,7 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
                                         </Button>
                                     )}
                                     <button
-                                        className="w-full text-xs text-muted-foreground/50 hover:text-destructive transition-colors text-center py-1.5"
+                                        className="w-full text-xs text-muted-foreground/50 hover:text-destructive transition-colors text-center py-1.5 font-medium"
                                         onClick={() => setDiscardConfirm(true)}
                                     >
                                         Discard session
@@ -572,28 +572,28 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
                     </div>
                 </div>
             ) : (
-                <div className="mb-6 rounded-2xl border border-border/50 bg-gradient-to-br from-card via-card to-primary/[0.02] shadow-lg shadow-muted/20 overflow-hidden transition-all duration-300">
+                <div className="mb-6 rounded-2xl border border-border/60 bg-gradient-to-br from-card via-card to-card shadow-lg shadow-black/5 dark:shadow-black/20 overflow-hidden transition-all duration-300 hover:shadow-xl hover:shadow-black/10 dark:hover:shadow-black/30">
                     {/* Subtle accent bar */}
-                    <div className="h-0.5 w-full bg-gradient-to-r from-primary/60 via-primary/30 to-transparent" />
-                    <div className="p-5 sm:p-6">
-                        <div className="flex items-center gap-4 mb-5">
+                    <div className="h-0.5 w-full bg-gradient-to-r from-primary/70 via-primary/40 to-transparent" />
+                    <div className="p-6 sm:p-7">
+                        <div className="flex items-center gap-4 mb-6">
                             <div className="p-3 rounded-xl bg-gradient-to-br from-primary/15 to-primary/5 dark:from-primary/20 dark:to-primary/5 ring-1 ring-primary/10">
                                 <Timer className="h-5 w-5 text-primary" />
                             </div>
                             <div>
-                                <p className="text-base font-bold text-foreground">Start a Timer</p>
-                                <p className="text-xs text-muted-foreground mt-0.5">Begin tracking billable time</p>
+                                <p className="text-lg font-bold text-foreground tracking-tight">Start a Timer</p>
+                                <p className="text-sm text-muted-foreground mt-0.5">Begin tracking billable time</p>
                             </div>
                         </div>
-                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 sm:items-end">
-                            <div className="space-y-2 sm:col-span-1 lg:col-span-1">
-                                <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">Matter *</Label>
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-x-6">
+                            <div className="flex-1 min-w-0 sm:max-w-[320px] flex flex-col">
+                                <Label className="block text-xs font-semibold text-foreground mb-1.5 tracking-wide">Matter *</Label>
                                 <Select value={checkInForm.matter_id || '_none'} onValueChange={(v) => {
                                     const id = v === '_none' ? '' : v;
                                     const rate = id ? getMatterRate(matters, id, defaultRate) : defaultRate;
                                     setCheckInForm((p) => ({ ...p, matter_id: id, rate: String(rate) }));
                                 }}>
-                                    <SelectTrigger className="h-11 rounded-lg border-border/60"><SelectValue placeholder="Select matter..." /></SelectTrigger>
+                                    <SelectTrigger className="h-11 rounded-lg border-border/60 bg-background w-full"><SelectValue placeholder="Select matter..." /></SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="_none">Select matter...</SelectItem>
                                         {matters.map((m) => (
@@ -607,17 +607,17 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
                                 {checkInForm.matter_id && (() => {
                                     const m = matters.find((x) => x.id === checkInForm.matter_id);
                                     return m?.fee_arrangement ? (
-                                        <p className="text-xs text-muted-foreground">
+                                        <p className="text-xs text-muted-foreground mt-1.5">
                                             {FEE_ARRANGEMENT_LABELS[m.fee_arrangement] ?? m.fee_arrangement}
                                             {m.custom_fields?.hourly_rate ? <span className="ml-1 font-semibold text-primary">£{m.custom_fields.hourly_rate}/hr</span> : ''}
                                         </p>
                                     ) : null;
                                 })()}
                             </div>
-                            <div className="space-y-2">
-                                <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">Activity</Label>
+                            <div className="flex-1 min-w-0 sm:max-w-[200px] flex flex-col">
+                                <Label className="block text-xs font-semibold text-foreground mb-1.5 tracking-wide">Activity</Label>
                                 <Select value={checkInForm.activity_type} onValueChange={(v) => setCheckInForm((p) => ({ ...p, activity_type: v }))}>
-                                    <SelectTrigger className="h-11 rounded-lg border-border/60"><SelectValue /></SelectTrigger>
+                                    <SelectTrigger className="h-11 rounded-lg border-border/60 bg-background w-full"><SelectValue /></SelectTrigger>
                                     <SelectContent>
                                         {Object.entries(ACTIVITY_LABELS).map(([k, v]) => (
                                             <SelectItem key={k} value={k}>{v}</SelectItem>
@@ -625,36 +625,42 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
                                     </SelectContent>
                                 </Select>
                             </div>
-                            <div className="space-y-2">
-                                <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">Description</Label>
+                            <div className="flex-1 min-w-0 sm:flex-1 flex flex-col">
+                                <Label className="block text-xs font-semibold text-foreground mb-1.5 tracking-wide">Description</Label>
                                 <Input
-                                    className="h-11 rounded-lg border-border/60"
+                                    className="h-11 rounded-lg border-border/60 bg-background w-full"
                                     placeholder="What are you working on?"
                                     value={checkInForm.description}
                                     onChange={(e) => setCheckInForm((p) => ({ ...p, description: e.target.value }))}
                                 />
                                 {checkInForm.matter_id && (
-                                    <p className="text-xs text-muted-foreground">
+                                    <p className="text-xs text-muted-foreground mt-1.5">
                                         Rate: <span className="font-semibold text-foreground">£{checkInForm.rate || '0'}/hr</span>
                                     </p>
                                 )}
                             </div>
-                            <Button
-                                className="h-11 gap-2 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground shadow-md shadow-primary/20 rounded-lg font-semibold transition-all"
-                                disabled={checkInLoading || !checkInForm.matter_id}
-                                onClick={handleCheckIn}
-                            >
-                                <LogIn className="h-4 w-4" />
-                                {checkInLoading ? 'Starting...' : 'Start Timer'}
-                            </Button>
+                            <div className="flex flex-col">
+                                <Label className="block text-xs font-semibold text-foreground mb-1.5 tracking-wide opacity-0">.</Label>
+                                <Button
+                                    className="h-11 gap-2 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground shadow-md shadow-primary/20 rounded-lg font-semibold transition-all whitespace-nowrap px-6"
+                                    disabled={checkInLoading || !checkInForm.matter_id}
+                                    onClick={handleCheckIn}
+                                >
+                                    <LogIn className="h-4 w-4" />
+                                    {checkInLoading ? 'Starting...' : 'Start Timer'}
+                                </Button>
+                            </div>
                         </div>
                         {checkInError && (
                             <p className="mt-3 text-xs text-destructive flex items-center gap-1.5 bg-destructive/5 px-3 py-2 rounded-lg">
                                 <AlertCircle className="h-3.5 w-3.5" />{checkInError}
                             </p>
                         )}
-                        <p className="mt-4 text-xs text-muted-foreground/60">
-                            Or <button className="underline underline-offset-2 hover:text-foreground transition-colors font-medium" onClick={() => openCreate()}>log a manual entry</button>
+                        <p className="mt-5 text-sm text-muted-foreground">
+                            Don't want to use a timer?{' '}
+                            <button className="text-primary hover:text-primary/80 font-medium underline underline-offset-2 transition-colors" onClick={() => openCreate()}>
+                                Log a manual entry
+                            </button>
                         </p>
                     </div>
                 </div>
@@ -842,7 +848,7 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
                     </div>
                 ) : (
                     <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
+                        <table className="w-full text-base">
                             <thead>
                                 <tr className="border-b border-border/60 bg-muted/40">
                                     <th className="px-4 py-3 w-10">

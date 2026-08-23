@@ -44,6 +44,7 @@ export default function EditMatter({ matter, users, contacts, viewFinancial }: P
             retainer_amount:        cf.retainer_amount ?? '',
             retainer_replenish:     cf.retainer_replenish ?? '',
             fee_notes:              cf.fee_notes ?? '',
+            custom_practice_area:   cf.custom_practice_area ?? '',
         } as Record<string, string>,
     });
 
@@ -154,6 +155,19 @@ export default function EditMatter({ matter, users, contacts, viewFinancial }: P
                                         </SelectContent>
                                     </Select>
                                     {errors.practice_area && <p className="text-xs text-destructive mt-1">{errors.practice_area}</p>}
+                                    {data.practice_area === 'custom' && (
+                                        <div className="space-y-2 pt-1">
+                                            <Input
+                                                value={data.custom_fields.custom_practice_area ?? ''}
+                                                onChange={(e) => setCustomField('custom_practice_area', e.target.value)}
+                                                placeholder="Enter custom practice area…"
+                                                className="h-10"
+                                            />
+                                            {(errors as any)['custom_fields.custom_practice_area'] && (
+                                                <p className="text-xs text-destructive mt-1">{(errors as any)['custom_fields.custom_practice_area']}</p>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 

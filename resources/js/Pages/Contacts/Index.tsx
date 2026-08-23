@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatDate, CONTACT_TYPE_LABELS, LEAD_STATUS_LABELS } from '@/lib/utils';
-import { Plus, Search, X } from 'lucide-react';
+import { Plus, Search, X, Users } from 'lucide-react';
 import type { Contact, PaginatedData } from '@/types';
 
 function useDebounce(value: string, delay: number) {
@@ -28,9 +28,23 @@ const typeVariant: Record<string, any> = {
     individual: 'default', company: 'info', other_party: 'secondary',
 };
 
+const typeBadgeStyles: Record<string, string> = {
+    individual: 'bg-muted text-muted-foreground border-border',
+    company: 'bg-info/15 text-info border-info/25',
+    other_party: 'bg-secondary/15 text-secondary-foreground border-secondary/25',
+};
+
 const leadColors: Record<string, any> = {
     enquiry: 'secondary', consultation_booked: 'info', engaged: 'warning',
     matter_opened: 'success', declined: 'destructive',
+};
+
+const leadBadgeStyles: Record<string, string> = {
+    enquiry: 'bg-muted text-muted-foreground border-border',
+    consultation_booked: 'bg-info/15 text-info border-info/25',
+    engaged: 'bg-warning/15 text-warning border-warning/25',
+    matter_opened: 'bg-success/15 text-success border-success/25',
+    declined: 'bg-destructive/15 text-destructive border-destructive/25',
 };
 
 export default function ContactsIndex({ contacts, filters }: Props) {
@@ -95,23 +109,29 @@ export default function ContactsIndex({ contacts, filters }: Props) {
             <Card className="surface-card">
                 <CardContent className="p-0">
                     {contacts.data.length === 0 ? (
-                        <div className="py-16 text-center">
-                            <p className="text-muted-foreground text-sm mb-4">No contacts found.</p>
-                            <Button asChild size="sm">
-                                <Link href="/contacts/create">Add your first contact</Link>
+                        <div className="flex flex-col items-center justify-center py-16 text-center">
+                            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
+                                <Users className="h-7 w-7 text-primary" />
+                            </div>
+                            <p className="text-foreground font-medium mb-1">No contacts found</p>
+                            <p className="text-muted-foreground text-sm mb-4">
+                                {hasFilters ? 'Try adjusting your search or filters' : 'Add your first contact to get started'}
+                            </p>
+                            <Button asChild>
+                                <Link href="/contacts/create"><Plus className="h-4 w-4 mr-2" />New Contact</Link>
                             </Button>
                         </div>
                     ) : (
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm">
                                 <thead>
-                                    <tr className="border-b bg-muted/30">
-                                        <th className="text-left px-4 py-3 font-medium text-muted-foreground tracking-tight">Name</th>
-                                        <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden md:table-cell tracking-tight">Email</th>
-                                        <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden lg:table-cell tracking-tight">Phone</th>
-                                        <th className="text-left px-4 py-3 font-medium text-muted-foreground tracking-tight">Type</th>
-                                        <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden sm:table-cell tracking-tight">Lead Status</th>
-                                        <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden xl:table-cell tracking-tight">Added</th>
+                                    <tr className="border-b border-border/60 bg-muted/20">
+                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs uppercase tracking-wider">Name</th>
+                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs uppercase tracking-wider hidden md:table-cell">Email</th>
+                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs uppercase tracking-wider hidden lg:table-cell">Phone</th>
+                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs uppercase tracking-wider">Type</th>
+                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs uppercase tracking-wider hidden sm:table-cell">Lead Status</th>
+                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs uppercase tracking-wider hidden xl:table-cell">Added</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-border/60">
@@ -122,9 +142,9 @@ export default function ContactsIndex({ contacts, filters }: Props) {
                                             onClick={() => router.visit(`/contacts/${contact.id}`)}
                                         >
                                             <td className="px-4 py-3">
-                                                <p className="font-medium">{contact.full_name || contact.name}</p>
+                                                <p className="font-medium text-foreground">{contact.full_name || contact.name}</p>
                                                 {contact.type === 'company' && contact.company_number && (
-                                                    <p className="text-xs text-muted-foreground">#{contact.company_number}</p>
+                                                    <p className="text-xs text-muted-foreground mt-0.5">#{contact.company_number}</p>
                                                 )}
                                             </td>
                                             <td className="px-4 py-3 hidden md:table-cell text-muted-foreground">
@@ -134,15 +154,15 @@ export default function ContactsIndex({ contacts, filters }: Props) {
                                                 {contact.phone ?? '—'}
                                             </td>
                                             <td className="px-4 py-3">
-                                                <Badge variant={typeVariant[contact.type]} className="capitalize text-xs">
+                                                <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize ${typeBadgeStyles[contact.type] ?? 'bg-muted text-muted-foreground border-border'}`}>
                                                     {CONTACT_TYPE_LABELS[contact.type] || contact.type}
-                                                </Badge>
+                                                </span>
                                             </td>
                                             <td className="px-4 py-3 hidden sm:table-cell">
                                                 {contact.lead_status ? (
-                                                    <Badge variant={leadColors[contact.lead_status] ?? 'secondary'} className="capitalize text-xs">
+                                                    <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize ${leadBadgeStyles[contact.lead_status] ?? 'bg-muted text-muted-foreground border-border'}`}>
                                                         {LEAD_STATUS_LABELS[contact.lead_status] || contact.lead_status.replace('_', ' ')}
-                                                    </Badge>
+                                                    </span>
                                                 ) : (
                                                     <span className="text-muted-foreground">—</span>
                                                 )}

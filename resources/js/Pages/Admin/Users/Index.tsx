@@ -159,7 +159,7 @@ export default function UsersIndex({ users, availableRoles }: Props) {
                             </div>
                         ) : (
                             <div className="overflow-x-auto">
-                                <table className="w-full text-sm">
+                                <table className="w-full text-base">
                                     <thead>
                                         <tr className="border-b bg-muted/30">
                                             <th className="text-left px-4 py-3 font-medium text-muted-foreground tracking-tight">User</th>

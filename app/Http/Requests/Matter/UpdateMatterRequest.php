@@ -26,6 +26,7 @@ class UpdateMatterRequest extends FormRequest
             'custom_fields.retainer_amount'       => ['nullable', 'numeric', 'min:0'],
             'custom_fields.retainer_replenish'    => ['nullable', 'numeric', 'min:0'],
             'custom_fields.fee_notes'             => ['nullable', 'string', 'max:500'],
+            'custom_fields.custom_practice_area'  => ['required_if:practice_area,custom', 'nullable', 'string', 'max:100'],
         ];
     }
 }

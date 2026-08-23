@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { formatDate, MATTER_STATUS_LABELS, PRACTICE_AREA_LABELS } from '@/lib/utils';
-import { Plus, Search, X, Calendar, Clock, ListTodo } from 'lucide-react';
+import { Plus, Search, X, Calendar, Clock, ListTodo, Briefcase } from 'lucide-react';
 import type { Matter, PaginatedData } from '@/types';
 
 interface Props {
@@ -29,6 +29,16 @@ function useDebounce(value: string, delay: number) {
 const statusVariant: Record<string, any> = {
     open: 'success', pending_court_date: 'warning', awaiting_client: 'info',
     awaiting_opponent: 'info', on_hold: 'secondary', closed: 'default', archived: 'secondary',
+};
+
+const statusBadgeStyles: Record<string, string> = {
+    open: 'bg-success/15 text-success border-success/25',
+    pending_court_date: 'bg-warning/15 text-warning border-warning/25',
+    awaiting_client: 'bg-info/15 text-info border-info/25',
+    awaiting_opponent: 'bg-info/15 text-info border-info/25',
+    on_hold: 'bg-muted text-muted-foreground border-border',
+    closed: 'bg-muted text-muted-foreground border-border',
+    archived: 'bg-muted text-muted-foreground border-border',
 };
 
 export default function MattersIndex({ matters, filters }: Props) {
@@ -112,25 +122,31 @@ export default function MattersIndex({ matters, filters }: Props) {
                 <CardContent className="p-0">
                     {matters.data.length === 0 ? (
                         <div className="py-16 text-center">
-                            <p className="text-muted-foreground text-sm mb-4">No matters found.</p>
-                            <Button asChild size="sm">
-                                <Link href="/matters/create">Open your first matter</Link>
+                            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-muted">
+                                <Briefcase className="h-7 w-7 text-muted-foreground" />
+                            </div>
+                            <p className="text-foreground font-medium mb-1">No matters found</p>
+                            <p className="text-muted-foreground text-sm mb-4">
+                                {hasFilters ? 'Try adjusting your search or filters' : 'Get started by creating your first matter'}
+                            </p>
+                            <Button asChild>
+                                <Link href="/matters/create"><Plus className="h-4 w-4 mr-2" />New Matter</Link>
                             </Button>
                         </div>
                     ) : (
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm">
                                 <thead>
-                                    <tr className="border-b bg-muted/30">
-                                        <th className="text-left px-4 py-3 font-medium text-muted-foreground tracking-tight">Matter</th>
-                                        <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden md:table-cell tracking-tight">Practice Area</th>
-                                        <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden lg:table-cell tracking-tight">Clients / Contact</th>
-                                        <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden lg:table-cell tracking-tight">Responsible</th>
-                                        <th className="text-left px-4 py-3 font-medium text-muted-foreground tracking-tight">Status</th>
-                                        <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden xl:table-cell tracking-tight">Next Step</th>
-                                        <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden xl:table-cell tracking-tight">Deadline</th>
-                                        <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden xl:table-cell tracking-tight">Hearing Date</th>
-                                        <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden xl:table-cell tracking-tight">Opened</th>
+                                    <tr className="border-b border-border/60 bg-muted/20">
+                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs uppercase tracking-wider">Matter</th>
+                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs uppercase tracking-wider hidden md:table-cell">Practice Area</th>
+                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs uppercase tracking-wider hidden lg:table-cell">Clients / Contact</th>
+                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs uppercase tracking-wider hidden lg:table-cell">Responsible</th>
+                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs uppercase tracking-wider">Status</th>
+                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs uppercase tracking-wider hidden xl:table-cell">Next Step</th>
+                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs uppercase tracking-wider hidden xl:table-cell">Deadline</th>
+                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs uppercase tracking-wider hidden xl:table-cell">Hearing Date</th>
+                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs uppercase tracking-wider hidden xl:table-cell">Opened</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-border/60">
@@ -141,8 +157,8 @@ export default function MattersIndex({ matters, filters }: Props) {
                                             onClick={() => router.visit(`/matters/${matter.id}`)}
                                         >
                                             <td className="px-4 py-3">
-                                                <p className="font-medium group-hover:text-primary transition-colors">{matter.name}</p>
-                                                <p className="text-xs text-muted-foreground">{matter.matter_number}</p>
+                                                <p className="font-medium text-foreground group-hover:text-primary transition-colors">{matter.name}</p>
+                                                <p className="text-xs text-muted-foreground mt-0.5">{matter.matter_number}</p>
                                             </td>
                                             <td className="px-4 py-3 hidden md:table-cell text-muted-foreground">
                                                 {PRACTICE_AREA_LABELS[matter.practice_area]}
@@ -154,13 +170,13 @@ export default function MattersIndex({ matters, filters }: Props) {
                                                 {matter.responsible_user?.full_name ?? '—'}
                                             </td>
                                             <td className="px-4 py-3">
-                                                <Badge variant={statusVariant[matter.status]}>
+                                                <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${statusBadgeStyles[matter.status] ?? 'bg-muted text-muted-foreground border-border'}`}>
                                                     {MATTER_STATUS_LABELS[matter.status]}
-                                                </Badge>
+                                                </span>
                                             </td>
                                             <td className="px-4 py-3 hidden xl:table-cell">
                                                 <div className="flex items-center gap-2">
-                                                    <span className="text-muted-foreground truncate max-w-[120px]">{matter.next_step ?? '—'}</span>
+                                                    <span className="text-muted-foreground truncate max-w-[140px]">{matter.next_step ?? '—'}</span>
                                                     {matter.tasks && matter.tasks.length > 0 && (
                                                         <button
                                                             className="shrink-0 text-muted-foreground hover:text-primary transition-colors"

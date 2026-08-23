@@ -3,96 +3,109 @@
 @tailwind utilities;
 
 @layer base {
+    /* Scale up hardcoded tiny pixel sizes so they read well on larger screens.
+       (These are authored as text-[10px]/text-[11px] across the app.) */
+    .text-\[10px\] { font-size: 0.85rem !important; }
+    .text-\[11px\] { font-size: 0.95rem !important; }
+
     :root {
-        /* Light gray canvas with white cards and the requested orange action color. */
-        --background: 0 0% 94%;
-        --foreground: 240 10% 10%;
+        /* Legl teal palette: bright brand teal #01B88E, deep accessible teal for text/CTAs. */
+        --background: 0 0% 97%;
+        --foreground: 0 0% 7%;
 
         --card: 0 0% 100%;
-        --card-foreground: 240 10% 10%;
+        --card-foreground: 0 0% 7%;
 
         --popover: 0 0% 100%;
-        --popover-foreground: 240 10% 10%;
+        --popover-foreground: 0 0% 7%;
 
-        /* Primary: exact brand orange #FF4000. */
-        --primary: 15 100% 50%;
+        /* Primary: deep teal #0F766E (passes contrast with white text and on white). */
+        --primary: 175 77% 26%;
         --primary-foreground: 0 0% 100%;
 
-        /* Secondary: quiet violet for selected states and secondary actions. */
-        --secondary: 247 100% 96%;
-        --secondary-foreground: 247 54% 38%;
+        /* Secondary: light teal tint from the Legl scale for selected states. */
+        --secondary: 166 45% 92%;
+        --secondary-foreground: 175 77% 20%;
 
-        --muted: 0 0% 91%;
-        --muted-foreground: 240 5% 45%;
+        --muted: 0 0% 94%;
+        --muted-foreground: 0 0% 45%;
 
-        --accent: 247 86% 63%;
+        /* Accent: bright Legl teal #01B88E for tints and highlights. */
+        --accent: 166 90% 38%;
         --accent-foreground: 0 0% 100%;
 
-        --destructive: 4 86% 55%;
+        --destructive: 356 98% 43%;
         --destructive-foreground: 0 0% 100%;
 
-        --border: 30 10% 87%;
-        --input: 30 10% 87%;
-        --ring: 15 100% 50%;
+        --border: 0 0% 88%;
+        --input: 0 0% 88%;
+        --ring: 175 77% 26%;
         --radius: 0.75rem;
 
-        --warning: 36 100% 50%;
-        --warning-foreground: 36 80% 10%;
+        --warning: 45 100% 50%;
+        --warning-foreground: 45 80% 10%;
 
-        --success: 152 69% 35%;
+        --success: 115 78% 30%;
         --success-foreground: 0 0% 100%;
 
-        --info: 200 100% 48%;
+        --info: 197 100% 45%;
         --info-foreground: 0 0% 100%;
     }
 
     .dark {
-        /* Deep ink surfaces for a restrained dark mode. */
-        --background: 240 8% 8%;
-        --foreground: 30 20% 96%;
+        /* Navy surfaces (matching the #0F172A sidebar) with Legl teal accents. */
+        --background: 222 47% 7%;
+        --foreground: 0 0% 96%;
 
-        --card: 240 7% 12%;
-        --card-foreground: 30 20% 96%;
+        --card: 222 44% 11%;
+        --card-foreground: 0 0% 96%;
 
-        --popover: 240 7% 12%;
-        --popover-foreground: 30 20% 96%;
+        --popover: 222 44% 11%;
+        --popover-foreground: 0 0% 96%;
 
-        --primary: 15 100% 50%;
-        --primary-foreground: 0 0% 100%;
+        /* Primary: bright Legl teal #01B88E on dark; dark text for contrast. */
+        --primary: 166 90% 45%;
+        --primary-foreground: 222 47% 8%;
 
-        --secondary: 247 35% 20%;
-        --secondary-foreground: 247 100% 88%;
+        --secondary: 166 40% 16%;
+        --secondary-foreground: 166 90% 78%;
 
-        --muted: 240 6% 17%;
-        --muted-foreground: 30 8% 65%;
+        --muted: 222 25% 14%;
+        --muted-foreground: 0 0% 65%;
 
-        --accent: 247 90% 70%;
-        --accent-foreground: 240 8% 8%;
+        --accent: 166 90% 50%;
+        --accent-foreground: 222 47% 8%;
 
-        --destructive: 4 86% 62%;
+        --destructive: 356 98% 43%;
         --destructive-foreground: 0 0% 100%;
 
-        --border: 240 6% 24%;
-        --input: 240 6% 24%;
-        --ring: 15 100% 50%;
+        --border: 222 30% 20%;
+        --input: 222 30% 20%;
+        --ring: 166 90% 45%;
 
-        --warning: 36 100% 60%;
-        --warning-foreground: 36 80% 8%;
+        --warning: 45 100% 55%;
+        --warning-foreground: 45 80% 8%;
 
-        --success: 152 65% 50%;
-        --success-foreground: 152 65% 8%;
+        --success: 115 78% 40%;
+        --success-foreground: 115 78% 8%;
 
-        --info: 200 100% 60%;
-        --info-foreground: 174 60% 4%;
+        --info: 197 100% 55%;
+        --info-foreground: 197 100% 8%;
     }
 
     * {
         @apply border-border;
     }
 
+    html {
+        font-size: clamp(14px, 1.1vw, 18px);
+    }
+
     body {
         @apply bg-background text-foreground antialiased;
         font-family: 'Segoe UI', Arial, sans-serif;
+        font-size: 1rem;
+        line-height: 1.6;
         font-feature-settings: 'rlig' 1, 'calt' 1;
     }
 
@@ -151,18 +164,26 @@
         border-collapse: separate;
         border-spacing: 0;
         font-family: 'Segoe UI', Arial, sans-serif;
+        font-size: 0.8125rem;
+        line-height: 1.4;
     }
 
     table thead tr {
-        background: hsl(var(--muted) / 0.55);
+        background: hsl(var(--muted) / 0.5);
     }
 
     table th {
         color: hsl(var(--muted-foreground));
-        font-size: 0.6875rem;
+        font-size: 0.75rem;
         font-weight: 600;
-        letter-spacing: 0.045em;
-        text-transform: uppercase;
+        letter-spacing: 0.02em;
+        text-transform: none;
+        padding: 0.625rem 1rem;
+    }
+
+    table td {
+        padding: 0.625rem 1rem;
+        color: hsl(var(--foreground));
     }
 
     table tbody tr {
@@ -170,12 +191,12 @@
     }
 
     table tbody tr:hover {
-        background: hsl(var(--muted) / 0.42);
+        background: hsl(var(--muted) / 0.35);
     }
 
     table td,
     table th {
-        border-bottom: 1px solid hsl(var(--border) / 0.65);
+        border-bottom: 1px solid hsl(var(--border) / 0.6);
     }
 
     table tbody tr:last-child td {
@@ -183,22 +204,22 @@
     }
 
     .flash-success {
-        @apply rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800;
-        box-shadow: 0 1px 3px rgb(5 150 105 / 0.12);
+        @apply rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-800;
+        box-shadow: 0 1px 3px rgb(27 136 17 / 0.12);
     }
 
     .flash-error {
-        @apply rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-800;
-        box-shadow: 0 1px 3px rgb(225 29 72 / 0.12);
+        @apply rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-800;
+        box-shadow: 0 1px 3px rgb(218 2 15 / 0.12);
     }
 
     .flash-warning {
         @apply rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800;
-        box-shadow: 0 1px 3px rgb(245 158 11 / 0.12);
+        box-shadow: 0 1px 3px rgb(255 197 1 / 0.12);
     }
 
     .flash-info {
-        @apply rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm font-medium text-indigo-800;
-        box-shadow: 0 1px 3px rgb(99 102 241 / 0.12);
+        @apply rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-medium text-sky-800;
+        box-shadow: 0 1px 3px rgb(0 118 150 / 0.12);
     }
 }

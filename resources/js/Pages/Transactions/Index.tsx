@@ -67,8 +67,8 @@ const METHOD_COLOURS: Record<string, string> = {
     cash:          'bg-amber-100 text-amber-800',
     cheque:        'bg-blue-100 text-blue-800',
     bank_transfer: 'bg-green-100 text-green-800',
-    stripe_card:   'bg-purple-100 text-purple-800',
-    stripe_sepa:   'bg-indigo-100 text-indigo-800',
+    stripe_card:   'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary',
+    stripe_sepa:   'bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-400',
 };
 
 export default function TransactionsIndex({ transactions, stats, matters, openInvoices, filters }: Props) {
@@ -184,7 +184,7 @@ export default function TransactionsIndex({ transactions, stats, matters, openIn
                         </div>
                     ) : (
                         <div className="overflow-x-auto">
-                            <table className="w-full text-sm">
+                            <table className="w-full text-base">
                                 <thead>
                                     <tr className="border-b bg-muted/30 text-muted-foreground">
                                         <th className="text-left px-4 py-3 font-medium">Date</th>

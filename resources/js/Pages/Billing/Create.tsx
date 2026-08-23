@@ -206,7 +206,7 @@ export default function CreateInvoice({ matters, unbilledTime, unbilledExpenses,
     const TYPE_COLOURS: Record<string, string> = {
         time:    'bg-blue-100 text-blue-700',
         expense: 'bg-amber-100 text-amber-700',
-        fixed:   'bg-purple-100 text-purple-700',
+        fixed:   'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary',
     };
     const TYPE_LABELS: Record<string, string> = { time: 'Time', expense: 'Expense', fixed: 'Fixed' };
 

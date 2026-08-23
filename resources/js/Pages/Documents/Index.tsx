@@ -25,6 +25,11 @@ function formatBytes(bytes: number | null): string {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+const visibilityBadgeStyles: Record<string, string> = {
+    success: 'bg-success/15 text-success border-success/25',
+    secondary: 'bg-muted text-muted-foreground border-border',
+};
+
 export default function DocumentsIndex({ documents, matters, filters }: Props) {
     const [uploadModalOpen, setUploadModalOpen] = useState(false);
     const fileRef = useRef<HTMLInputElement>(null);
@@ -91,23 +96,23 @@ export default function DocumentsIndex({ documents, matters, filters }: Props) {
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm">
                                 <thead>
-                                    <tr className="border-b bg-muted/30 text-muted-foreground">
-                                        <th className="text-left px-4 py-3 font-medium">Name</th>
-                                        <th className="text-left px-4 py-3 font-medium">Matter</th>
-                                        <th className="text-left px-4 py-3 font-medium">Uploaded by</th>
-                                        <th className="text-left px-4 py-3 font-medium">Date</th>
-                                        <th className="text-right px-4 py-3 font-medium">Size</th>
+                                    <tr className="border-b border-border/60 bg-muted/20">
+                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs uppercase tracking-wider">Name</th>
+                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs uppercase tracking-wider">Matter</th>
+                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs uppercase tracking-wider">Uploaded by</th>
+                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs uppercase tracking-wider">Date</th>
+                                        <th className="text-right px-4 py-3 font-semibold text-foreground text-xs uppercase tracking-wider">Size</th>
                                         <th className="px-4 py-3" />
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-border/60">
                                     {documents.data.map((doc) => (
-                                        <tr key={doc.id} className="hover:bg-muted/30">
+                                        <tr key={doc.id} className="hover:bg-muted/40 transition-colors">
                                             <td className="px-4 py-3">
-                                                <p className="font-medium">{doc.name}</p>
-                                                <Badge variant={doc.is_client_visible ? 'success' : 'secondary'} className="text-xs mt-0.5">
+                                                <p className="font-medium text-foreground">{doc.name}</p>
+                                                <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium mt-1 ${visibilityBadgeStyles[doc.is_client_visible ? 'success' : 'secondary']}`}>
                                                     {doc.is_client_visible ? 'Client visible' : 'Internal'}
-                                                </Badge>
+                                                </span>
                                             </td>
                                             <td className="px-4 py-3 text-muted-foreground">
                                                 {doc.matter ? (

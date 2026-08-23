@@ -100,6 +100,7 @@ Route::middleware(['auth', 'set.tenant', 'requires.two.factor', 'redirect.super.
     Route::post('/time/timer/start', [TimeController::class, 'startTimer'])->name('time.timer.start');
     Route::post('/time/timer/stop',  [TimeController::class, 'stopTimer'])->name('time.timer.stop');
     Route::post('/time/invoice', [TimeController::class, 'createInvoice'])->name('time.invoice');
+    Route::get('/time/sessions', [TimeController::class, 'sessions'])->name('time.sessions');
     Route::get('/time', [TimeController::class, 'index'])->name('time.index');
     Route::post('/time', [TimeController::class, 'store'])->name('time.store');
     Route::put('/time/{entry}', [TimeController::class, 'update'])->name('time.update');

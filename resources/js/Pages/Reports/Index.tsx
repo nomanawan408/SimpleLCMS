@@ -1,138 +1,282 @@
-import { useState } from 'react';
-import { Head } from '@inertiajs/react';
+import { useState, useEffect } from 'react';
+import { Head, router } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatCurrency, formatDuration, PRACTICE_AREA_LABELS, cn } from '@/lib/utils';
-import { Download, TrendingUp, Users, Briefcase } from 'lucide-react';
+import { Download, TrendingUp, Users, Briefcase, Calendar, Filter, X, PoundSterling, Clock, BarChart3, PieChart } from 'lucide-react';
 
 interface FinancialSummary {
     total_invoiced: number;
     total_collected: number;
     total_outstanding: number;
-    invoices_by_matter: {
-        matter_id: string;
-        count: number;
-        total_amount: number;
-        paid_amount: number;
-        matter?: { id: string; name: string; matter_number: string };
-    }[];
+    invoices_by_matter: { matter_id: string; count: number; total_amount: number; collected_amount: number; outstanding_amount: number; matter?: { id: string; name: string; matter_number: string } }[];
 }
-
-interface TimeByUser {
-    user_id: string;
-    full_name: string;
-    total_minutes: number;
-    billable_minutes: number;
-    total_value: number;
-}
-
-interface MatterByArea {
-    practice_area: string;
-    count: number;
-}
-
-interface Props {
-    financialSummary: FinancialSummary;
-    timeByUser: TimeByUser[];
-    mattersByPracticeArea: MatterByArea[];
-}
+interface TimeByUser { user_id: string; full_name: string; total_minutes: number; billable_minutes: number; total_value: number; }
+interface MatterByArea { practice_area: string; count: number; }
+interface FilterOptions { matters: { id: string; name: string; matter_number: string }[]; users: { id: string; full_name: string }[]; }
+interface Filters { timeframe?: string; date_from?: string; date_to?: string; date_field?: string; matter_id?: string; user_id?: string; practice_area?: string; status?: string; tab?: string; }
+interface Props { financialSummary: FinancialSummary; timeByUser: TimeByUser[]; mattersByPracticeArea: MatterByArea[]; filters: Filters; filterOptions: FilterOptions; }
 
 const TABS = [
-    { key: 'financial', label: 'Financial Summary', icon: TrendingUp },
-    { key: 'time', label: 'Time by User', icon: Users },
-    { key: 'matters', label: 'Open Matters by Area', icon: Briefcase },
+    { key: 'financial', label: 'Financial', icon: TrendingUp },
+    { key: 'time', label: 'Time', icon: Users },
+    { key: 'matters', label: 'Matters', icon: Briefcase },
+];
+const TIMEFRAMES = [
+    { value: 'all', label: 'All Time' }, { value: 'today', label: 'Today' }, { value: 'week', label: 'Week' },
+    { value: 'month', label: 'Month' }, { value: 'quarter', label: 'Quarter' }, { value: 'ytd', label: 'YTD' }, { value: 'custom', label: 'Custom' },
 ];
 
-export default function ReportsIndex({ financialSummary, timeByUser, mattersByPracticeArea }: Props) {
-    const [tab, setTab] = useState('financial');
+export default function ReportsIndex({ financialSummary, timeByUser, mattersByPracticeArea, filters, filterOptions }: Props) {
+    const [tab, setTab] = useState(filters.tab ?? 'financial');
+    const [timeframe, setTimeframe] = useState(filters.timeframe ?? 'all');
+    const [dateFrom, setDateFrom] = useState(filters.date_from ?? '');
+    const [dateTo, setDateTo] = useState(filters.date_to ?? '');
+    const [matterId, setMatterId] = useState(filters.matter_id ?? 'all');
+    const [userId, setUserId] = useState(filters.user_id ?? 'all');
+    const [practiceArea, setPracticeArea] = useState(filters.practice_area ?? 'all');
+    const [status, setStatus] = useState(filters.status ?? 'all');
+
+    const applyFilters = () => {
+        const params: Record<string, string | undefined> = {
+            tab,
+            timeframe: timeframe !== 'all' ? timeframe : undefined,
+            date_from: timeframe === 'custom' && dateFrom ? dateFrom : undefined,
+            date_to: timeframe === 'custom' && dateTo ? dateTo : undefined,
+            matter_id: matterId !== 'all' ? matterId : undefined,
+            user_id: userId !== 'all' ? userId : undefined,
+            practice_area: practiceArea !== 'all' ? practiceArea : undefined,
+            status: status !== 'all' ? status : undefined,
+        };
+        router.get('/reports', params as any, { preserveState: true, replace: true });
+    };
+
+    useEffect(() => {
+        // Auto-apply when tab changes
+        const params: Record<string, string | undefined> = {
+            tab,
+            timeframe: timeframe !== 'all' ? timeframe : undefined,
+            date_from: timeframe === 'custom' && dateFrom ? dateFrom : undefined,
+            date_to: timeframe === 'custom' && dateTo ? dateTo : undefined,
+            matter_id: matterId !== 'all' ? matterId : undefined,
+            user_id: userId !== 'all' ? userId : undefined,
+            practice_area: practiceArea !== 'all' ? practiceArea : undefined,
+            status: status !== 'all' ? status : undefined,
+        };
+        // Only auto-apply tab switch without other filters changing? Keep explicit Apply for filters; but tab switch should keep filters
+        // We handle via manual apply; tapping tab triggers history
+        // eslint-disable-next-line
+    }, [tab]);
+
+    const handleTabSwitch = (newTab: string) => {
+        setTab(newTab);
+        const params: Record<string, string | undefined> = {
+            tab: newTab,
+            timeframe: timeframe !== 'all' ? timeframe : undefined,
+            date_from: timeframe === 'custom' && dateFrom ? dateFrom : undefined,
+            date_to: timeframe === 'custom' && dateTo ? dateTo : undefined,
+            matter_id: matterId !== 'all' ? matterId : undefined,
+            user_id: userId !== 'all' ? userId : undefined,
+            practice_area: practiceArea !== 'all' ? practiceArea : undefined,
+            status: status !== 'all' ? status : undefined,
+        };
+        router.get('/reports', params as any, { preserveState: true, replace: true });
+    };
+
+    const clearFilters = () => {
+        setTimeframe('all'); setDateFrom(''); setDateTo(''); setMatterId('all'); setUserId('all'); setPracticeArea('all'); setStatus('all');
+        router.get('/reports', { tab } as any, { preserveState: true, replace: true });
+    };
+
+    const hasActiveFilters = timeframe !== 'all' || matterId !== 'all' || userId !== 'all' || practiceArea !== 'all' || status !== 'all';
+    const activeChips: { label: string; onClear: () => void }[] = [];
+    if (timeframe !== 'all') activeChips.push({ label: TIMEFRAMES.find(t=>t.value===timeframe)?.label ?? timeframe, onClear: () => setTimeframe('all') });
+    if (matterId !== 'all') activeChips.push({ label: filterOptions.matters.find(m=>m.id===matterId)?.name ?? matterId.slice(0,8), onClear: () => setMatterId('all') });
+    if (userId !== 'all') activeChips.push({ label: filterOptions.users.find(u=>u.id===userId)?.full_name ?? userId.slice(0,8), onClear: () => setUserId('all') });
+    if (practiceArea !== 'all') activeChips.push({ label: PRACTICE_AREA_LABELS[practiceArea] ?? practiceArea, onClear: () => setPracticeArea('all') });
+    if (status !== 'all') activeChips.push({ label: status, onClear: () => setStatus('all') });
 
     const maxMattersCount = Math.max(...mattersByPracticeArea.map((m) => m.count), 1);
+    const totalTimeValue = timeByUser.reduce((s, r) => s + r.total_value, 0);
+    const totalBillableMins = timeByUser.reduce((s, r) => s + r.billable_minutes, 0);
+    const totalMins = timeByUser.reduce((s, r) => s + r.total_minutes, 0);
+
+    const exportHref = `/reports?export=csv&tab=${tab}` +
+        (timeframe !== 'all' ? `&timeframe=${timeframe}` : '') +
+        (timeframe === 'custom' && dateFrom ? `&date_from=${dateFrom}` : '') +
+        (timeframe === 'custom' && dateTo ? `&date_to=${dateTo}` : '') +
+        (matterId !== 'all' ? `&matter_id=${matterId}` : '') +
+        (userId !== 'all' ? `&user_id=${userId}` : '') +
+        (practiceArea !== 'all' ? `&practice_area=${practiceArea}` : '') +
+        (status !== 'all' ? `&status=${status}` : '');
 
     return (
         <AppLayout title="Reports">
             <Head title="Reports" />
 
-            <div className="flex items-center justify-between mb-6">
-                <h1 className="text-2xl font-bold tracking-tight">Reports</h1>
-                <Button variant="outline" className="gap-2" asChild>
-                    <a href={`/reports?export=csv&tab=${tab}`}>
-                        <Download className="h-4 w-4" />
-                        Export CSV
-                    </a>
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+                <div>
+                    <h1 className="text-2xl font-bold tracking-tight">Reports</h1>
+                    <p className="text-sm text-muted-foreground mt-1">Financial, time and matter analytics — filter by timeframe, matter, and team.</p>
+                </div>
+                <Button variant="outline" className="gap-2 rounded-xl" asChild>
+                    <a href={exportHref}><Download className="h-4 w-4" /> Export CSV</a>
                 </Button>
             </div>
 
+            {/* Enterprise Filter Bar */}
+            <Card className="surface-card border border-border/60 mb-6">
+                <CardContent className="p-4 space-y-4">
+                    {/* Row 1: timeframe pills + custom dates */}
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                        <div className="space-y-2">
+                            <Label className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5"><Calendar className="h-3 w-3" /> Timeframe</Label>
+                            <div className="flex flex-wrap gap-1.5">
+                                {TIMEFRAMES.map(t => (
+                                    <button key={t.value} onClick={() => setTimeframe(t.value)}
+                                        className={cn('rounded-full px-3.5 py-1.5 text-xs font-medium border transition-colors whitespace-nowrap', timeframe === t.value ? 'bg-primary text-primary-foreground border-primary shadow-sm' : 'bg-muted text-muted-foreground border-transparent hover:bg-muted/80 hover:text-foreground')}>
+                                        {t.label}
+                                    </button>
+                                ))}
+                            </div>
+                            {timeframe === 'custom' && (
+                                <div className="flex gap-2 pt-1">
+                                    <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="h-9 rounded-xl w-[160px]" />
+                                    <span className="self-center text-muted-foreground">—</span>
+                                    <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="h-9 rounded-xl w-[160px]" />
+                                </div>
+                            )}
+                        </div>
+                        <div className="flex gap-2 shrink-0">
+                            <Button onClick={applyFilters} className="h-9 rounded-xl px-5 gap-1.5 bg-primary"><Filter className="h-3.5 w-3.5" /> Apply</Button>
+                            <Button variant="ghost" onClick={clearFilters} disabled={!hasActiveFilters} className="h-9 rounded-xl gap-1 disabled:opacity-40"><X className="h-3.5 w-3.5" /> Clear</Button>
+                        </div>
+                    </div>
+
+                    {/* Row 2: selects */}
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                        <div className="space-y-1.5">
+                            <Label className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Matter</Label>
+                            <Select value={matterId} onValueChange={setMatterId}>
+                                <SelectTrigger className="h-9 rounded-xl"><SelectValue placeholder="All matters" /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All matters</SelectItem>
+                                    {filterOptions.matters.map(m => <SelectItem key={m.id} value={m.id}>{m.matter_number} — {m.name}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Team Member</Label>
+                            <Select value={userId} onValueChange={setUserId}>
+                                <SelectTrigger className="h-9 rounded-xl"><SelectValue placeholder="All users" /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All users</SelectItem>
+                                    {filterOptions.users.map(u => <SelectItem key={u.id} value={u.id}>{u.full_name}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Practice Area</Label>
+                            <Select value={practiceArea} onValueChange={setPracticeArea}>
+                                <SelectTrigger className="h-9 rounded-xl"><SelectValue placeholder="All areas" /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All areas</SelectItem>
+                                    {Object.entries(PRACTICE_AREA_LABELS).map(([k,v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Status</Label>
+                            <Select value={status} onValueChange={setStatus}>
+                                <SelectTrigger className="h-9 rounded-xl"><SelectValue placeholder="All statuses" /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All statuses</SelectItem>
+                                    <SelectItem value="draft">Draft</SelectItem><SelectItem value="sent">Sent</SelectItem><SelectItem value="partial">Partial</SelectItem>
+                                    <SelectItem value="paid">Paid</SelectItem><SelectItem value="written_off">Written Off</SelectItem><SelectItem value="cancelled">Cancelled</SelectItem>
+                                    <SelectItem value="open">Open (matters)</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+
+                    {activeChips.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 pt-1">
+                            {activeChips.map((c, i) => (
+                                <Badge key={i} variant="secondary" className="gap-1 pr-1 rounded-full">
+                                    {c.label}
+                                    <button onClick={c.onClear} className="ml-1 rounded-full p-0.5 hover:bg-black/10"><X className="h-3 w-3" /></button>
+                                </Badge>
+                            ))}
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+
             {/* Tab bar */}
-            <div className="flex gap-2 mb-6 border-b border-border/60">
+            <div className="flex gap-2 mb-6 border-b border-border/60 overflow-x-auto">
                 {TABS.map((t) => (
-                    <button
-                        key={t.key}
-                        onClick={() => setTab(t.key)}
-                        className={cn(
-                            'flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors',
-                            tab === t.key
-                                ? 'border-primary text-foreground'
-                                : 'border-transparent text-muted-foreground hover:text-foreground',
-                        )}
-                    >
-                        <t.icon className="h-4 w-4" />
-                        {t.label}
+                    <button key={t.key} onClick={() => handleTabSwitch(t.key)}
+                        className={cn('flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 whitespace-nowrap transition-colors', tab === t.key ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground')}>
+                        <t.icon className="h-4 w-4" /> {t.label}
                     </button>
                 ))}
             </div>
 
             {tab === 'financial' && (
                 <div className="space-y-6">
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                         {[
-                            { label: 'Total Invoiced', value: formatCurrency(financialSummary.total_invoiced), color: 'text-foreground' },
-                            { label: 'Total Collected', value: formatCurrency(financialSummary.total_collected), color: 'text-success' },
-                            { label: 'Outstanding', value: formatCurrency(financialSummary.total_outstanding), color: 'text-warning' },
+                            { label: 'Total Invoiced', value: formatCurrency(financialSummary.total_invoiced), sub: hasActiveFilters ? 'Filtered' : 'All time', icon: PoundSterling, color: 'text-foreground', bg: 'bg-primary/10' },
+                            { label: 'Total Collected', value: formatCurrency(financialSummary.total_collected), sub: 'Payments received', icon: TrendingUp, color: 'text-success', bg: 'bg-success/10' },
+                            { label: 'Outstanding', value: formatCurrency(financialSummary.total_outstanding), sub: 'Sent + Partial', icon: BarChart3, color: 'text-warning', bg: 'bg-warning/10' },
+                            { label: 'Collection Rate', value: financialSummary.total_invoiced > 0 ? `${Math.round(financialSummary.total_collected / financialSummary.total_invoiced * 100)}%` : '—', sub: 'Collected / Invoiced', icon: PieChart, color: 'text-primary', bg: 'bg-primary/10' },
                         ].map((s) => (
-                            <Card key={s.label}>
+                            <Card key={s.label} className="surface-card">
                                 <CardContent className="p-5">
-                                    <p className="text-xs text-muted-foreground uppercase tracking-[0.05em] mb-1">{s.label}</p>
-                                    <p className={cn('text-2xl font-bold', s.color)}>{s.value}</p>
+                                    <div className="flex items-start justify-between">
+                                        <div>
+                                            <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">{s.label}</p>
+                                            <p className={cn('text-2xl font-bold tracking-tight mt-1', s.color)}>{s.value}</p>
+                                            <p className="text-xs text-muted-foreground mt-0.5">{s.sub}</p>
+                                        </div>
+                                        <div className={cn('p-2.5 rounded-xl', s.bg)}><s.icon className={cn('h-5 w-5', s.color)} /></div>
+                                    </div>
                                 </CardContent>
                             </Card>
                         ))}
                     </div>
 
-                    <Card>
-                        <CardHeader>
+                    <Card className="surface-card">
+                        <CardHeader className="flex flex-row items-center justify-between pb-3">
                             <CardTitle className="text-base">Invoices by Matter</CardTitle>
+                            <Badge variant="secondary" className="rounded-full">{financialSummary.invoices_by_matter.length} matters</Badge>
                         </CardHeader>
                         <CardContent className="p-0">
                             {financialSummary.invoices_by_matter.length === 0 ? (
-                                <p className="px-6 py-6 text-sm text-muted-foreground">No invoice data.</p>
+                                <div className="py-16 text-center"><Briefcase className="h-10 w-10 mx-auto text-muted-foreground/50 mb-3" /><p className="text-sm text-muted-foreground">No invoice data for these filters.</p><Button variant="ghost" size="sm" onClick={clearFilters} className="mt-3">Clear filters</Button></div>
                             ) : (
                                 <div className="overflow-x-auto">
-                                    <table className="w-full text-sm">
-                                        <thead>
-                                            <tr className="border-b bg-muted/30 text-muted-foreground">
-                                                <th className="text-left px-4 py-3 font-medium">Matter</th>
-                                                <th className="text-right px-4 py-3 font-medium">Invoices</th>
-                                                <th className="text-right px-4 py-3 font-medium">Total</th>
-                                                <th className="text-right px-4 py-3 font-medium">Collected</th>
-                                                <th className="text-right px-4 py-3 font-medium">Outstanding</th>
-                                            </tr>
-                                        </thead>
+                                    <table className="w-full">
+                                        <thead><tr className="border-b bg-muted/30 text-muted-foreground"><th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider">Matter</th><th className="text-right px-4 py-3 text-xs font-semibold uppercase tracking-wider">Invoices</th><th className="text-right px-4 py-3 text-xs font-semibold uppercase tracking-wider">Total</th><th className="text-right px-4 py-3 text-xs font-semibold uppercase tracking-wider">Collected</th><th className="text-right px-4 py-3 text-xs font-semibold uppercase tracking-wider">Outstanding</th><th className="hidden lg:table-cell px-4 py-3 w-24"></th></tr></thead>
                                         <tbody className="divide-y divide-border/60">
-                                            {financialSummary.invoices_by_matter.map((row) => (
-                                                <tr key={row.matter_id} className="hover:bg-muted/30">
-                                                    <td className="px-4 py-3">
-                                                        {row.matter ? (
-                                                            <span>{row.matter.matter_number} — {row.matter.name}</span>
-                                                        ) : row.matter_id.slice(0, 8)}
-                                                    </td>
-                                                    <td className="px-4 py-3 text-right text-muted-foreground">{row.count}</td>
-                                                    <td className="px-4 py-3 text-right font-medium">{formatCurrency(row.total_amount)}</td>
-                                                    <td className="px-4 py-3 text-right text-success">{formatCurrency(row.paid_amount)}</td>
-                                                    <td className="px-4 py-3 text-right text-warning">{formatCurrency(row.total_amount - row.paid_amount)}</td>
-                                                </tr>
-                                            ))}
+                                            {financialSummary.invoices_by_matter.map((row) => {
+                                                const pct = row.total_amount > 0 ? Math.min(100, Math.round(row.collected_amount / row.total_amount * 100)) : 0;
+                                                return (
+                                                    <tr key={row.matter_id} className="hover:bg-muted/30 transition-colors">
+                                                        <td className="px-4 py-3"><span className="font-medium text-sm">{row.matter ? `${row.matter.matter_number} — ${row.matter.name}` : row.matter_id.slice(0,8)}</span></td>
+                                                        <td className="px-4 py-3 text-right text-muted-foreground text-sm">{row.count}</td>
+                                                        <td className="px-4 py-3 text-right font-medium text-sm tabular-nums">{formatCurrency(row.total_amount)}</td>
+                                                        <td className="px-4 py-3 text-right text-success text-sm tabular-nums">{formatCurrency(row.collected_amount)}</td>
+                                                        <td className="px-4 py-3 text-right text-warning text-sm tabular-nums">{formatCurrency(row.outstanding_amount)}</td>
+                                                        <td className="hidden lg:table-cell px-4 py-3"><div className="h-1.5 bg-muted rounded-full overflow-hidden w-20 ml-auto"><div className="h-full bg-success rounded-full" style={{ width: `${pct}%` }} /></div></td>
+                                                    </tr>
+                                                );
+                                            })}
                                         </tbody>
                                     </table>
                                 </div>
@@ -143,45 +287,43 @@ export default function ReportsIndex({ financialSummary, timeByUser, mattersByPr
             )}
 
             {tab === 'time' && (
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="text-base">Time by User</CardTitle>
+                <Card className="surface-card">
+                    <CardHeader className="flex flex-row items-center justify-between">
+                        <div><CardTitle className="text-base">Time by User</CardTitle><p className="text-xs text-muted-foreground mt-1">Billable utilisation and value — {timeByUser.length} active {timeByUser.length===1?'member':'members'} {hasActiveFilters && '· filtered'}</p></div>
+                        <Badge variant="secondary" className="rounded-full">{formatCurrency(totalTimeValue)} total</Badge>
                     </CardHeader>
                     <CardContent className="p-0">
                         {timeByUser.length === 0 ? (
-                            <p className="px-6 py-6 text-sm text-muted-foreground">No time entries recorded.</p>
+                            <div className="py-16 text-center"><Clock className="h-10 w-10 mx-auto text-muted-foreground/50 mb-3" /><p className="text-sm text-muted-foreground">No time entries for these filters.</p></div>
                         ) : (
                             <div className="overflow-x-auto">
-                                <table className="w-full text-sm">
-                                    <thead>
-                                        <tr className="border-b bg-muted/30 text-muted-foreground">
-                                            <th className="text-left px-4 py-3 font-medium">User</th>
-                                            <th className="text-right px-4 py-3 font-medium">Total Hours</th>
-                                            <th className="text-right px-4 py-3 font-medium">Billable Hours</th>
-                                            <th className="text-right px-4 py-3 font-medium">Billable %</th>
-                                            <th className="text-right px-4 py-3 font-medium">Total Value</th>
-                                        </tr>
-                                    </thead>
+                                <table className="w-full">
+                                    <thead><tr className="border-b bg-muted/30 text-muted-foreground"><th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider">User</th><th className="text-right px-4 py-3 text-xs font-semibold uppercase tracking-wider">Total</th><th className="text-right px-4 py-3 text-xs font-semibold uppercase tracking-wider">Billable</th><th className="text-right px-4 py-3 text-xs font-semibold uppercase tracking-wider">Utilisation</th><th className="text-right px-4 py-3 text-xs font-semibold uppercase tracking-wider">Total Value</th></tr></thead>
                                     <tbody className="divide-y divide-border/60">
                                         {timeByUser.map((row) => {
-                                            const billablePct = row.total_minutes > 0
-                                                ? Math.round((row.billable_minutes / row.total_minutes) * 100)
-                                                : 0;
+                                            const pct = row.total_minutes > 0 ? Math.round(row.billable_minutes / row.total_minutes * 100) : 0;
                                             return (
                                                 <tr key={row.user_id} className="hover:bg-muted/30">
-                                                    <td className="px-4 py-3 font-medium">{row.full_name}</td>
-                                                    <td className="px-4 py-3 text-right text-muted-foreground">{formatDuration(row.total_minutes)}</td>
-                                                    <td className="px-4 py-3 text-right text-muted-foreground">{formatDuration(row.billable_minutes)}</td>
-                                                    <td className="px-4 py-3 text-right">
-                                                        <Badge variant={billablePct >= 80 ? 'success' : billablePct >= 50 ? 'warning' : 'secondary'} className="text-xs">
-                                                            {billablePct}%
-                                                        </Badge>
+                                                    <td className="px-4 py-3">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="h-8 w-8 rounded-full bg-primary/15 text-primary flex items-center justify-center text-xs font-bold">{row.full_name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase()}</div>
+                                                            <span className="font-medium text-sm">{row.full_name}</span>
+                                                        </div>
                                                     </td>
-                                                    <td className="px-4 py-3 text-right font-medium">{formatCurrency(row.total_value)}</td>
+                                                    <td className="px-4 py-3 text-right text-muted-foreground text-sm tabular-nums">{formatDuration(row.total_minutes)}</td>
+                                                    <td className="px-4 py-3 text-right text-muted-foreground text-sm tabular-nums">{formatDuration(row.billable_minutes)}</td>
+                                                    <td className="px-4 py-3 text-right">
+                                                        <div className="flex items-center justify-end gap-2">
+                                                            <div className="h-1.5 w-16 bg-muted rounded-full overflow-hidden hidden sm:block"><div className={cn('h-full rounded-full', pct>=80?'bg-success':pct>=50?'bg-warning':'bg-muted-foreground')} style={{ width: `${pct}%` }} /></div>
+                                                            <Badge variant={pct >= 80 ? 'success' : pct >= 50 ? 'warning' : 'secondary'} className="text-xs rounded-full">{pct}%</Badge>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-right font-medium text-sm tabular-nums">{formatCurrency(row.total_value)}</td>
                                                 </tr>
                                             );
                                         })}
                                     </tbody>
+                                    <tfoot><tr className="border-t-2 bg-muted/20 font-semibold"><td className="px-4 py-3 text-sm">Total</td><td className="px-4 py-3 text-right text-sm tabular-nums">{formatDuration(totalMins)}</td><td className="px-4 py-3 text-right text-sm tabular-nums">{formatDuration(totalBillableMins)}</td><td className="px-4 py-3 text-right"><Badge variant="secondary" className="rounded-full">{totalMins>0?Math.round(totalBillableMins/totalMins*100):0}% avg</Badge></td><td className="px-4 py-3 text-right text-sm tabular-nums">{formatCurrency(totalTimeValue)}</td></tr></tfoot>
                                 </table>
                             </div>
                         )}
@@ -190,27 +332,19 @@ export default function ReportsIndex({ financialSummary, timeByUser, mattersByPr
             )}
 
             {tab === 'matters' && (
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="text-base">Open Matters by Practice Area</CardTitle>
-                    </CardHeader>
+                <Card className="surface-card">
+                    <CardHeader><CardTitle className="text-base">Open Matters by Practice Area</CardTitle></CardHeader>
                     <CardContent className="p-6">
                         {mattersByPracticeArea.length === 0 ? (
-                            <p className="text-sm text-muted-foreground">No open matters.</p>
+                            <p className="text-sm text-muted-foreground">No open matters for these filters.</p>
                         ) : (
                             <div className="space-y-3">
                                 {mattersByPracticeArea.map((row) => (
-                                    <div key={row.practice_area} className="space-y-1">
-                                        <div className="flex items-center justify-between text-sm">
-                                            <span className="font-medium">{PRACTICE_AREA_LABELS[row.practice_area] ?? row.practice_area}</span>
-                                            <span className="text-muted-foreground">{row.count} {row.count === 1 ? 'matter' : 'matters'}</span>
-                                        </div>
-                                        <div className="h-2 bg-muted rounded-full overflow-hidden">
-                                            <div
-                                                className="h-full bg-primary rounded-full transition-all"
-                                                style={{ width: `${(row.count / maxMattersCount) * 100}%` }}
-                                            />
-                                        </div>
+                                    <div key={row.practice_area} className="group flex items-center gap-4 p-2 -mx-2 rounded-xl hover:bg-muted/40 transition-colors">
+                                        <span className="text-sm font-medium min-w-[140px]">{PRACTICE_AREA_LABELS[row.practice_area] ?? row.practice_area ?? 'Unspecified'}</span>
+                                        <div className="flex-1 h-2.5 bg-muted rounded-full overflow-hidden"><div className="h-full bg-primary rounded-full transition-all" style={{ width: `${(row.count / maxMattersCount) * 100}%` }} /></div>
+                                        <span className="text-sm text-muted-foreground tabular-nums w-20 text-right">{row.count} {row.count === 1 ? 'matter' : 'matters'}</span>
+                                        <span className="text-xs text-muted-foreground w-12 text-right">{Math.round(row.count / mattersByPracticeArea.reduce((s,r)=>s+r.count,0)*100)}%</span>
                                     </div>
                                 ))}
                             </div>

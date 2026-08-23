@@ -585,9 +585,13 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
         ? Math.ceil((new Date(matter.next_deadline).getTime() - Date.now()) / 86400000)
         : null;
 
-    const totalInvoiced  = (matter.invoices ?? []).reduce((s: number, i: any) => s + Number(i.total || 0), 0);
-    const totalPaid      = (matter.invoices ?? []).reduce((s: number, i: any) => s + Number(i.amount_paid || 0), 0);
-    const totalOutstanding = Math.max(0, totalInvoiced - totalPaid);
+    // Cancelled invoices never carry money; written-off still count as invoiced but not outstanding.
+    const activeInvoices = (matter.invoices ?? []).filter((i: any) => i.status !== 'cancelled');
+    const totalInvoiced  = activeInvoices.reduce((s: number, i: any) => s + Number(i.total || 0), 0);
+    const totalPaid      = activeInvoices.reduce((s: number, i: any) => s + Number(i.amount_paid || 0), 0);
+    const totalOutstanding = activeInvoices
+        .filter((i: any) => !['paid', 'written_off'].includes(i.status))
+        .reduce((s: number, i: any) => s + Math.max(0, Number(i.total || 0) - Number(i.amount_paid || 0)), 0);
     const trustBalance   = (matter as any).trust_balance || 0;
 
     const PRIORITY_COLOURS: Record<string, string> = {
@@ -606,229 +610,240 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
         <AppLayout title={matter.name}>
             <Head title={matter.name} />
 
-            {/* Navigation */}
-            <div className="mb-5 flex items-center justify-between">
-                <Button asChild variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground -ml-2">
-                    <Link href="/matters">
-                        <ArrowLeft className="h-4 w-4 mr-1.5" />
+            {/* Navigation — Enterprise */}
+            <div className="mb-5 flex items-center justify-between gap-3">
+                <Button asChild variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground -ml-2 rounded-xl">
+                    <Link href="/matters" className="inline-flex items-center gap-1.5">
+                        <ArrowLeft className="h-4 w-4" />
                         Matters
+                        <ChevronRight className="h-3 w-3 text-muted-foreground/50" />
+                        <span className="font-medium text-foreground truncate max-w-[180px]">{matter.matter_number}</span>
                     </Link>
                 </Button>
                 <div className="flex items-center gap-2">
-                    <Button size="sm" variant="outline" type="button" onClick={openTimeModal}>
-                        <Timer className="h-4 w-4 mr-1.5" />
+                    <Button size="sm" variant="outline" type="button" onClick={openTimeModal} className="rounded-xl border-border/60">
+                        <Timer className="h-4 w-4 mr-1" />
                         Log Time
                     </Button>
-                    <Button asChild size="sm" variant="outline">
+                    <Button asChild size="sm" variant="outline" className="rounded-xl border-border/60">
                         <Link href={`/billing/create?matter_id=${matter.id}`}>
-                            <Receipt className="h-4 w-4 mr-1.5" />
+                            <Receipt className="h-4 w-4 mr-1" />
                             New Invoice
                         </Link>
                     </Button>
-                    <Button asChild size="sm">
+                    <Button asChild size="sm" className="rounded-xl bg-primary shadow-sm">
                         <Link href={`/matters/${matter.id}/edit`}>
-                            <Edit className="h-4 w-4 mr-1.5" />
-                            Edit
+                            <Edit className="h-4 w-4 mr-1" />
+                            Edit Matter
                         </Link>
                     </Button>
                 </div>
             </div>
 
-            {/* Matter Header Card */}
-            <Card className="surface-card mb-5 overflow-hidden">
-                <div className={cn('h-1 w-full', statusAccent[matter.status] ?? 'bg-muted')} />
-                <CardContent className="p-5 sm:p-6">
-                    <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
-                        <div className="flex-1 min-w-0">
-                            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 mb-2.5">
-                                <Badge variant={statusVariant[matter.status] ?? 'default'} className="text-xs font-semibold">
-                                    {MATTER_STATUS_LABELS[matter.status]}
-                                </Badge>
-                            </div>
-                            <h1 className="text-2xl font-bold tracking-tight leading-tight text-foreground">
-                                {matter.name}
-                            </h1>
-                            {matter.description && (
-                                <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground line-clamp-2">
-                                    {matter.description}
-                                </p>
-                            )}
-                        </div>
-
-                        {/* Fee arrangement highlight */}
-                        {viewFinancial && matter.fee_arrangement && (
-                            <div className="shrink-0">
-                                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
-                                    Fee Arrangement
-                                </p>
-                                <div className="inline-flex items-center gap-2.5 rounded-lg border border-primary/15 bg-primary/[0.06] px-3.5 py-2">
-                                    <PoundSterling className="h-4 w-4 text-primary shrink-0" />
-                                    <div>
-                                        <p className="text-sm font-semibold text-foreground capitalize leading-tight">
-                                            {matter.fee_arrangement.replace(/_/g, ' ')}
-                                        </p>
-                                        {feeSummary && (
-                                            <p className="text-xs font-semibold text-primary tabular-nums leading-tight">
-                                                {feeSummary}
-                                            </p>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
+            {/* Matter Header Card — Enterprise */}
+            <Card className="surface-card mb-5 overflow-hidden border-0 shadow-[0_2px_16px_rgba(0,0,0,0.06)]">
+                <div className={cn('h-1 w-full', statusAccent[matter.status] ?? 'bg-primary')} />
+                <CardContent className="p-0">
+                    {/* Top row: breadcrumb meta */}
+                    <div className="flex items-center gap-2 px-6 pt-4 text-xs text-muted-foreground">
+                        <span className="inline-flex items-center gap-1.5">
+                            <span className={cn('h-2 w-2 rounded-full', statusAccent[matter.status] ?? 'bg-primary')} />
+                            <Badge variant={statusVariant[matter.status] ?? 'default'} className="text-[11px] font-bold uppercase tracking-widest px-2.5 py-0.5">
+                                {MATTER_STATUS_LABELS[matter.status]}
+                            </Badge>
+                        </span>
+                        <span className="text-border">•</span>
+                        <span className="font-mono tabular-nums">{matter.matter_number}</span>
+                        {daysUntil !== null && daysUntil <= 7 && (
+                            <>
+                                <span className="text-border">•</span>
+                                <span className={cn('inline-flex items-center gap-1 font-medium', daysUntil < 0 ? 'text-destructive' : 'text-warning')}>
+                                    <AlertTriangle className="h-3 w-3" />
+                                    {daysUntil < 0 ? `Overdue ${Math.abs(daysUntil)}d` : daysUntil === 0 ? 'Due today' : `Due in ${daysUntil}d`}
+                                </span>
+                            </>
                         )}
                     </div>
 
-                    {/* Deadline alert */}
-                    {matter.next_deadline && new Date(matter.next_deadline) <= new Date(Date.now() + 7 * 86400000) && (
-                        <div className="mt-5 flex items-start gap-2.5 rounded-lg border border-warning/25 bg-warning/10 px-3.5 py-2.5">
-                            <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
-                            <p className="text-sm text-warning">
-                                <span className="font-medium">Upcoming deadline</span>
-                                <span className="mx-1.5 text-warning/50">|</span>
-                                <strong className="font-semibold">{formatDate(matter.next_deadline)}</strong>
-                                {daysUntil !== null && daysUntil >= 0 && (
-                                    <span>
-                                        <span className="mx-1.5 text-warning/50">·</span>
-                                        {daysUntil === 0 ? 'due today' : `due in ${daysUntil} day${daysUntil === 1 ? '' : 's'}`}
-                                    </span>
-                                )}
-                                {daysUntil !== null && daysUntil < 0 && (
-                                    <span>
-                                        <span className="mx-1.5 text-warning/50">·</span>
-                                        overdue by {Math.abs(daysUntil)} day{Math.abs(daysUntil) === 1 ? '' : 's'}
-                                    </span>
-                                )}
-                            </p>
-                        </div>
-                    )}
-
-                    {/* Key facts */}
-                    <div className="mt-5 flex flex-wrap gap-x-8 gap-y-5 border-t border-border/60 pt-5">
-                        {matter.practice_area && (
-                            <div className="min-w-[160px]">
-                                <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                    <Gavel className="h-3.5 w-3.5" />
-                                    Practice Area
-                                </p>
-                                <p className="mt-1 text-sm font-medium text-foreground">
-                                    {PRACTICE_AREA_LABELS[matter.practice_area]}
-                                </p>
-                            </div>
-                        )}
-                        {matter.responsible_user && (
-                            <div className="min-w-[160px]">
-                                <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                    <Users className="h-3.5 w-3.5" />
-                                    Handling Solicitor
-                                </p>
-                                <div className="mt-1 flex items-center gap-2">
-                                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-500/15 text-brand-600 text-[11px] font-bold shrink-0">
-                                        {matter.responsible_user.full_name[0]}
-                                    </span>
-                                    <p className="text-sm font-medium text-foreground truncate">
-                                        {matter.responsible_user.full_name}
+                    <div className="px-6 pt-3 pb-6">
+                        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                            <div className="flex-1 min-w-0">
+                                <h1 className="text-[26px] font-extrabold tracking-tight leading-tight text-foreground">
+                                    {matter.name}
+                                </h1>
+                                {matter.description ? (
+                                    <p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-muted-foreground">
+                                        {matter.description}
                                     </p>
+                                ) : (
+                                    <p className="mt-2 text-[13px] text-muted-foreground/60 italic">No description added</p>
+                                )}
+                            </div>
+
+                            {viewFinancial && matter.fee_arrangement && (
+                                <div className="shrink-0 lg:text-right">
+                                    <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-[0.14em] mb-1.5">
+                                        Fee Arrangement
+                                    </p>
+                                    <div className="inline-flex items-center gap-3 rounded-xl border border-primary/20 bg-gradient-to-br from-primary/[0.08] to-primary/[0.02] px-4 py-2.5 shadow-sm">
+                                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow">
+                                            <PoundSterling className="h-4 w-4" />
+                                        </div>
+                                        <div className="text-left">
+                                            <p className="text-sm font-bold text-foreground capitalize leading-none">
+                                                {matter.fee_arrangement.replace(/_/g, ' ')}
+                                            </p>
+                                            {feeSummary && (
+                                                <p className="text-xs font-semibold text-primary tabular-nums mt-0.5">
+                                                    {feeSummary}
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
                                 </div>
+                            )}
+                        </div>
+
+                        {/* Deadline alert — compact enterprise */}
+                        {matter.next_deadline && new Date(matter.next_deadline) <= new Date(Date.now() + 7 * 86400000) && (
+                            <div className="mt-5 flex items-center gap-3 rounded-xl border border-warning/20 bg-warning/[0.06] px-4 py-3">
+                                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-warning/15">
+                                    <AlertTriangle className="h-3.5 w-3.5 text-warning" />
+                                </div>
+                                <p className="text-sm">
+                                    <span className="font-semibold text-foreground">Upcoming deadline</span>
+                                    <span className="mx-2 text-muted-foreground/40">—</span>
+                                    <span className="font-semibold text-warning">{formatDate(matter.next_deadline)}</span>
+                                    {daysUntil !== null && daysUntil >= 0 && (
+                                        <span className="text-muted-foreground"> · {daysUntil === 0 ? 'due today' : `in ${daysUntil} day${daysUntil === 1 ? '' : 's'}`}</span>
+                                    )}
+                                    {daysUntil !== null && daysUntil < 0 && (
+                                        <span className="text-destructive font-medium"> · overdue {Math.abs(daysUntil)}d</span>
+                                    )}
+                                </p>
                             </div>
                         )}
-                        {matter.opened_at && (
-                            <div className="min-w-[160px]">
-                                <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                    <Calendar className="h-3.5 w-3.5" />
-                                    Opened
-                                </p>
-                                <p className="mt-1 text-sm font-medium text-foreground">
-                                    {formatDate(matter.opened_at)}
-                                </p>
-                            </div>
-                        )}
-                        {(matter.court || matter.court_reference) && (
-                            <div className="min-w-[160px]">
-                                <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                    <Landmark className="h-3.5 w-3.5" />
-                                    Court
-                                </p>
-                                {matter.court && (
-                                    <p className="mt-1 text-sm font-medium text-foreground">{matter.court}</p>
+
+                        {/* Key facts — prominent enterprise row */}
+                        <div className="mt-6 -mx-6 border-t border-border/60">
+                            <div className="grid grid-cols-2 lg:grid-cols-4 divide-x divide-y lg:divide-y-0 divide-border/60">
+                                {matter.practice_area && (
+                                    <div className="px-6 py-5">
+                                        <p className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                                            <Gavel className="h-[18px] w-[18px] text-muted-foreground" />
+                                            Practice Area
+                                        </p>
+                                        <p className="mt-2.5 text-[17px] font-bold text-foreground leading-tight">
+                                            {matter.practice_area === 'custom'
+                                                ? ((matter.custom_fields as any)?.custom_practice_area ?? 'Custom')
+                                                : (PRACTICE_AREA_LABELS[matter.practice_area] ?? matter.practice_area)}
+                                        </p>
+                                    </div>
                                 )}
-                                {matter.court_reference && (
-                                    <p className="text-xs text-muted-foreground">Ref: {matter.court_reference}</p>
+                                {matter.responsible_user && (
+                                    <div className="px-6 py-5">
+                                        <p className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                                            <Users className="h-[18px] w-[18px] text-muted-foreground" />
+                                            Solicitor
+                                        </p>
+                                        <div className="mt-2.5 flex items-center gap-3">
+                                            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-foreground text-background text-sm font-bold shrink-0">
+                                                {matter.responsible_user.full_name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
+                                            </span>
+                                            <p className="text-[17px] font-bold text-foreground truncate">
+                                                {matter.responsible_user.full_name}
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+                                {matter.opened_at && (
+                                    <div className="px-6 py-5">
+                                        <p className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                                            <Calendar className="h-[18px] w-[18px] text-muted-foreground" />
+                                            Opened
+                                        </p>
+                                        <p className="mt-2.5 text-[17px] font-bold text-foreground">
+                                            {formatDate(matter.opened_at)}
+                                        </p>
+                                    </div>
+                                )}
+                                {matter.matter_number && (
+                                    <div className="px-6 py-5 bg-muted/[0.12]">
+                                        <p className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                                            <FileText className="h-[18px] w-[18px] text-muted-foreground" />
+                                            Reference
+                                        </p>
+                                        <p className="mt-2.5 font-mono text-[17px] font-extrabold text-foreground tabular-nums tracking-tight">
+                                            {matter.matter_number}
+                                        </p>
+                                    </div>
                                 )}
                             </div>
-                        )}
-                        {(matter as any).hearing_date && (
-                            <div className="min-w-[160px]">
-                                <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                    <CalendarClock className="h-3.5 w-3.5" />
-                                    Next Hearing
-                                </p>
-                                <p className="mt-1 text-sm font-medium text-warning">
-                                    {formatDate((matter as any).hearing_date)}
-                                </p>
-                            </div>
-                        )}
-                        {matter.matter_number && (
-                            <div className="min-w-[160px]">
-                                <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                    <FileText className="h-3.5 w-3.5" />
-                                    Case Reference
-                                </p>
-                                <p className="mt-1 font-mono text-sm font-semibold text-foreground tabular-nums">
-                                    {matter.matter_number}
-                                </p>
-                            </div>
-                        )}
+                            {(matter.court || matter.court_reference) && (
+                                <div className="px-6 py-3.5 flex items-center gap-6 text-sm border-t border-border/60 bg-muted/10">
+                                    <span className="inline-flex items-center gap-2 text-muted-foreground"><Landmark className="h-[18px] w-[18px]" /> Court</span>
+                                    <span className="font-semibold text-foreground text-[15px]">{matter.court || '—'}</span>
+                                    {matter.court_reference && <span className="text-muted-foreground font-mono text-sm">Ref: {matter.court_reference}</span>}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </CardContent>
             </Card>
 
-            {/* Financial Summary Strip */}
+            {/* Financial Summary Strip — Prominent */}
             {viewFinancial && (
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5">
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5 mb-6">
                 {[
-                    { label: 'Unbilled Time', value: formatCurrency(matter.unbilled_time_value || 0), colour: 'text-primary',     bg: 'bg-primary/8' },
-                    { label: 'Total Invoiced', value: formatCurrency(totalInvoiced),                  colour: 'text-foreground',  bg: 'bg-muted/60' },
-                    { label: 'Total Paid',     value: formatCurrency(totalPaid),                      colour: 'text-success',     bg: 'bg-success/8' },
-                    { label: 'Outstanding',    value: formatCurrency(totalOutstanding),               colour: totalOutstanding > 0 ? 'text-warning' : 'text-muted-foreground', bg: totalOutstanding > 0 ? 'bg-warning/8' : 'bg-muted/60' },
-                    { label: 'Trust Balance',  value: formatCurrency(trustBalance),                  colour: 'text-accent',      bg: 'bg-accent/8' },
+                    { label: 'Unbilled Time', value: formatCurrency(matter.unbilled_time_value || 0), icon: Clock },
+                    { label: 'Total Invoiced', value: formatCurrency(totalInvoiced), icon: Receipt },
+                    { label: 'Total Paid', value: formatCurrency(totalPaid), icon: Wallet },
+                    { label: 'Outstanding', value: formatCurrency(totalOutstanding), icon: TrendingUp },
+                    { label: 'Trust Balance', value: formatCurrency(trustBalance), icon: Landmark },
                 ].map((s) => (
-                    <div key={s.label} className={cn('rounded-lg border border-border/60 p-3', s.bg)}>
-                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">{s.label}</p>
-                        <p className={cn('text-base font-bold tabular-nums', s.colour)}>{s.value}</p>
+                    <div key={s.label} className="rounded-xl border border-border/60 bg-card p-5 flex items-center justify-between shadow-sm">
+                        <div>
+                            <p className="text-sm font-medium text-muted-foreground">{s.label}</p>
+                            <p className="text-[22px] font-extrabold tracking-tight tabular-nums text-foreground mt-1.5 leading-none">{s.value}</p>
+                        </div>
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted shrink-0">
+                            <s.icon className="h-5 w-5 text-muted-foreground" />
+                        </div>
                     </div>
                 ))}
             </div>
             )}
 
-            {/* Tabs */}
-            <div className="mb-5 border-b border-border/60 overflow-x-auto">
-                <div className="flex items-center gap-0 min-w-max">
+            {/* Tabs — Enterprise segmented */}
+            <div className="mb-6">
+                <div className="flex items-center gap-1 p-1 rounded-2xl bg-muted/40 border border-border/40 w-fit max-w-full overflow-x-auto">
                     {[
-                        { key: 'dashboard', label: 'Overview',     count: null },
-                        { key: 'time',      label: 'Time',          count: timeEntries.length || null },
+                        { key: 'dashboard', label: 'Overview', icon: FileText, count: null },
+                        { key: 'time',      label: 'Time',      icon: Clock, count: timeEntries.length || null },
                         ...(viewFinancial ? [
-                            { key: 'expenses',  label: 'Expenses',      count: expenses.length || null },
-                            { key: 'billing',   label: 'Billing',       count: matter.invoices?.length || null },
-                            { key: 'trust',     label: 'Trust Account', count: null },
+                            { key: 'expenses',  label: 'Expenses', icon: Receipt, count: expenses.length || null },
+                            { key: 'billing',   label: 'Billing',  icon: PoundSterling, count: matter.invoices?.length || null },
+                            { key: 'trust',     label: 'Trust',    icon: Wallet, count: null },
                         ] : []),
-                        { key: 'documents', label: 'Documents',     count: documents.length || null },
-                        { key: 'tasks',     label: 'Tasks',         count: tasks.filter((t: any) => t.status !== 'done').length || null },
+                        { key: 'documents', label: 'Documents', icon: Paperclip, count: documents.length || null },
+                        { key: 'tasks',     label: 'Tasks',     icon: CheckSquare, count: tasks.filter((t: any) => t.status !== 'done').length || null },
                     ].map((t) => (
                         <button
                             key={t.key}
                             type="button"
                             onClick={() => setTab(t.key)}
                             className={cn(
-                                'flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap',
+                                'flex items-center gap-1.5 px-4 py-2 rounded-xl text-[13px] font-semibold whitespace-nowrap transition-all',
                                 tab === t.key
-                                    ? 'border-primary text-primary'
-                                    : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border',
+                                    ? 'bg-card text-foreground shadow-sm border border-border/60'
+                                    : 'text-muted-foreground hover:text-foreground hover:bg-card/60',
                             )}
                         >
+                            <t.icon className="h-3.5 w-3.5" />
                             {t.label}
                             {t.count !== null && t.count > 0 && (
                                 <span className={cn(
-                                    'inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold',
+                                    'inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-xs font-bold',
                                     tab === t.key ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground',
                                 )}>{t.count}</span>
                             )}
@@ -838,41 +853,42 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
             </div>
 
             {tab === 'dashboard' && (
-                <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
                     {/* Left: Notes + Activity */}
-                    <div className="lg:col-span-2 space-y-5">
-                        <Card className="surface-card">
-                            <CardHeader className="flex flex-row items-center justify-between pb-3">
-                                <CardTitle className="text-base tracking-tight flex items-center gap-2">
-                                    <MessageSquare className="h-4 w-4" />
+                    <div className="lg:col-span-2 space-y-6">
+                        <Card className="rounded-2xl border border-border/60 bg-card shadow-sm overflow-hidden">
+                            <CardHeader className="flex flex-row items-center justify-between py-4 px-6 border-b border-border/60 bg-muted/[0.12]">
+                                <CardTitle className="text-[14px] font-bold tracking-tight flex items-center gap-2">
+                                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-foreground text-background"><MessageSquare className="h-3.5 w-3.5" /></span>
                                     Notes & Activity
                                 </CardTitle>
-                                <Button size="sm" variant="outline" type="button" onClick={openNoteModal}>
+                                <Button size="sm" type="button" onClick={openNoteModal} className="rounded-xl h-8 px-3 bg-foreground text-background hover:bg-foreground/90">
                                     <Plus className="h-3.5 w-3.5 mr-1" />
                                     Add Note
                                 </Button>
                             </CardHeader>
                             <CardContent className="p-0">
                                 {notes?.length === 0 ? (
-                                    <div className="px-6 py-8 text-center text-sm text-muted-foreground">
-                                        <MessageSquare className="h-8 w-8 mx-auto mb-2 text-muted-foreground/30" />
-                                        No notes yet.
+                                    <div className="px-6 py-12 text-center">
+                                        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-muted mb-3"><MessageSquare className="h-6 w-6 text-muted-foreground/50" /></div>
+                                        <p className="text-sm font-medium text-foreground">No notes yet</p>
+                                        <p className="text-xs text-muted-foreground mt-1">Add the first note to start the timeline</p>
                                     </div>
                                 ) : (
-                                    <div className="divide-y divide-border/60">
+                                    <div className="divide-y divide-border/40">
                                         {notes.map((note: any) => (
-                                            <div key={note.id} className="px-5 py-4 hover:bg-muted/20 transition-colors">
-                                                <div className="flex items-center gap-2 mb-1.5">
-                                                    <span className="h-6 w-6 rounded-full bg-primary/15 text-primary text-xs font-bold flex items-center justify-center shrink-0">
-                                                        {(note.user?.full_name || 'S')[0]}
+                                            <div key={note.id} className="px-6 py-4 hover:bg-muted/10 transition-colors">
+                                                <div className="flex items-center gap-2.5 mb-2">
+                                                    <span className="h-7 w-7 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center shrink-0">
+                                                        {(note.user?.full_name || 'S')[0].toUpperCase()}
                                                     </span>
-                                                    <span className="text-sm font-medium">{note.user?.full_name || 'System'}</span>
-                                                    <span className="text-xs text-muted-foreground">{formatDate(note.logged_at ?? note.created_at)}</span>
-                                                    <Badge variant="secondary" className="text-xs capitalize ml-auto">
+                                                    <span className="text-[14px] font-semibold text-foreground">{note.user?.full_name || 'System'}</span>
+                                                    <span className="text-xs text-muted-foreground">· {formatDate(note.logged_at ?? note.created_at)}</span>
+                                                    <Badge variant="secondary" className="text-[11px] capitalize ml-auto rounded-full font-medium">
                                                         {note.type?.replace(/_/g, ' ') || 'Note'}
                                                     </Badge>
                                                 </div>
-                                                <p className="text-sm whitespace-pre-wrap text-muted-foreground ml-8">{note.body}</p>
+                                                <p className="text-[14px] leading-relaxed text-foreground/80 ml-[38px] whitespace-pre-wrap">{note.body}</p>
                                             </div>
                                         ))}
                                     </div>
@@ -923,49 +939,47 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                     </div>
 
                     {/* Right Sidebar */}
-                    <div className="space-y-5">
+                    <div className="space-y-6">
                         {/* People */}
-                        <Card className="surface-card">
-                            <CardHeader className="pb-3">
-                                <CardTitle className="text-base tracking-tight flex items-center gap-2">
-                                    <Users className="h-4 w-4" />
-                                    People
-                                </CardTitle>
+                        <Card className="rounded-2xl border border-border/60 bg-card shadow-sm overflow-hidden">
+                            <CardHeader className="py-4 px-6 border-b border-border/60 bg-muted/[0.12] flex flex-row items-center gap-2">
+                                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-foreground text-background"><Users className="h-3.5 w-3.5" /></span>
+                                <CardTitle className="text-[14px] font-bold tracking-tight">People</CardTitle>
                             </CardHeader>
-                            <CardContent className="space-y-4 pt-0">
+                            <CardContent className="p-6 space-y-5">
                                 {matter.responsible_user && (
                                     <div>
-                                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Handling Solicitor</p>
-                                        <div className="flex items-center gap-2">
-                                            <span className="h-7 w-7 rounded-full bg-brand-500/15 text-brand-600 text-xs font-bold flex items-center justify-center shrink-0">
-                                                {matter.responsible_user.full_name[0]}
+                                        <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Handling Solicitor</p>
+                                        <div className="flex items-center gap-3">
+                                            <span className="h-9 w-9 rounded-full bg-primary text-primary-foreground text-sm font-bold flex items-center justify-center shrink-0">
+                                                {matter.responsible_user.full_name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
                                             </span>
-                                            <div>
-                                                <p className="text-sm font-medium">{matter.responsible_user.full_name}</p>
-                                                <p className="text-xs text-muted-foreground">{matter.responsible_user.email}</p>
+                                            <div className="min-w-0">
+                                                <p className="text-[14px] font-semibold text-foreground truncate">{matter.responsible_user.full_name}</p>
+                                                <p className="text-xs text-muted-foreground truncate">{matter.responsible_user.email}</p>
                                             </div>
                                         </div>
                                     </div>
                                 )}
                                 {matter.contacts && matter.contacts.length > 0 && (
                                     <>
-                                        {matter.responsible_user && <Separator />}
+                                        {matter.responsible_user && <Separator className="bg-border/60" />}
                                         <div>
-                                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Clients &amp; Parties</p>
-                                            <div className="space-y-2.5">
+                                            <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Clients &amp; Parties</p>
+                                            <div className="space-y-3">
                                                 {matter.contacts.map((contact: any) => (
                                                     <Link key={contact.id} href={`/contacts/${contact.id}`}
-                                                        className="flex items-center gap-2 group">
-                                                        <span className="h-7 w-7 rounded-full bg-muted text-muted-foreground text-xs font-bold flex items-center justify-center shrink-0 group-hover:bg-primary/15 group-hover:text-primary transition-colors">
-                                                            {(contact.full_name || contact.name)[0]}
+                                                        className="flex items-center gap-3 group p-2 -mx-2 rounded-xl hover:bg-muted/40 transition-colors">
+                                                        <span className="h-9 w-9 rounded-full bg-muted text-muted-foreground text-sm font-bold flex items-center justify-center shrink-0 group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                                                            {(contact.full_name || contact.name)[0].toUpperCase()}
                                                         </span>
                                                         <div className="min-w-0 flex-1">
-                                                            <p className="text-sm font-medium group-hover:text-primary transition-colors truncate">{contact.full_name || contact.name}</p>
+                                                            <p className="text-[14px] font-semibold group-hover:text-primary transition-colors truncate">{contact.full_name || contact.name}</p>
                                                             <p className="text-xs text-muted-foreground capitalize">
                                                                 {(contact.pivot?.role || 'client').replace(/_/g, ' ')}
                                                             </p>
                                                         </div>
-                                                        <ExternalLink className="h-3.5 w-3.5 text-muted-foreground/0 group-hover:text-muted-foreground transition-colors shrink-0" />
+                                                        <ExternalLink className="h-4 w-4 text-muted-foreground/30 group-hover:text-primary transition-colors shrink-0" />
                                                     </Link>
                                                 ))}
                                             </div>
@@ -976,32 +990,36 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                         </Card>
 
                         {/* Recent Invoices */}
-                        <Card className="surface-card">
-                            <CardHeader className="flex flex-row items-center justify-between pb-3">
-                                <CardTitle className="text-base tracking-tight flex items-center gap-2">
-                                    <Receipt className="h-4 w-4" />
+                        <Card className="rounded-2xl border border-border/60 bg-card shadow-sm overflow-hidden">
+                            <CardHeader className="py-4 px-6 border-b border-border/60 bg-muted/[0.12] flex flex-row items-center justify-between">
+                                <CardTitle className="text-[14px] font-bold tracking-tight flex items-center gap-2">
+                                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-foreground text-background"><Receipt className="h-3.5 w-3.5" /></span>
                                     Recent Invoices
                                 </CardTitle>
-                                <Link href={`/billing/create?matter_id=${matter.id}`} className="text-xs text-primary hover:underline">
+                                <Link href={`/billing/create?matter_id=${matter.id}`} className="text-xs font-semibold text-primary hover:underline">
                                     + New
                                 </Link>
                             </CardHeader>
                             <CardContent className="p-0">
                                 {!matter.invoices?.length ? (
-                                    <p className="px-4 py-3 text-xs text-muted-foreground">No invoices yet.</p>
+                                    <div className="px-6 py-10 text-center">
+                                        <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-muted mb-2"><Receipt className="h-5 w-5 text-muted-foreground/40" /></div>
+                                        <p className="text-sm font-medium text-foreground">No invoices yet</p>
+                                        <p className="text-xs text-muted-foreground mt-1">Create the first invoice for this matter</p>
+                                    </div>
                                 ) : (
-                                    <div className="divide-y divide-border/60">
+                                    <div className="divide-y divide-border/40">
                                         {matter.invoices.slice(0, 5).map((inv: any) => (
                                             <Link key={inv.id} href={`/billing/${inv.id}`}
-                                                className="px-4 py-3 flex items-center justify-between hover:bg-muted/30 transition-colors block">
+                                                className="px-6 py-4 flex items-center justify-between hover:bg-muted/20 transition-colors group">
                                                 <div>
-                                                    <p className="text-sm font-medium">{inv.invoice_number}</p>
-                                                    <p className="text-xs text-muted-foreground">{formatDate(inv.created_at)}</p>
+                                                    <p className="text-[14px] font-semibold group-hover:text-primary transition-colors">{inv.invoice_number}</p>
+                                                    <p className="text-xs text-muted-foreground mt-0.5">{formatDate(inv.created_at)}</p>
                                                 </div>
                                                 <div className="text-right">
-                                                    <p className="text-sm font-semibold tabular-nums">{formatCurrency(Number(inv.total))}</p>
+                                                    <p className="text-[14px] font-bold tabular-nums">{formatCurrency(Number(inv.total))}</p>
                                                     <Badge variant={inv.status === 'paid' ? 'success' : inv.status === 'sent' ? 'warning' : 'secondary'}
-                                                        className="text-xs capitalize">{inv.status}</Badge>
+                                                        className="text-[11px] capitalize rounded-full mt-1">{inv.status}</Badge>
                                                 </div>
                                             </Link>
                                         ))}
@@ -1372,7 +1390,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                     <CardContent className="p-0">
                         {timeEntries?.length ? (
                             <div className="overflow-x-auto">
-                                <table className="w-full text-sm">
+                                <table className="w-full text-base">
                                     <thead>
                                         <tr className="border-b bg-muted/30 text-muted-foreground">
                                             <th className="text-left px-4 py-2.5 font-medium">Date</th>
@@ -1449,7 +1467,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                     <CardContent className="p-0">
                         {expenses?.length ? (
                             <div className="overflow-x-auto">
-                                <table className="w-full text-sm">
+                                <table className="w-full text-base">
                                     <thead>
                                         <tr className="border-b bg-muted/30 text-muted-foreground">
                                             <th className="text-left px-4 py-2.5 font-medium">Date</th>
@@ -1694,7 +1712,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                     <CardContent className="p-0">
                         {matter.invoices?.length ? (
                             <div className="overflow-x-auto">
-                                <table className="w-full text-sm">
+                                <table className="w-full text-base">
                                     <thead>
                                         <tr className="border-b bg-muted/30 text-muted-foreground">
                                             <th className="text-left px-4 py-2.5 font-medium">Invoice #</th>
@@ -1766,7 +1784,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                     <CardContent className="p-0">
                         {matter.trust_entries?.length ? (
                             <div className="overflow-x-auto">
-                                <table className="w-full text-sm">
+                                <table className="w-full text-base">
                                     <thead>
                                         <tr className="border-b bg-muted/30 text-muted-foreground">
                                             <th className="text-left px-4 py-2.5 font-medium">Date</th>

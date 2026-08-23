@@ -6,6 +6,7 @@ use App\Models\Expense;
 use App\Models\Invoice;
 use App\Models\Matter;
 use App\Models\TimeEntry;
+use App\Models\TimeSession;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -75,6 +76,31 @@ class TimeController extends Controller
 
         $timerKey   = 'active_timer_' . $user->id;
         $activeTimer = session($timerKey);
+
+        // Backfill: timers started before DB persistence existed live only in
+        // the PHP session — persist them now so firm-wide views include them.
+        if ($activeTimer && !TimeSession::where('user_id', $user->id)->exists()) {
+            $backfillMatter = Matter::where('id', $activeTimer['matter_id'] ?? null)
+                ->where('firm_id', $firmId)
+                ->first();
+
+            if ($backfillMatter) {
+                TimeSession::create([
+                    'firm_id'              => $firmId,
+                    'user_id'              => $user->id,
+                    'matter_id'            => $backfillMatter->id,
+                    'matter_name'          => $backfillMatter->name,
+                    'matter_number'        => $backfillMatter->matter_number,
+                    'activity_type'        => $activeTimer['activity_type'] ?? 'other',
+                    'description'          => $activeTimer['description'] ?? null,
+                    'rate'                 => (float) ($activeTimer['rate'] ?? $user->rate_per_hour ?? $user->firm->default_hourly_rate ?? 0),
+                    'started_at'           => \Carbon\Carbon::parse($activeTimer['started_at']),
+                    'paused_at'            => !empty($activeTimer['paused_at']) ? \Carbon\Carbon::parse($activeTimer['paused_at']) : null,
+                    'total_paused_seconds' => (int) ($activeTimer['total_paused_seconds'] ?? 0),
+                    'status'               => !empty($activeTimer['paused_at']) ? 'paused' : 'active',
+                ]);
+            }
+        }
 
         return Inertia::render('Time/Index', [
             'entries'     => $entries,
@@ -232,6 +258,24 @@ class TimeController extends Controller
 
         session([$key => $session]);
 
+        // Persist for firm-wide visibility (Active Sessions view)
+        TimeSession::updateOrCreate(
+            ['user_id' => $user->id],
+            [
+                'firm_id'              => $user->firm_id,
+                'matter_id'            => $matter->id,
+                'matter_name'          => $matter->name,
+                'matter_number'        => $matter->matter_number,
+                'activity_type'        => $session['activity_type'],
+                'description'          => $session['description'],
+                'rate'                 => $defaultRate,
+                'started_at'           => now(),
+                'paused_at'            => null,
+                'total_paused_seconds' => 0,
+                'status'               => 'active',
+            ]
+        );
+
         activity()->causedBy($user)->log('checked_in_to_matter:' . $matter->name);
 
         return response()->json(['session' => $session]);
@@ -293,6 +337,7 @@ class TimeController extends Controller
         ]);
 
         session()->forget($key);
+        TimeSession::where('user_id', $user->id)->delete();
 
         activity()->causedBy($user)->performedOn($entry)->log('checked_out');
 
@@ -315,6 +360,7 @@ class TimeController extends Controller
         if ($sess) {
             activity()->causedBy($request->user())->log('session_discarded:' . ($sess['matter_name'] ?? 'unknown'));
             session()->forget($key);
+            TimeSession::where('user_id', $request->user()->id)->delete();
         }
 
         return response()->json(['discarded' => true]);
@@ -335,6 +381,11 @@ class TimeController extends Controller
 
         $sess['paused_at'] = now()->toIso8601String();
         session([$key => $sess]);
+
+        TimeSession::where('user_id', $request->user()->id)->update([
+            'status'    => 'paused',
+            'paused_at' => now(),
+        ]);
 
         return response()->json(['session' => $sess]);
     }
@@ -357,6 +408,12 @@ class TimeController extends Controller
         $sess['total_paused_seconds'] = ($sess['total_paused_seconds'] ?? 0) + $pausedSeconds;
         $sess['paused_at'] = null;
         session([$key => $sess]);
+
+        TimeSession::where('user_id', $request->user()->id)->update([
+            'status'               => 'active',
+            'total_paused_seconds' => \DB::raw('total_paused_seconds + ' . $pausedSeconds),
+            'paused_at'            => null,
+        ]);
 
         return response()->json(['session' => $sess]);
     }
@@ -382,6 +439,23 @@ class TimeController extends Controller
 
         session(['active_timer_' . $request->user()->id => $timer]);
 
+        TimeSession::updateOrCreate(
+            ['user_id' => $request->user()->id],
+            [
+                'firm_id'              => $request->user()->firm_id,
+                'matter_id'            => $matter->id,
+                'matter_name'          => $matter->name,
+                'matter_number'        => $matter->matter_number,
+                'activity_type'        => 'other',
+                'description'          => null,
+                'rate'                 => (float) ($request->user()->rate_per_hour ?? $matter->firm->default_hourly_rate ?? 0),
+                'started_at'           => now(),
+                'paused_at'            => null,
+                'total_paused_seconds' => 0,
+                'status'               => 'active',
+            ]
+        );
+
         return response()->json(['timer' => $timer, 'session' => $timer]);
     }
 
@@ -398,12 +472,60 @@ class TimeController extends Controller
         $durationMinutes = (int) max(1, $startedAt->diffInMinutes(now()));
 
         session()->forget($key);
+        TimeSession::where('user_id', $request->user()->id)->delete();
 
         return response()->json([
             'matter_id'        => $timer['matter_id'],
             'matter_name'      => $timer['matter_name'],
             'started_at'       => $timer['started_at'],
             'duration_minutes' => $durationMinutes,
+        ]);
+    }
+
+    /**
+     * Firm-wide view of live check-in sessions: who is working on which matter.
+     */
+    public function sessions(Request $request): Response
+    {
+        abort_unless($request->user()->hasPermissionTo('manage_time_entries'), 403);
+
+        $firmId = $request->user()->firm_id;
+
+        $sessions = TimeSession::where('firm_id', $firmId)
+            ->with(['user:id,full_name,rate_per_hour', 'matter:id,name,matter_number,status,custom_fields'])
+            ->orderBy('started_at')
+            ->get()
+            ->map(fn (TimeSession $s) => [
+                'id'                   => $s->id,
+                'status'               => $s->status,
+                'started_at'           => $s->started_at->toIso8601String(),
+                'paused_at'            => $s->paused_at?->toIso8601String(),
+                'total_paused_seconds' => $s->total_paused_seconds,
+                'elapsed_minutes'      => $s->elapsed_minutes,
+                'activity_type'        => $s->activity_type,
+                'description'          => $s->description,
+                'rate'                 => (float) $s->rate,
+                'live_amount'          => round(((float) $s->rate) * ($s->elapsed_minutes / 60), 2),
+                'user'                 => $s->user ? ['id' => $s->user->id, 'full_name' => $s->user->full_name] : null,
+                'matter'               => $s->matter ? [
+                    'id'            => $s->matter->id,
+                    'name'          => $s->matter->name,
+                    'matter_number' => $s->matter->matter_number,
+                    'status'        => $s->matter->status,
+                ] : null,
+            ]);
+
+        $stats = [
+            'active_count'   => $sessions->where('status', 'active')->count(),
+            'paused_count'   => $sessions->where('status', 'paused')->count(),
+            'live_minutes'   => $sessions->sum('elapsed_minutes'),
+            'live_amount'    => round($sessions->sum('live_amount'), 2),
+            'tracked_employees' => \App\Models\User::where('firm_id', $firmId)->where('is_active', true)->count(),
+        ];
+
+        return Inertia::render('Time/Sessions', [
+            'sessions' => $sessions->values()->toArray(),
+            'stats'    => $stats,
         ]);
     }
 

@@ -51,17 +51,17 @@ const statusColors: Record<string, 'default' | 'success' | 'warning' | 'destruct
 
 function KpiCard({ kpi }: { kpi: KpiCard }) {
     const toneStyles = {
-        primary: 'bg-[#FF4000] text-primary-foreground',
-        ink: 'bg-[#242427] text-white',
+        primary: 'bg-brand-500 text-primary-foreground',
+        ink: 'bg-brand-900 text-white',
         violet: 'bg-accent text-white',
         warning: 'bg-white text-foreground',
     }[kpi.tone];
 
     const iconStyles = {
-        primary: 'bg-white text-[#FF4000]',
-        ink: 'bg-white text-[#272727]',
+        primary: 'bg-white text-brand-500',
+        ink: 'bg-white text-brand-900',
         violet: 'bg-white text-accent',
-        warning: 'bg-[#FF4000] text-white',
+        warning: 'bg-brand-500 text-white',
     }[kpi.tone];
 
     return (
@@ -148,12 +148,21 @@ export default function Dashboard({ stats, viewFinancial, recentMatters, upcomin
                     <SectionHeading title="Recent matters" href="/matters" action="View all" />
                     <CardContent className="p-0">
                         {recentMatters.length === 0 ? (
-                            <div className="px-5 py-12 text-center text-sm text-muted-foreground">No matters yet. <Link href="/matters/create" className="text-primary hover:underline">Open your first matter</Link></div>
+                            <div className="flex flex-col items-center justify-center py-12 text-center">
+                            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+                                <Briefcase className="h-6 w-6 text-primary" />
+                            </div>
+                            <p className="text-foreground font-medium mb-1">No matters yet</p>
+                            <p className="text-muted-foreground text-sm mb-4">Create your first matter to get started</p>
+                            <Button asChild size="sm">
+                                <Link href="/matters/create"><Plus className="h-4 w-4 mr-2" />New matter</Link>
+                            </Button>
+                        </div>
                         ) : (
                             <div className="divide-y divide-border/60">
-                                {recentMatters.map((matter) => (
+                                {recentMatters.map((matter, index) => (
                                     <Link key={matter.id} href={`/matters/${matter.id}`} className="group flex items-center gap-4 px-5 py-4 transition-colors hover:bg-muted/35">
-                                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-xs font-semibold text-primary">{matter.matter_number.slice(-2)}</span>
+                                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-xs font-semibold text-primary">{String(index + 1).padStart(2, '0')}</span>
                                         <div className="min-w-0 flex-1">
                                             <p className="truncate text-sm font-medium group-hover:text-primary">{matter.name}</p>
                                             <p className="mt-1 truncate text-xs text-muted-foreground">{matter.matter_number} <span className="px-1">·</span> {matter.responsible_user?.full_name ?? 'Unassigned'}</p>
@@ -170,7 +179,13 @@ export default function Dashboard({ stats, viewFinancial, recentMatters, upcomin
                     <SectionHeading title="Upcoming tasks" href="/tasks" action="View all" />
                     <CardContent className="p-0">
                         {upcomingTasks.length === 0 ? (
-                            <div className="px-5 py-12 text-center text-sm text-muted-foreground">No upcoming tasks.</div>
+                            <div className="flex flex-col items-center justify-center py-12 text-center">
+                            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+                                <CheckSquare className="h-6 w-6 text-primary" />
+                            </div>
+                            <p className="text-foreground font-medium mb-1">No upcoming tasks</p>
+                            <p className="text-muted-foreground text-sm">Tasks with due dates will appear here</p>
+                        </div>
                         ) : (
                             <div className="divide-y divide-border/60">
                                 {upcomingTasks.map((task) => (

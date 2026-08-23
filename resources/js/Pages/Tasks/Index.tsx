@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { formatDate, cn } from '@/lib/utils';
-import { Plus, Pencil, Trash2, Search, X } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, X, CheckSquare } from 'lucide-react';
 import type { Task, PaginatedData } from '@/types';
 
 function useDebounce(value: string, delay: number) {
@@ -35,11 +35,24 @@ const PRIORITY_COLORS: Record<string, 'destructive' | 'warning' | 'secondary'> =
     low: 'secondary',
 };
 
+const PRIORITY_BADGE_STYLES: Record<string, string> = {
+    high: 'bg-destructive/15 text-destructive border-destructive/25',
+    medium: 'bg-warning/15 text-warning border-warning/25',
+    low: 'bg-muted text-muted-foreground border-border',
+};
+
 const STATUS_COLORS: Record<string, 'secondary' | 'default' | 'warning' | 'success'> = {
     todo: 'secondary',
     in_progress: 'warning',
     review: 'default',
     done: 'success',
+};
+
+const STATUS_BADGE_STYLES: Record<string, string> = {
+    todo: 'bg-muted text-muted-foreground border-border',
+    in_progress: 'bg-warning/15 text-warning border-warning/25',
+    review: 'bg-primary/15 text-primary border-primary/25',
+    done: 'bg-success/15 text-success border-success/25',
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -219,17 +232,23 @@ export default function TasksIndex({ tasks, users, matters, filters }: Props) {
             <Card>
                 <CardContent className="p-0">
                     {tasks.data.length === 0 ? (
-                        <p className="px-6 py-10 text-center text-sm text-muted-foreground">No tasks found.</p>
+                        <div className="flex flex-col items-center justify-center py-12 text-center">
+                            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+                                <CheckSquare className="h-6 w-6 text-primary" />
+                            </div>
+                            <p className="text-foreground font-medium mb-1">No tasks found</p>
+                            <p className="text-muted-foreground text-sm">Create your first task to get started</p>
+                        </div>
                     ) : (
-                        <div className="overflow-x-auto">
+<div className="overflow-x-auto">
                             <table className="w-full text-sm">
                                 <thead>
-                                    <tr className="border-b bg-muted/30 text-muted-foreground">
-                                        <th className="text-left px-4 py-3 font-medium">Title</th>
-                                        <th className="text-left px-4 py-3 font-medium">Assignee</th>
-                                        <th className="text-left px-4 py-3 font-medium">Due</th>
-                                        <th className="text-left px-4 py-3 font-medium">Priority</th>
-                                        <th className="text-left px-4 py-3 font-medium">Status</th>
+                                    <tr className="border-b border-border/60 bg-muted/20">
+                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs uppercase tracking-wider">Title</th>
+                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs uppercase tracking-wider">Assignee</th>
+                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs uppercase tracking-wider">Due</th>
+                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs uppercase tracking-wider">Priority</th>
+                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs uppercase tracking-wider">Status</th>
                                         <th className="px-4 py-3" />
                                     </tr>
                                 </thead>
@@ -253,10 +272,10 @@ export default function TasksIndex({ tasks, users, matters, filters }: Props) {
                                             <td className="px-4 py-3 text-muted-foreground">
                                                 {formatDate(task.due_date)}
                                             </td>
-                                            <td className="px-4 py-3">
-                                                <Badge variant={PRIORITY_COLORS[task.priority] ?? 'secondary'} className="capitalize text-xs">
+<td className="px-4 py-3">
+                                                <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize ${PRIORITY_BADGE_STYLES[task.priority] ?? 'bg-muted text-muted-foreground border-border'}`}>
                                                     {task.priority}
-                                                </Badge>
+                                                </span>
                                             </td>
                                             <td className="px-4 py-3">
                                                 <Select
@@ -266,12 +285,12 @@ export default function TasksIndex({ tasks, users, matters, filters }: Props) {
                                                     <SelectTrigger className={cn(
                                                         'h-7 w-36 text-xs font-medium border-0 shadow-none focus:ring-1',
                                                         task.status === 'todo'        && 'bg-muted text-muted-foreground',
-                                                        task.status === 'in_progress' && 'bg-warning/10 text-warning-foreground',
-                                                        task.status === 'review'      && 'bg-primary/10 text-primary',
-                                                        task.status === 'done'        && 'bg-success/10 text-success-foreground',
+                                                        task.status === 'in_progress' && 'bg-warning/15 text-warning border-warning/25',
+                                                        task.status === 'review'      && 'bg-primary/15 text-primary border-primary/25',
+                                                        task.status === 'done'        && 'bg-success/15 text-success border-success/25',
                                                     )}>
-                                                        <SelectValue />
-                                                    </SelectTrigger>
+                                                    <SelectValue />
+                                                </SelectTrigger>
                                                     <SelectContent>
                                                         <SelectItem value="todo">To Do</SelectItem>
                                                         <SelectItem value="in_progress">In Progress</SelectItem>

@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, Mail, CreditCard, CheckCircle, Printer, XCircle, Send, Download } from 'lucide-react';
+import { ArrowLeft, Mail, CreditCard, CheckCircle, Printer, XCircle, Send, Download, Trash2 } from 'lucide-react';
 import { cn, formatCurrency, formatDate } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import type { Invoice } from '@/types';
@@ -116,6 +116,14 @@ export default function ShowInvoice({ invoice }: Props) {
         }
     };
 
+    const canDelete = payments.length === 0 && !['paid', 'partial', 'written_off'].includes(invoice.status);
+
+    const handleDelete = () => {
+        if (confirm(`Permanently delete invoice ${invoice.invoice_number}? Linked time entries and expenses will return to the unbilled pool.`)) {
+            router.delete(`/billing/${invoice.id}`);
+        }
+    };
+
     return (
         <AppLayout title={`Invoice ${invoice.invoice_number}`}>
             <Head title={`Invoice ${invoice.invoice_number}`} />
@@ -191,7 +199,7 @@ export default function ShowInvoice({ invoice }: Props) {
 
                         {/* Line Items Table */}
                         <div className="overflow-x-auto">
-                            <table className="w-full text-sm">
+                            <table className="w-full text-base">
                                 <thead>
                                     <tr className="border-b bg-muted/20">
                                         <th className="text-left py-2.5 px-3 font-medium text-muted-foreground">Description</th>
@@ -322,6 +330,13 @@ export default function ShowInvoice({ invoice }: Props) {
                         <Button variant="outline" className="text-destructive hover:text-destructive gap-2" onClick={() => handleStatusChange('cancelled')}>
                             <XCircle className="h-4 w-4" />
                             Cancel Invoice
+                        </Button>
+                    )}
+
+                    {canDelete && (
+                        <Button variant="outline" className="text-destructive hover:text-destructive hover:bg-destructive/10 gap-2 ml-auto" onClick={handleDelete}>
+                            <Trash2 className="h-4 w-4" />
+                            Delete
                         </Button>
                     )}
                 </div>

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Mail\InvoiceMail;
+use App\Models\Firm;
 use App\Models\Invoice;
 use App\Models\InvoiceLineItem;
 use App\Models\Matter;
@@ -13,6 +14,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class InvoiceController extends Controller
@@ -24,7 +26,22 @@ class InvoiceController extends Controller
         $user = auth()->user();
         $firmId = $user->firm_id;
 
+        $request->validate([
+            'timeframe'  => 'nullable|in:today,week,month,quarter,ytd,custom,all',
+            'date_from'  => 'nullable|date',
+            'date_to'    => 'nullable|date|after_or_equal:date_from',
+            'date_field' => 'nullable|in:created_at,due_date,sent_at,paid_at',
+            'matter_id'  => ['nullable', 'uuid', Rule::exists('matters', 'id')->where(fn ($q) => $q->where('firm_id', $firmId))],
+            'user_id'    => ['nullable', 'uuid', Rule::exists('users', 'id')->where(fn ($q) => $q->where('firm_id', $firmId))],
+            'status'     => 'nullable|in:draft,sent,partial,paid,written_off,cancelled',
+            'search'     => 'nullable|string|max:255',
+        ]);
+
+        [$dateFrom, $dateTo] = \App\Support\Timeframe::resolve($request->input('timeframe'), $request->input('date_from'), $request->input('date_to'));
+        $dateField = $request->input('date_field', 'created_at');
+
         $query = Invoice::with(['matter', 'matter.responsibleUser'])
+            ->withSum('payments as amount_paid', 'amount')
             ->where('firm_id', $firmId)
             ->orderBy('created_at', 'desc');
 
@@ -41,26 +58,68 @@ class InvoiceController extends Controller
             });
         }
 
+        if ($request->filled('matter_id')) {
+            $query->where('matter_id', $request->matter_id);
+        }
+
+        if ($request->filled('user_id')) {
+            $query->whereHas('matter', fn ($mq) => $mq->where('responsible_user_id', $request->user_id));
+        }
+
+        if ($dateFrom && $dateTo) {
+            if ($dateField === 'paid_at') {
+                $query->whereHas('payments', fn ($pq) => $pq->whereBetween('paid_at', [$dateFrom, $dateTo]));
+            } else {
+                $query->whereBetween($dateField, [$dateFrom, $dateTo]);
+            }
+        }
+
         $invoices = $query->paginate(15)->withQueryString();
 
-        // Stats for dashboard
+        // Stats for dashboard - respect same filters except pagination, but not search for cleaner KPI
+        $statsBase = Invoice::where('firm_id', $firmId)
+            ->when($request->filled('status'), fn ($q) => $q->where('status', $request->status))
+            ->when($request->filled('matter_id'), fn ($q) => $q->where('matter_id', $request->matter_id))
+            ->when($request->filled('user_id'), fn ($q) => $q->whereHas('matter', fn ($mq) => $mq->where('responsible_user_id', $request->user_id)))
+            ->when($dateFrom && $dateTo && $dateField !== 'paid_at', fn ($q) => $q->whereBetween($dateField, [$dateFrom, $dateTo]));
+
+        $outstandingInvoices = (clone $statsBase)
+            ->whereIn('status', ['draft', 'sent', 'partial'])
+            ->get(['id', 'total']);
+        $paidPerInvoice = Payment::where('firm_id', $firmId)
+            ->whereIn('invoice_id', $outstandingInvoices->pluck('id'))
+            ->when($dateField === 'paid_at' && $dateFrom && $dateTo, fn ($q) => $q->whereBetween('paid_at', [$dateFrom, $dateTo]))
+            ->selectRaw('invoice_id, SUM(amount) as paid_total')
+            ->groupBy('invoice_id')
+            ->pluck('paid_total', 'invoice_id');
+
         $stats = [
-            'total_outstanding' => Invoice::where('firm_id', $firmId)
-                ->whereIn('status', ['draft', 'sent'])
-                ->sum('total'),
-            'overdue_amount' => Invoice::where('firm_id', $firmId)
-                ->whereIn('status', ['sent'])
+            'total_outstanding' => round($outstandingInvoices->sum(
+                fn ($inv) => max(0, (float) $inv->total - (float) ($paidPerInvoice[$inv->id] ?? 0))
+            ), 2),
+            'overdue_amount' => (clone $statsBase)
+                ->whereIn('status', ['sent', 'partial'])
+                ->whereNotNull('due_date')
                 ->where('due_date', '<', now())
-                ->sum('total'),
+                ->get(['id', 'total'])
+                ->sum(fn ($inv) => max(0, (float) $inv->total - (float) ($paidPerInvoice[$inv->id] ?? 0))),
             'paid_this_month' => Payment::where('firm_id', $firmId)
-                ->whereMonth('paid_at', now()->month)
+                ->when($dateFrom && $dateTo, fn ($q) => $q->whereBetween('paid_at', [$dateFrom, $dateTo]), fn ($q) => $q->whereMonth('paid_at', now()->month)->whereYear('paid_at', now()->year))
+                ->when($request->filled('matter_id'), fn ($q) => $q->whereHas('invoice', fn ($iq) => $iq->where('matter_id', $request->matter_id)))
                 ->sum('amount'),
+            'draft_count' => (clone $statsBase)->where('status', 'draft')->count(),
+        ];
+
+        $filterOptions = [
+            'matters' => \App\Models\Matter::where('firm_id', $firmId)->orderBy('name')->get(['id', 'name', 'matter_number']),
+            'users' => \App\Models\User::where('firm_id', $firmId)->where('is_active', true)->get(['id', 'full_name']),
         ];
 
         return Inertia::render('Billing/Index', [
             'invoices' => $invoices,
             'stats' => $stats,
-            'filters' => $request->only(['status', 'search']),
+            'filters' => $request->only(['status', 'search', 'matter_id', 'user_id', 'timeframe', 'date_from', 'date_to', 'date_field']),
+            'filterOptions' => $filterOptions,
         ]);
     }
 
@@ -112,30 +171,74 @@ class InvoiceController extends Controller
         $firmId = $user->firm_id;
 
         $validated = $request->validate([
-            'matter_id'               => 'required|uuid|exists:matters,id',
-            'invoice_number'          => 'required|string|unique:invoices',
+            'matter_id'               => [
+                'required', 'uuid',
+                Rule::exists('matters', 'id')->where(fn ($q) => $q->where('firm_id', $firmId)),
+            ],
+            'invoice_number'          => [
+                'required', 'string', 'max:255',
+                Rule::unique('invoices', 'invoice_number')->where(fn ($q) => $q->where('firm_id', $firmId)),
+            ],
             'due_date'                => 'required|date',
             'issue_date'              => 'nullable|date',
             'line_items'              => 'required|array|min:1',
-            'line_items.*.description'=> 'required|string',
-            'line_items.*.quantity'   => 'required|numeric|min:0',
-            'line_items.*.unit_rate'  => 'required|numeric|min:0',
-            'line_items.*.amount'     => 'required|numeric|min:0',
-            'line_items.*.vat_amount' => 'required|numeric|min:0',
-            'vat_rate'                => 'required|numeric|min:0',
+            'line_items.*.description'=> 'required|string|max:2000',
+            'line_items.*.quantity'   => 'required|numeric|min:0|max:100000',
+            'line_items.*.unit_rate'  => 'required|numeric|min:0|max:10000000',
+            'line_items.*.type'       => 'nullable|in:time,expense,fixed,fixed_fee',
+            'vat_rate'                => 'required|numeric|min:0|max:100',
             'discount_amount'         => 'nullable|numeric|min:0',
             'discount_reason'         => 'nullable|string|max:500',
-            'notes'                   => 'nullable|string',
+            'notes'                   => 'nullable|string|max:5000',
             'action'                  => 'nullable|in:draft,send',
         ]);
+
+        // Linked unbilled records must belong to this firm + matter and not already be billed.
+        foreach (['bill_time_entry_ids' => [TimeEntry::class, 'time entries'], 'bill_expense_ids' => [Expense::class, 'expenses']] as $field => [$model, $label]) {
+            $ids = array_values(array_filter((array) $request->input($field, [])));
+            if (empty($ids)) continue;
+
+            $validCount = $model::whereIn('id', $ids)
+                ->where('firm_id', $firmId)
+                ->where('matter_id', $validated['matter_id'])
+                ->where('billed', false)
+                ->count();
+
+            abort_unless($validCount === count($ids), 422, "Some selected {$label} are invalid, already billed, or belong to another matter.");
+        }
 
         $invoiceId = null;
 
         DB::transaction(function () use ($validated, $firmId, $request, &$invoiceId) {
-            $subtotal       = collect($validated['line_items'])->sum('amount');
-            $vatAmount      = collect($validated['line_items'])->sum('vat_amount');
-            $discountAmount = (float) ($validated['discount_amount'] ?? 0);
-            $total          = $subtotal + $vatAmount - $discountAmount;
+            // Recalculate all money server-side; never trust client-computed amounts.
+            $vatRate = (float) $validated['vat_rate'];
+            $subtotal = 0;
+            $vatAmount = 0;
+            $lineItems = [];
+
+            foreach ($validated['line_items'] as $item) {
+                $qty    = round((float) $item['quantity'], 2);
+                $rate   = round((float) $item['unit_rate'], 2);
+                $amount = round($qty * $rate, 2);
+                $vat    = round($amount * $vatRate / 100, 2);
+
+                $subtotal += $amount;
+                $vatAmount += $vat;
+
+                $lineItems[] = [
+                    'description' => $item['description'],
+                    'quantity'    => $qty,
+                    'unit_rate'   => $rate,
+                    'amount'      => $amount,
+                    'vat_amount'  => $vat,
+                    'type'        => in_array($item['type'] ?? null, ['time', 'expense'], true) ? $item['type'] : 'fixed_fee',
+                ];
+            }
+
+            $subtotal       = round($subtotal, 2);
+            $vatAmount      = round($vatAmount, 2);
+            $discountAmount = round(min((float) ($validated['discount_amount'] ?? 0), $subtotal + $vatAmount), 2);
+            $total          = round($subtotal + $vatAmount - $discountAmount, 2);
             $action         = $validated['action'] ?? 'draft';
 
             $invoice = Invoice::create([
@@ -145,7 +248,7 @@ class InvoiceController extends Controller
                 'status'          => $action === 'send' ? 'sent' : 'draft',
                 'subtotal'        => $subtotal,
                 'vat_amount'      => $vatAmount,
-                'vat_rate'        => $validated['vat_rate'],
+                'vat_rate'        => $vatRate,
                 'total'           => max(0, $total),
                 'discount_amount' => $discountAmount,
                 'discount_reason' => $validated['discount_reason'] ?? null,
@@ -154,23 +257,36 @@ class InvoiceController extends Controller
                 'notes'           => $validated['notes'] ?? null,
             ]);
 
-            foreach ($validated['line_items'] as $item) {
+            foreach ($lineItems as $item) {
                 $invoice->lineItems()->create($item);
             }
 
-            // Mark time entries as billed if selected
-            if ($request->has('bill_time_entry_ids')) {
-                TimeEntry::whereIn('id', $request->bill_time_entry_ids)
+            // Mark validated time entries as billed if selected
+            $timeEntryIds = array_values(array_filter((array) $request->input('bill_time_entry_ids', [])));
+            if (!empty($timeEntryIds)) {
+                TimeEntry::whereIn('id', $timeEntryIds)
                     ->update(['billed' => true, 'invoice_id' => $invoice->id]);
             }
 
-            // Mark expenses as billed if selected
-            if ($request->has('bill_expense_ids')) {
-                Expense::whereIn('id', $request->bill_expense_ids)
+            // Mark validated expenses as billed if selected
+            $expenseIds = array_values(array_filter((array) $request->input('bill_expense_ids', [])));
+            if (!empty($expenseIds)) {
+                Expense::whereIn('id', $expenseIds)
                     ->update(['billed' => true, 'invoice_id' => $invoice->id]);
             }
 
             $invoiceId = $invoice->id;
+
+            // Claim the firm sequence when the number follows the auto scheme,
+            // so future auto-generated numbers can never collide with this one.
+            $firm = Firm::lockForUpdate()->find($firmId);
+            if ($firm) {
+                $expected = str_pad((string) ($firm->invoice_sequence + 1), 4, '0', STR_PAD_LEFT);
+                $prefix   = "{$firm->invoice_prefix}-" . date('Y') . '-';
+                if ($validated['invoice_number'] === "{$prefix}{$expected}") {
+                    $firm->increment('invoice_sequence');
+                }
+            }
         });
 
         // Auto-send invoice email to client contact if action is 'send'
@@ -226,8 +342,23 @@ class InvoiceController extends Controller
 
         $validated = $request->validate([
             'status' => 'sometimes|in:draft,sent,partial,paid,written_off,cancelled',
-            'notes'  => 'nullable|string',
+            'notes'  => 'nullable|string|max:5000',
         ]);
+
+        // Guard rails: cancelled invoices are terminal; paid invoices cannot be reopened.
+        if ($invoice->status === 'cancelled' && ($validated['status'] ?? 'cancelled') !== 'cancelled') {
+            return redirect()->back()->with('error', 'A cancelled invoice cannot be reopened. Duplicate it instead.');
+        }
+
+        if (in_array($invoice->status, ['paid'], true) && ($validated['status'] ?? '') !== 'paid') {
+            return redirect()->back()->with('error', 'A fully paid invoice cannot change status. Record a refund or write it off via support.');
+        }
+
+        // Cancelling releases linked time entries and expenses back to the unbilled pool.
+        if (($validated['status'] ?? null) === 'cancelled' && $invoice->status !== 'cancelled') {
+            TimeEntry::where('invoice_id', $invoice->id)->update(['billed' => false, 'invoice_id' => null]);
+            Expense::where('invoice_id', $invoice->id)->update(['billed' => false, 'invoice_id' => null]);
+        }
 
         if ($request->input('status') === 'sent' && $invoice->status === 'draft') {
             $validated['sent_at'] = now();
@@ -278,9 +409,20 @@ class InvoiceController extends Controller
     {
         $this->authorize('delete', $invoice);
 
-        // Unlink time entries and expenses
+        // Never delete invoices that carry money records or settled statuses.
+        if ($invoice->payments()->exists() || in_array($invoice->status, ['paid', 'partial', 'written_off'], true)) {
+            return redirect()->route('billing.index')
+                ->with('error', 'Invoices with recorded payments or settled statuses cannot be deleted. Cancel the invoice instead.');
+        }
+
+        // Unlink time entries and expenses so they return to the unbilled pool
         TimeEntry::where('invoice_id', $invoice->id)->update(['billed' => false, 'invoice_id' => null]);
         Expense::where('invoice_id', $invoice->id)->update(['billed' => false, 'invoice_id' => null]);
+
+        activity()->causedBy(auth()->user())->performedOn($invoice)->withProperties([
+            'invoice_number' => $invoice->invoice_number,
+            'total'          => $invoice->total,
+        ])->log('invoice_deleted');
 
         $invoice->delete();
 
@@ -364,6 +506,14 @@ class InvoiceController extends Controller
 
     private function getNextInvoiceNumber(string $firmId): string
     {
+        $firm = Firm::find($firmId);
+
+        if ($firm) {
+            // Preview only: mirrors TimeController's sequence+increment scheme.
+            $number = str_pad((string) ($firm->invoice_sequence + 1), 4, '0', STR_PAD_LEFT);
+            return "{$firm->invoice_prefix}-" . date('Y') . "-{$number}";
+        }
+
         $count = Invoice::where('firm_id', $firmId)->count() + 1;
         return 'INV-' . date('Y') . '-' . str_pad($count, 4, '0', STR_PAD_LEFT);
     }

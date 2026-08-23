@@ -119,7 +119,7 @@ class MatterController extends Controller
         // loaded for roles that can view financials (firm_admin, accounts).
         if ($viewFinancial) {
             $matter->load([
-                'invoices' => fn ($q) => $q->latest()->take(5),
+                'invoices' => fn ($q) => $q->latest()->take(5)->withSum('payments as amount_paid', 'amount'),
                 'expenses' => fn ($q) => $q->latest()->take(10),
                 'trustEntries' => fn ($q) => $q->latest()->take(10),
             ]);

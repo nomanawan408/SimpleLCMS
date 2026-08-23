@@ -25,6 +25,8 @@ class Invoice extends Model
         'sent_at', 'paid_at', 'stripe_payment_intent_id', 'notes',
     ];
 
+    protected $appends = ['amount_paid', 'amount_outstanding'];
+
     protected function casts(): array
     {
         return [
@@ -51,11 +53,17 @@ class Invoice extends Model
 
     public function getAmountPaidAttribute(): float
     {
+        // When payments are eager-loaded or aliased via withSum(... as amount_paid),
+        // the DB attribute takes precedence and this accessor is never reached.
+        if ($this->relationLoaded('payments')) {
+            return (float) $this->payments->sum('amount');
+        }
+
         return (float) $this->payments()->sum('amount');
     }
 
     public function getAmountOutstandingAttribute(): float
     {
-        return max(0, $this->total - $this->amount_paid);
+        return max(0, round((float) $this->total - $this->amount_paid, 2));
     }
 }

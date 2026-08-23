@@ -33,6 +33,13 @@ const ACTION_COLORS: Record<string, 'success' | 'destructive' | 'default' | 'sec
     uploaded: 'default',
 };
 
+const ACTION_BADGE_STYLES: Record<string, string> = {
+    created: 'bg-success/15 text-success border-success/25',
+    deleted: 'bg-destructive/15 text-destructive border-destructive/25',
+    updated: 'bg-primary/15 text-primary border-primary/25',
+    uploaded: 'bg-info/15 text-info border-info/25',
+};
+
 export default function ActivitiesIndex({ activities }: Props) {
     return (
         <AppLayout title="Activity Log">
@@ -50,17 +57,17 @@ export default function ActivitiesIndex({ activities }: Props) {
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm">
                                 <thead>
-                                    <tr className="border-b bg-muted/30 text-muted-foreground">
-                                        <th className="text-left px-4 py-3 font-medium">Date / Time</th>
-                                        <th className="text-left px-4 py-3 font-medium">User</th>
-                                        <th className="text-left px-4 py-3 font-medium">Action</th>
-                                        <th className="text-left px-4 py-3 font-medium">Subject</th>
-                                        <th className="text-left px-4 py-3 font-medium">Details</th>
+                                    <tr className="border-b border-border/60 bg-muted/20">
+                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs uppercase tracking-wider">Date / Time</th>
+                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs uppercase tracking-wider">User</th>
+                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs uppercase tracking-wider">Action</th>
+                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs uppercase tracking-wider">Subject</th>
+                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs uppercase tracking-wider">Details</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-border/60">
                                     {activities.data.map((item) => (
-                                        <tr key={item.id} className="hover:bg-muted/30">
+                                        <tr key={item.id} className="hover:bg-muted/40 transition-colors">
                                             <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
                                                 {formatDate(item.created_at, {
                                                     day: '2-digit',
@@ -70,16 +77,13 @@ export default function ActivitiesIndex({ activities }: Props) {
                                                     minute: '2-digit',
                                                 })}
                                             </td>
-                                            <td className="px-4 py-3 font-medium">
+                                            <td className="px-4 py-3 font-medium text-foreground">
                                                 {item.causer?.full_name ?? 'System'}
                                             </td>
                                             <td className="px-4 py-3">
-                                                <Badge
-                                                    variant={ACTION_COLORS[item.description] ?? 'secondary'}
-                                                    className="text-xs capitalize"
-                                                >
+                                                <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize ${ACTION_BADGE_STYLES[item.description] ?? 'bg-muted text-muted-foreground border-border'}`}>
                                                     {item.description}
-                                                </Badge>
+                                                </span>
                                             </td>
                                             <td className="px-4 py-3 text-muted-foreground">
                                                 {subjectLabel(item.subject_type)}

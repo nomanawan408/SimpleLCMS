@@ -1,143 +1,214 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { useState, useEffect, useRef } from 'react';
 import AppLayout from '@/Layouts/AppLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { formatCurrency, formatDate } from '@/lib/utils';
-import { Plus, Search, FileText, AlertCircle, CheckCircle, Clock } from 'lucide-react';
+import { formatCurrency, formatDate, cn } from '@/lib/utils';
+import { Plus, Search, FileText, AlertCircle, CheckCircle, Clock, X, Filter, Calendar, Briefcase, User } from 'lucide-react';
 import type { Invoice, PaginatedData } from '@/types';
 
 function useDebounce(value: string, delay: number) {
     const [debounced, setDebounced] = useState(value);
-    useEffect(() => {
-        const t = setTimeout(() => setDebounced(value), delay);
-        return () => clearTimeout(t);
-    }, [value, delay]);
+    useEffect(() => { const t = setTimeout(() => setDebounced(value), delay); return () => clearTimeout(t); }, [value, delay]);
     return debounced;
 }
 
 interface Props {
-    invoices: PaginatedData<Invoice>;
-    stats: {
-        total_outstanding: number;
-        overdue_amount: number;
-        paid_this_month: number;
-    };
-    filters: { status?: string; search?: string };
+    invoices: PaginatedData<Invoice & { amount_paid?: number }>;
+    stats: { total_outstanding: number; overdue_amount: number; paid_this_month: number; draft_count: number; };
+    filters: { status?: string; search?: string; matter_id?: string; user_id?: string; timeframe?: string; date_from?: string; date_to?: string; date_field?: string; };
+    filterOptions: { matters: { id: string; name: string; matter_number: string }[]; users: { id: string; full_name: string }[]; };
 }
 
 const statusVariant: Record<string, 'default' | 'success' | 'warning' | 'destructive' | 'secondary'> = {
-    draft:       'secondary',
-    sent:        'warning',
-    partial:     'warning',
-    paid:        'success',
-    written_off: 'secondary',
-    cancelled:   'destructive',
+    draft: 'secondary', sent: 'warning', partial: 'warning', paid: 'success', written_off: 'secondary', cancelled: 'destructive',
 };
-
 const statusLabel: Record<string, string> = {
-    draft:       'Draft',
-    sent:        'Sent',
-    partial:     'Partial',
-    paid:        'Paid',
-    written_off: 'Written Off',
-    cancelled:   'Cancelled',
+    draft: 'Draft', sent: 'Sent', partial: 'Partial', paid: 'Paid', written_off: 'Written Off', cancelled: 'Cancelled',
 };
+const TIMEFRAMES = [
+    { value: 'all', label: 'All Time' }, { value: 'today', label: 'Today' }, { value: 'week', label: 'Week' },
+    { value: 'month', label: 'Month' }, { value: 'quarter', label: 'Quarter' }, { value: 'ytd', label: 'YTD' }, { value: 'custom', label: 'Custom' },
+];
 
-export default function BillingIndex({ invoices, stats, filters }: Props) {
+export default function BillingIndex({ invoices, stats, filters, filterOptions }: Props) {
     const [search, setSearch] = useState(filters.search ?? '');
     const [status, setStatus] = useState(filters.status ?? 'all');
-    const debounced           = useDebounce(search, 300);
-    const isFirstRun          = useRef(true);
+    const [timeframe, setTimeframe] = useState(filters.timeframe ?? 'all');
+    const [dateFrom, setDateFrom] = useState(filters.date_from ?? '');
+    const [dateTo, setDateTo] = useState(filters.date_to ?? '');
+    const [matterId, setMatterId] = useState(filters.matter_id ?? 'all');
+    const [userId, setUserId] = useState(filters.user_id ?? 'all');
+    const debounced = useDebounce(search, 300);
+    const isFirstRun = useRef(true);
 
-    useEffect(() => {
-        if (isFirstRun.current) { isFirstRun.current = false; return; }
-        router.get('/billing', {
+    const buildParams = (overrides: Record<string, string | undefined> = {}) => {
+        const base: Record<string, string | undefined> = {
             search: debounced || undefined,
             status: status === 'all' ? undefined : status,
-        }, { preserveState: true, replace: true });
-    }, [debounced, status]);
+            timeframe: timeframe !== 'all' ? timeframe : undefined,
+            date_from: timeframe === 'custom' && dateFrom ? dateFrom : undefined,
+            date_to: timeframe === 'custom' && dateTo ? dateTo : undefined,
+            matter_id: matterId !== 'all' ? matterId : undefined,
+            user_id: userId !== 'all' ? userId : undefined,
+        };
+        return { ...base, ...overrides };
+    };
+
+    const pushFilters = (overrides: Record<string, string | undefined> = {}) => {
+        router.get('/billing', buildParams(overrides) as any, { preserveState: true, replace: true });
+    };
+
+    // Search is debounced; all other filters are reactive via direct handlers below.
+    useEffect(() => {
+        if (isFirstRun.current) { isFirstRun.current = false; return; }
+        router.get('/billing', buildParams() as any, { preserveState: true, replace: true });
+        // eslint-disable-next-line
+    }, [debounced]);
+
+    const applyFilters = () => pushFilters();
+    const clearFilters = () => {
+        setSearch(''); setStatus('all'); setTimeframe('all'); setDateFrom(''); setDateTo(''); setMatterId('all'); setUserId('all');
+        router.get('/billing', {}, { preserveState: true, replace: true });
+    };
+
+    const handleStatusChange = (v: string) => {
+        setStatus(v);
+        router.get('/billing', buildParams({ status: v === 'all' ? undefined : v }) as any, { preserveState: true, replace: true });
+    };
+    const handleMatterChange = (v: string) => {
+        setMatterId(v);
+        router.get('/billing', buildParams({ matter_id: v === 'all' ? undefined : v }) as any, { preserveState: true, replace: true });
+    };
+    const handleUserChange = (v: string) => {
+        setUserId(v);
+        router.get('/billing', buildParams({ user_id: v === 'all' ? undefined : v }) as any, { preserveState: true, replace: true });
+    };
+    const handleTimeframe = (v: string) => {
+        setTimeframe(v);
+        // When switching away from custom, drop dates; when to custom, keep current dates
+        const params: Record<string, string | undefined> = {
+            timeframe: v === 'all' ? undefined : v,
+            date_from: v === 'custom' && dateFrom ? dateFrom : undefined,
+            date_to: v === 'custom' && dateTo ? dateTo : undefined,
+        };
+        router.get('/billing', buildParams(params) as any, { preserveState: true, replace: true });
+    };
+    const handleDateChange = (field: 'date_from' | 'date_to', value: string) => {
+        if (field === 'date_from') setDateFrom(value);
+        else setDateTo(value);
+        // Apply only when both dates present or on blur; push immediately for responsiveness
+        const nextFrom = field === 'date_from' ? value : dateFrom;
+        const nextTo = field === 'date_to' ? value : dateTo;
+        if (timeframe === 'custom' && nextFrom && nextTo) {
+            router.get('/billing', buildParams({ date_from: nextFrom, date_to: nextTo }) as any, { preserveState: true, replace: true });
+        }
+    };
+
+    const hasActiveFilters = status !== 'all' || timeframe !== 'all' || matterId !== 'all' || userId !== 'all' || !!search;
 
     return (
         <AppLayout title="Billing">
             <Head title="Billing" />
 
-            {/* Stats */}
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 mb-8">
-                <Card className="surface-card">
-                    <CardContent className="p-4">
-                        <div className="flex items-start justify-between">
-                            <div>
-                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-[0.05em]">Outstanding</p>
-                                <p className="mt-1 text-2xl font-bold text-warning">{formatCurrency(stats.total_outstanding)}</p>
-                            </div>
-                            <div className="bg-warning/15 p-2 rounded-md">
-                                <Clock className="h-5 w-5 text-warning" />
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-                <Card className="surface-card">
-                    <CardContent className="p-4">
-                        <div className="flex items-start justify-between">
-                            <div>
-                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-[0.05em]">Overdue</p>
-                                <p className="mt-1 text-2xl font-bold text-destructive">{formatCurrency(stats.overdue_amount)}</p>
-                            </div>
-                            <div className="bg-destructive/15 p-2 rounded-md">
-                                <AlertCircle className="h-5 w-5 text-destructive" />
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-                <Card className="surface-card">
-                    <CardContent className="p-4">
-                        <div className="flex items-start justify-between">
-                            <div>
-                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-[0.05em]">Paid This Month</p>
-                                <p className="mt-1 text-2xl font-bold text-success">{formatCurrency(stats.paid_this_month)}</p>
-                            </div>
-                            <div className="bg-success/15 p-2 rounded-md">
-                                <CheckCircle className="h-5 w-5 text-success" />
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+                <div>
+                    <h1 className="text-2xl font-bold tracking-tight">Billing</h1>
+                    <p className="text-sm text-muted-foreground mt-1">Invoices, payments and outstanding — filter by timeframe, matter and team.</p>
+                </div>
+                <Button asChild className="rounded-xl gap-2 bg-primary"><Link href="/billing/create"><Plus className="h-4 w-4" /> New Invoice</Link></Button>
             </div>
 
-            {/* Filters */}
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-8">
-                <div className="flex gap-2 flex-1 max-w-md">
-                    <div className="relative flex-1">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                            className="pl-9"
-                            placeholder="Search invoices..."
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                        />
+            {/* Stats - 4 cards */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-6">
+                {[
+                    { label: 'Outstanding', value: formatCurrency(stats.total_outstanding), icon: Clock, color: 'text-warning', bg: 'bg-warning/15' },
+                    { label: 'Overdue', value: formatCurrency(stats.overdue_amount), icon: AlertCircle, color: 'text-destructive', bg: 'bg-destructive/15' },
+                    { label: 'Collected', value: formatCurrency(stats.paid_this_month), sub: timeframe !== 'all' ? 'Filtered period' : 'This month', icon: CheckCircle, color: 'text-success', bg: 'bg-success/15' },
+                    { label: 'Drafts', value: String(stats.draft_count), icon: FileText, color: 'text-muted-foreground', bg: 'bg-muted' },
+                ].map(s => (
+                    <Card key={s.label} className="surface-card"><CardContent className="p-4 flex items-start justify-between">
+                        <div>
+                            <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">{s.label}</p>
+                            <p className={cn('mt-1 text-2xl font-bold tracking-tight', s.color)}>{s.value}</p>
+                            {s.sub && <p className="text-xs text-muted-foreground mt-0.5">{s.sub}</p>}
+                        </div>
+                        <div className={cn('p-2 rounded-xl', s.bg)}><s.icon className={cn('h-5 w-5', s.color)} /></div>
+                    </CardContent></Card>
+                ))}
+            </div>
+
+            {/* Enterprise Filter Bar */}
+            <Card className="surface-card border border-border/60 mb-6">
+                <CardContent className="p-4 space-y-4">
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                        <div className="space-y-2">
+                            <Label className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5"><Calendar className="h-3 w-3" /> Timeframe</Label>
+                            <div className="flex flex-wrap gap-1.5">
+                                {TIMEFRAMES.map(t => (
+                                    <button key={t.value} onClick={() => handleTimeframe(t.value)} className={cn('rounded-full px-3.5 py-1.5 text-xs font-medium border transition-colors', timeframe === t.value ? 'bg-primary text-primary-foreground border-primary shadow-sm' : 'bg-muted text-muted-foreground border-transparent hover:bg-muted/80 hover:text-foreground')}>{t.label}</button>
+                                ))}
+                            </div>
+                            {timeframe === 'custom' && (
+                                <div className="flex gap-2 pt-1">
+                                    <Input type="date" value={dateFrom} onChange={e => handleDateChange('date_from', e.target.value)} className="h-9 rounded-xl w-[160px]" />
+                                    <span className="self-center text-muted-foreground">—</span>
+                                    <Input type="date" value={dateTo} onChange={e => handleDateChange('date_to', e.target.value)} className="h-9 rounded-xl w-[160px]" />
+                                </div>
+                            )}
+                        </div>
+                        <div className="flex gap-2 shrink-0">
+                            <Button onClick={applyFilters} className="h-9 rounded-xl px-5 gap-1.5"><Filter className="h-3.5 w-3.5" /> Apply</Button>
+                            <Button variant="ghost" onClick={clearFilters} disabled={!hasActiveFilters} className="h-9 rounded-xl gap-1 disabled:opacity-40"><X className="h-3.5 w-3.5" /> Clear</Button>
+                        </div>
                     </div>
-                    <Select value={status} onValueChange={setStatus}>
-                        <SelectTrigger className="w-32">
-                            <SelectValue placeholder="Status" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">All</SelectItem>
-                            <SelectItem value="draft">Draft</SelectItem>
-                            <SelectItem value="sent">Sent</SelectItem>
-                            <SelectItem value="paid">Paid</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
-                <Button asChild>
-                    <Link href="/billing/create">
-                        <Plus className="h-4 w-4 mr-2" />
-                        New Invoice
-                    </Link>
-                </Button>
+
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input className="pl-9 h-9 rounded-xl" placeholder="Invoice # or matter..." value={search} onChange={e => setSearch(e.target.value)} />
+                        </div>
+                        <Select value={status} onValueChange={handleStatusChange}>
+                            <SelectTrigger className="h-9 rounded-xl"><SelectValue placeholder="Status" /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All statuses</SelectItem>
+                                <SelectItem value="draft">Draft</SelectItem><SelectItem value="sent">Sent</SelectItem><SelectItem value="partial">Partial</SelectItem>
+                                <SelectItem value="paid">Paid</SelectItem><SelectItem value="written_off">Written Off</SelectItem><SelectItem value="cancelled">Cancelled</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <Select value={matterId} onValueChange={handleMatterChange}>
+                            <SelectTrigger className="h-9 rounded-xl"><span className="flex items-center gap-1.5"><Briefcase className="h-3.5 w-3.5 text-muted-foreground" /> <SelectValue placeholder="All matters" /></span></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All matters</SelectItem>
+                                {filterOptions.matters.map(m => <SelectItem key={m.id} value={m.id}>{m.matter_number} — {m.name}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                        <Select value={userId} onValueChange={handleUserChange}>
+                            <SelectTrigger className="h-9 rounded-xl"><span className="flex items-center gap-1.5"><User className="h-3.5 w-3.5 text-muted-foreground" /> <SelectValue placeholder="All users" /></span></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All users</SelectItem>
+                                {filterOptions.users.map(u => <SelectItem key={u.id} value={u.id}>{u.full_name}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </CardContent>
+            </Card>
+
+            {/* Status pills quick filter */}
+            <div className="flex flex-wrap gap-1.5 mb-4">
+                {['all', 'draft', 'sent', 'partial', 'paid', 'overdue'].map(s => {
+                    const active = (s === 'all' ? status === 'all' : status === s) || (s === 'overdue' && status === 'sent');
+                    return (
+                        <button key={s} onClick={() => handleStatusChange(s === 'overdue' ? 'sent' : s)}
+                            className={cn('rounded-full px-3 py-1 text-xs font-medium border transition-colors capitalize', active ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border text-muted-foreground hover:bg-muted')}>
+                            {s}
+                        </button>
+                    );
+                })}
             </div>
 
             {/* Invoices Table */}
@@ -145,83 +216,50 @@ export default function BillingIndex({ invoices, stats, filters }: Props) {
                 <CardContent className="p-0">
                     {invoices.data.length === 0 ? (
                         <div className="py-16 text-center">
-                            <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                            <p className="text-muted-foreground text-sm mb-4">No invoices found.</p>
-                            <Button asChild size="sm">
-                                <Link href="/billing/create">Create your first invoice</Link>
-                            </Button>
+                            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-muted mb-4"><FileText className="h-7 w-7 text-muted-foreground" /></div>
+                            <p className="font-medium">No invoices found</p>
+                            <p className="text-sm text-muted-foreground mt-1">Try adjusting filters or create a new invoice.</p>
+                            <div className="flex gap-2 justify-center mt-4">
+                                {hasActiveFilters && <Button variant="outline" size="sm" onClick={clearFilters} className="rounded-xl">Clear filters</Button>}
+                                <Button asChild size="sm" className="rounded-xl"><Link href="/billing/create">New Invoice</Link></Button>
+                            </div>
                         </div>
                     ) : (
                         <div className="overflow-x-auto">
-                            <table className="w-full text-sm">
-                                <thead>
-                                    <tr className="border-b bg-muted/30">
-                                        <th className="text-left px-4 py-3 font-medium text-muted-foreground tracking-tight">Invoice #</th>
-                                        <th className="text-left px-4 py-3 font-medium text-muted-foreground tracking-tight">Matter</th>
-                                        <th className="text-left px-4 py-3 font-medium text-muted-foreground tracking-tight hidden md:table-cell">Date</th>
-                                        <th className="text-left px-4 py-3 font-medium text-muted-foreground tracking-tight hidden lg:table-cell">Due Date</th>
-                                        <th className="text-right px-4 py-3 font-medium text-muted-foreground tracking-tight">Amount</th>
-                                        <th className="text-left px-4 py-3 font-medium text-muted-foreground tracking-tight">Status</th>
-                                    </tr>
-                                </thead>
+                            <table className="w-full">
+                                <thead><tr className="border-b bg-muted/30"><th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Invoice #</th><th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Matter</th><th className="hidden md:table-cell text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Date</th><th className="hidden lg:table-cell text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Due</th><th className="text-right px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Amount</th><th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Status</th></tr></thead>
                                 <tbody className="divide-y divide-border/60">
-                                    {invoices.data.map((invoice) => (
-                                        <tr
-                                            key={invoice.id}
-                                            className="hover:bg-muted/40 cursor-pointer transition-colors"
-                                            onClick={() => router.visit(`/billing/${invoice.id}`)}
-                                        >
-                                            <td className="px-4 py-3">
-                                                <p className="font-medium">{invoice.invoice_number}</p>
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                <p className="font-medium">{invoice.matter?.name}</p>
-                                                <p className="text-xs text-muted-foreground">{invoice.matter?.responsible_user?.full_name}</p>
-                                            </td>
-                                            <td className="px-4 py-3 hidden md:table-cell text-muted-foreground">
-                                                {formatDate(invoice.created_at)}
-                                            </td>
-                                            <td className="px-4 py-3 hidden lg:table-cell text-muted-foreground">
-                                                {formatDate(invoice.due_date)}
-                                            </td>
-                                            <td className="px-4 py-3 text-right font-medium">
-                                                {formatCurrency(invoice.total)}
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                <Badge variant={statusVariant[invoice.status]}>
-                                                    {statusLabel[invoice.status]}
-                                                </Badge>
-                                            </td>
-                                        </tr>
-                                    ))}
+                                    {invoices.data.map((invoice: any) => {
+                                        const paid = Number(invoice.amount_paid ?? 0);
+                                        const outstanding = Math.max(0, Number(invoice.total) - paid);
+                                        const isOverdue = ['sent', 'partial'].includes(invoice.status) && invoice.due_date && new Date(invoice.due_date) < new Date();
+                                        return (
+                                            <tr key={invoice.id} className="group hover:bg-muted/40 cursor-pointer transition-colors" onClick={() => router.visit(`/billing/${invoice.id}`)}>
+                                                <td className="px-4 py-3"><p className="font-medium text-sm">{invoice.invoice_number}</p></td>
+                                                <td className="px-4 py-3"><p className="font-medium text-sm truncate max-w-[180px]">{invoice.matter?.name}</p><p className="text-xs text-muted-foreground truncate">{invoice.matter?.responsible_user?.full_name}</p></td>
+                                                <td className="hidden md:table-cell px-4 py-3 text-muted-foreground text-sm">{formatDate(invoice.created_at)}</td>
+                                                <td className="hidden lg:table-cell px-4 py-3 text-sm">
+                                                    <span className={cn(isOverdue && 'text-destructive font-medium')}>{formatDate(invoice.due_date)}</span>
+                                                    {isOverdue && <Badge variant="destructive" className="ml-2 text-[10px] rounded-full">Overdue</Badge>}
+                                                </td>
+                                                <td className="px-4 py-3 text-right">
+                                                    <p className="font-medium text-sm tabular-nums">{formatCurrency(invoice.total)}</p>
+                                                    {invoice.status === 'partial' && <p className="text-xs text-muted-foreground tabular-nums">{formatCurrency(paid)} paid • {formatCurrency(outstanding)} due</p>}
+                                                </td>
+                                                <td className="px-4 py-3"><Badge variant={statusVariant[invoice.status]} className="rounded-full text-xs">{statusLabel[invoice.status]}</Badge></td>
+                                            </tr>
+                                        );
+                                    })}
                                 </tbody>
                             </table>
                         </div>
                     )}
-
-                    {/* Pagination */}
                     {invoices.last_page > 1 && (
                         <div className="flex items-center justify-between px-4 py-4 border-t">
-                            <p className="text-sm text-muted-foreground">
-                                Showing {invoices.from} to {invoices.to} of {invoices.total}
-                            </p>
+                            <p className="text-sm text-muted-foreground">Showing {invoices.from} to {invoices.to} of {invoices.total}</p>
                             <div className="flex gap-2">
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    disabled={!invoices.prev_page_url}
-                                    onClick={() => invoices.prev_page_url && router.visit(invoices.prev_page_url)}
-                                >
-                                    Previous
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    disabled={!invoices.next_page_url}
-                                    onClick={() => invoices.next_page_url && router.visit(invoices.next_page_url)}
-                                >
-                                    Next
-                                </Button>
+                                <Button variant="outline" size="sm" className="rounded-xl" disabled={!invoices.prev_page_url} onClick={() => invoices.prev_page_url && router.visit(invoices.prev_page_url)}>Previous</Button>
+                                <Button variant="outline" size="sm" className="rounded-xl" disabled={!invoices.next_page_url} onClick={() => invoices.next_page_url && router.visit(invoices.next_page_url)}>Next</Button>
                             </div>
                         </div>
                     )}
