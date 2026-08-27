@@ -8,7 +8,8 @@
     <link rel="apple-touch-icon" href="{{ asset('assets/simplelaw-logo-primary.png') }}">
     <meta name="theme-color" content="#01B88E">
     <title inertia>{{ config('app.name', 'Simple Lawyer') }}</title>
-    @routes
+    {{-- Same nonce the SecurityHeaders middleware put in the CSP. --}}
+    @routes(null, Vite::cspNonce())
     @viteReactRefresh
     @vite(['resources/css/app.css', 'resources/js/app.tsx'])
     @inertiaHead

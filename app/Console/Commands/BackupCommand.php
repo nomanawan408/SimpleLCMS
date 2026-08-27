@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Support\BackupArchive;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -19,10 +20,10 @@ class BackupCommand extends Command
         $this->info("Starting backup at {$start->format('Y-m-d H:i:s')}");
 
         $backupName = 'backup-' . $start->format('Y-m-d-H-i-s') . '-' . substr(md5(uniqid()), 0, 8);
-        $backupDir = storage_path("app/backups/{$backupName}");
-        
+        $backupDir = BackupArchive::directory()."/{$backupName}";
+
         if (!is_dir($backupDir)) {
-            mkdir($backupDir, 0755, true);
+            mkdir($backupDir, 0700, true);
         }
 
         try {
@@ -85,7 +86,6 @@ class BackupCommand extends Command
             "--host={$host}",
             "--port={$port}",
             "--user={$username}",
-            "--password={$password}",
             '--single-transaction',
             '--routines',
             '--triggers',
@@ -93,7 +93,9 @@ class BackupCommand extends Command
             $database
         ];
 
-        return new Process($command, null, null, null, 300);
+        // MYSQL_PWD rather than --password=: process arguments are readable by
+        // any local account via /proc, the environment is not.
+        return new Process($command, null, ['MYSQL_PWD' => $password], null, 300);
     }
 
     private function createPostgresDumpProcess(array $config): Process
@@ -150,13 +152,20 @@ class BackupCommand extends Command
 
     private function createArchive(string $backupDir, string $backupName): string
     {
-        $archivePath = storage_path("app/backups/{$backupName}.tar.gz");
+        $archivePath = BackupArchive::directory()."/{$backupName}.tar.gz";
         
         $process = new Process([
             'tar', '-czf', $archivePath, '-C', dirname($backupDir), $backupName
         ]);
         
         $process->mustRun();
+
+        @chmod($archivePath, 0600);
+
+        // Record provenance now, so restore can prove this archive came from
+        // this installation rather than from an attacker.
+        BackupArchive::sign($archivePath);
+
         return $archivePath;
     }
 
@@ -171,8 +180,8 @@ class BackupCommand extends Command
     private function cleanupOldBackups(): void
     {
         $this->info('Cleaning up old backups...');
-        $backupsDir = storage_path('app/backups');
-        
+        $backupsDir = BackupArchive::directory();
+
         if (!is_dir($backupsDir)) return;
 
         $files = glob("{$backupsDir}/backup-*.tar.gz");
@@ -185,6 +194,7 @@ class BackupCommand extends Command
         $toDelete = array_slice($files, 5);
         foreach ($toDelete as $file) {
             unlink($file);
+            @unlink(BackupArchive::signaturePathFor($file));
             $this->line("Deleted old backup: " . basename($file));
         }
     }

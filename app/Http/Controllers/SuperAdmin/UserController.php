@@ -7,8 +7,8 @@ use App\Models\Firm;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Password;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -53,8 +53,8 @@ class UserController extends Controller
 
         $validated = $request->validate([
             'full_name' => ['sometimes', 'string', 'max:255'],
-            'email'     => ['sometimes', 'email', 'max:255'],
-            'role'      => ['sometimes', 'string', 'max:50'],
+            'email'     => ['sometimes', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
+            'role'      => ['sometimes', 'string', Rule::exists('roles', 'name')->where('guard_name', 'web')],
             'is_active' => ['sometimes', 'boolean'],
             'firm_id'   => ['sometimes', 'nullable', 'string', 'exists:firms,id'],
         ]);
@@ -90,11 +90,17 @@ class UserController extends Controller
     {
         abort_unless($request->user()->hasRole('super_admin'), 403);
 
-        $newPassword = Str::random(12);
-        $user->update(['password' => Hash::make($newPassword)]);
+        // Never mint a plaintext password and echo it back -- a flash message
+        // travels through the session into the page payload and any log or APM
+        // that captures response bodies. Send a signed, expiring link instead.
+        $status = Password::sendResetLink(['email' => $user->email]);
 
-        activity()->causedBy($request->user())->performedOn($user)->log('password_reset_by_superadmin');
+        activity()->causedBy($request->user())->performedOn($user)->log('password_reset_link_sent_by_superadmin');
 
-        return back()->with('success', "Password reset for '{$user->full_name}'. New password: {$newPassword}");
+        if ($status !== Password::RESET_LINK_SENT) {
+            return back()->with('error', "Could not send a reset link to {$user->email}.");
+        }
+
+        return back()->with('success', "A password reset link has been emailed to {$user->email}.");
     }
 }

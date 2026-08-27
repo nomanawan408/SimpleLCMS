@@ -12,8 +12,10 @@ use App\Policies\FirmPolicy;
 use App\Policies\InvoicePolicy;
 use App\Policies\MatterPolicy;
 use App\Policies\UserPolicy;
+use App\Support\TenantContext;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
+use Laravel\Horizon\Horizon;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -22,7 +24,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // One tenant per request; resolved by the SetTenant middleware and
+        // read by the BelongsToFirm global scope.
+        $this->app->singleton(TenantContext::class);
     }
 
     /**
@@ -48,5 +52,15 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('admin-panel', fn (User $user): bool =>
             $user->is_active && ($user->hasRole('firm_admin') || $user->hasPermissionTo('manage_users'))
         );
+
+        // Horizon exposes job payloads and failed-job traces, which routinely
+        // carry client data. Without an explicit gate it falls back to
+        // `app()->environment('local')`, which is open to anyone in a local or
+        // misconfigured deployment.
+        Gate::define('viewHorizon', fn (User $user): bool =>
+            $user->is_active && $user->hasRole('super_admin')
+        );
+
+        Horizon::auth(fn ($request) => Gate::forUser($request->user())->allows('viewHorizon'));
     }
 }

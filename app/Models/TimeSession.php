@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToFirm;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class TimeSession extends Model
 {
-    use HasUuids;
+    use BelongsToFirm, HasUuids;
 
     protected $keyType = 'string';
     public $incrementing = false;

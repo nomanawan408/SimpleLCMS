@@ -93,9 +93,14 @@ class DocumentTest extends TestCase
 
         $file = UploadedFile::fake()->create('doc.pdf', 50, 'application/pdf');
 
+        // The matter_id rule is firm-scoped, so another firm's matter is not
+        // a valid value -- and the BelongsToFirm scope means it is not
+        // visible either. Both fail closed.
         $this->actingAsUser($user)->post('/documents', [
             'file'      => $file,
             'matter_id' => $matter2->id,
-        ])->assertStatus(403);
+        ])->assertSessionHasErrors('matter_id');
+
+        $this->assertDatabaseCount('documents', 0);
     }
 }

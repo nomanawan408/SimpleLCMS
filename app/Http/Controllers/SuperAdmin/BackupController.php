@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\SuperAdmin;
 
 use App\Http\Controllers\Controller;
+use App\Support\BackupArchive;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Artisan;
@@ -44,66 +45,97 @@ class BackupController extends Controller
     public function download(Request $request, string $filename)
     {
         $this->authorizeSuperAdmin();
-        
-        $backupPath = storage_path("app/backups/{$filename}");
-        
-        if (!file_exists($backupPath)) {
+
+        // BackupArchive::pathFor() strips any directory component and admits
+        // only names this system generates, so a route parameter can never
+        // point outside the backup directory.
+        try {
+            $backupPath = BackupArchive::pathFor($filename);
+        } catch (\RuntimeException) {
             abort(404);
         }
-        
-        return Response::download($backupPath, $filename);
+
+        if (! is_file($backupPath)) {
+            abort(404);
+        }
+
+        return Response::download($backupPath, basename($backupPath));
     }
     
     public function restore(Request $request)
     {
         $this->authorizeSuperAdmin();
-        
-        $request->validate([
-            'backup_file' => 'required|file|mimes:gz,tar,gzip|max:102400', // 100MB max
+
+        // Restoring replays SQL with full database privileges. It runs only
+        // against archives this system produced and signed -- an uploaded
+        // archive would be arbitrary SQL from an untrusted source.
+        $validated = $request->validate([
+            'filename' => ['required', 'string', 'max:255'],
         ]);
-        
-        $file = $request->file('backup_file');
-        $originalName = $file->getClientOriginalName();
-        
-        // Store temporarily
-        $tempPath = $file->storeAs('backups/temp', $originalName, 'local');
-        $fullPath = storage_path("app/{$tempPath}");
-        
+
         try {
-            // Run restore command
-            $exitCode = Artisan::call('app:restore', [
-                'file' => $fullPath,
-                '--force' => true
-            ]);
-            
-            // Clean up temp file
-            unlink($fullPath);
-            
-            if ($exitCode === 0) {
-                return back()->with('success', 'System restored successfully. You may need to log in again.');
-            } else {
-                return back()->with('error', 'Restore failed');
-            }
-        } catch (\Exception $e) {
-            // Clean up temp file on error
-            if (file_exists($fullPath)) {
-                unlink($fullPath);
-            }
-            return back()->with('error', 'Restore failed: ' . $e->getMessage());
+            $backupPath = BackupArchive::pathFor($validated['filename']);
+        } catch (\RuntimeException) {
+            return back()->with('error', 'Unknown backup file.');
         }
+
+        if (! is_file($backupPath)) {
+            return back()->with('error', 'That backup no longer exists.');
+        }
+
+        if (! BackupArchive::verify($backupPath)) {
+            activity()->causedBy($request->user())
+                ->withProperties(['filename' => basename($backupPath)])
+                ->log('backup_restore_rejected_unverified');
+
+            return back()->with('error', 'That backup failed its integrity check and was not restored.');
+        }
+
+        activity()->causedBy($request->user())
+            ->withProperties(['filename' => basename($backupPath), 'ip' => $request->ip()])
+            ->log('backup_restore_started');
+
+        try {
+            $exitCode = Artisan::call('app:restore', [
+                'file' => $backupPath,
+                '--force' => true,
+            ]);
+        } catch (\Exception $e) {
+            report($e);
+
+            return back()->with('error', 'Restore failed. See the application log for details.');
+        }
+
+        if ($exitCode !== 0) {
+            return back()->with('error', 'Restore failed. See the application log for details.');
+        }
+
+        activity()->causedBy($request->user())->log('backup_restore_completed');
+
+        return back()->with('success', 'System restored successfully. You may need to log in again.');
     }
-    
+
     public function destroy(Request $request, string $filename)
     {
         $this->authorizeSuperAdmin();
         
-        $backupPath = storage_path("app/backups/{$filename}");
-        
-        if (file_exists($backupPath)) {
+        try {
+            $backupPath = BackupArchive::pathFor($filename);
+        } catch (\RuntimeException) {
+            return back()->with('error', 'Backup not found');
+        }
+
+        if (is_file($backupPath)) {
             unlink($backupPath);
+            @unlink(BackupArchive::signaturePathFor($backupPath));
+
+            activity()->causedBy($request->user())
+                ->withProperties(['filename' => basename($backupPath)])
+                ->log('backup_deleted');
+
             return back()->with('success', 'Backup deleted successfully');
         }
-        
+
         return back()->with('error', 'Backup not found');
     }
     
@@ -114,7 +146,7 @@ class BackupController extends Controller
     
     private function getBackupFiles(): array
     {
-        $backupsDir = storage_path('app/backups');
+        $backupsDir = BackupArchive::directory();
         
         if (!is_dir($backupsDir)) {
             return [];
@@ -127,6 +159,7 @@ class BackupController extends Controller
             $filename = basename($file);
             $backups[] = [
                 'filename' => $filename,
+                'verified' => BackupArchive::verify($file),
                 'size' => filesize($file),
                 'created_at' => filemtime($file),
                 'created_at_formatted' => date('Y-m-d H:i:s', filemtime($file)),

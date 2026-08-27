@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToFirm;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -12,7 +13,7 @@ use Spatie\Activitylog\Models\Concerns\LogsActivity;
 
 class Task extends Model
 {
-    use HasFactory, HasUuids, LogsActivity, SoftDeletes;
+    use BelongsToFirm, HasFactory, HasUuids, LogsActivity, SoftDeletes;
 
     protected $keyType = 'string';
     public $incrementing = false;

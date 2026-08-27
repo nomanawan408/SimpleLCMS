@@ -99,6 +99,7 @@ class FirmController extends Controller
                 'invoice_sequence'   => 1,
                 'payment_terms_days' => 30,
                 'setup_token'        => $setupToken,
+                'setup_token_expires_at' => now()->addHours(72),
             ]);
 
             $tempPassword = Str::random(12);

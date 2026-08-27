@@ -181,7 +181,13 @@ class UserModuleTest extends TestCase
         ])->assertSessionHasErrors('email');
     }
 
-    public function test_same_email_allowed_in_different_firms(): void
+    /**
+     * Email is a login identity, and authentication resolves it globally
+     * (Auth::attempt, sendResetLink, and the email-keyed reset token table).
+     * Two rows sharing one address would make which of them authenticates
+     * undefined, so the address must be unique across every firm.
+     */
+    public function test_same_email_rejected_across_firms(): void
     {
         [$firm, $admin] = $this->createFirmAndAdmin();
 
@@ -194,9 +200,9 @@ class UserModuleTest extends TestCase
             'password'              => 'Password123!',
             'password_confirmation' => 'Password123!',
             'role'                  => 'solicitor',
-        ])->assertRedirect();
+        ])->assertSessionHasErrors('email');
 
-        $this->assertDatabaseHas('users', ['email' => 'shared@email.com', 'firm_id' => $firm->id]);
+        $this->assertDatabaseMissing('users', ['email' => 'shared@email.com', 'firm_id' => $firm->id]);
     }
 
     public function test_create_user_with_optional_fields(): void

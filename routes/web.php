@@ -27,6 +27,9 @@ use App\Http\Controllers\SuperAdmin\BackupController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\TimeController;
 use App\Http\Controllers\TransactionController;
+use Illuminate\Auth\Events\Verified;
+use Illuminate\Foundation\Auth\EmailVerificationRequest;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -52,21 +55,68 @@ Route::middleware('guest')->group(function () {
 });
 
 // --- Firm Setup (public token link) ---
-Route::get('/firm/setup/{token}', [FirmSetupController::class, 'show'])->name('firm.setup.complete');
-Route::put('/firm/setup/{token}', [FirmSetupController::class, 'update'])->name('firm.setup.update');
+// Unauthenticated and password-setting, so both ends are rate limited.
+Route::middleware('throttle:10,1')->group(function () {
+    Route::get('/firm/setup/{token}', [FirmSetupController::class, 'show'])->name('firm.setup.complete');
+    Route::put('/firm/setup/{token}', [FirmSetupController::class, 'update'])->name('firm.setup.update');
+});
 
 // --- Two-Factor ---
 Route::middleware('auth')->group(function () {
+    // The challenge itself is reachable before the second factor is presented.
     Route::get('/two-factor', [TwoFactorController::class, 'challenge'])->name('two-factor.challenge');
-    Route::post('/two-factor', [TwoFactorController::class, 'verify'])->name('two-factor.verify');
-    Route::get('/two-factor/setup', [TwoFactorController::class, 'setup'])->name('two-factor.setup');
-    Route::post('/two-factor/enable', [TwoFactorController::class, 'enable'])->name('two-factor.enable');
-    Route::delete('/two-factor', [TwoFactorController::class, 'disable'])->name('two-factor.disable');
+    Route::post('/two-factor', [TwoFactorController::class, 'verify'])
+        ->middleware('throttle:5,1')
+        ->name('two-factor.verify');
+
+    // Enrolling in or removing 2FA requires a session that has already cleared
+    // the challenge -- otherwise a stolen password alone could disable it.
+    Route::middleware('requires.two.factor')->group(function () {
+        Route::get('/two-factor/setup', [TwoFactorController::class, 'setup'])->name('two-factor.setup');
+        Route::post('/two-factor/enable', [TwoFactorController::class, 'enable'])
+            ->middleware('throttle:5,1')
+            ->name('two-factor.enable');
+        Route::delete('/two-factor', [TwoFactorController::class, 'disable'])
+            ->middleware('throttle:5,1')
+            ->name('two-factor.disable');
+    });
+
     Route::post('/logout', [LoginController::class, 'destroy'])->name('logout');
 });
 
+// --- Email verification ---
+Route::middleware('auth')->group(function () {
+    Route::get('/email/verify', fn (Request $request) => inertia('Auth/VerifyEmail', [
+        'status' => session('status'),
+        'email'  => $request->user()->email,
+    ]))->name('verification.notice');
+
+    // EmailVerificationRequest validates the signature and the id/hash pair.
+    Route::get('/email/verify/{id}/{hash}', function (EmailVerificationRequest $request) {
+        if ($request->user()->hasVerifiedEmail()) {
+            return redirect()->route('dashboard');
+        }
+
+        if ($request->user()->markEmailAsVerified()) {
+            event(new Verified($request->user()));
+        }
+
+        return redirect()->route('dashboard')->with('success', 'Email verified.');
+    })->middleware(['signed', 'throttle:6,1'])->name('verification.verify');
+
+    Route::post('/email/verification-notification', function (Request $request) {
+        if ($request->user()->hasVerifiedEmail()) {
+            return redirect()->route('dashboard');
+        }
+
+        $request->user()->sendEmailVerificationNotification();
+
+        return back()->with('status', 'verification-link-sent');
+    })->middleware('throttle:6,1')->name('verification.send');
+});
+
 // --- Authenticated & Tenant-Scoped ---
-Route::middleware(['auth', 'set.tenant', 'requires.two.factor', 'redirect.super.admin'])->group(function () {
+Route::middleware(['auth', 'verified', 'set.tenant', 'requires.two.factor', 'redirect.super.admin'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     // Matters
@@ -157,7 +207,7 @@ Route::middleware(['auth', 'set.tenant', 'requires.two.factor', 'redirect.super.
 });
 
 // --- Super Admin (Platform Owner) ---
-Route::middleware(['auth', 'requires.two.factor'])->prefix('superadmin')->name('superadmin.')->group(function () {
+Route::middleware(['auth', 'verified', 'requires.two.factor', 'role:super_admin'])->prefix('superadmin')->name('superadmin.')->group(function () {
     Route::get('/dashboard', [SuperAdminDashboardController::class, 'index'])->name('dashboard');
 
     Route::get('/firms', [SuperAdminFirmController::class, 'index'])->name('firms.index');

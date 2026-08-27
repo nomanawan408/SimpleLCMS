@@ -10,6 +10,7 @@ use App\Models\TimeSession;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -122,7 +123,7 @@ class TimeController extends Controller
         $user = $request->user();
 
         $validated = $request->validate([
-            'matter_id'        => ['required', 'uuid', 'exists:matters,id'],
+            'matter_id'        => ['required', 'uuid', Rule::exists('matters', 'id')->where(fn ($q) => $q->where('firm_id', $user->firm_id))],
             'date'             => ['required', 'date'],
             'duration_minutes' => ['required', 'integer', 'min:1'],
             'rate'             => ['nullable', 'numeric', 'min:0'],
@@ -421,7 +422,7 @@ class TimeController extends Controller
     public function startTimer(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'matter_id' => ['required', 'uuid', 'exists:matters,id'],
+            'matter_id' => ['required', 'uuid', Rule::exists('matters', 'id')->where(fn ($q) => $q->where('firm_id', $request->user()->firm_id))],
         ]);
 
         $matter = Matter::where('id', $validated['matter_id'])

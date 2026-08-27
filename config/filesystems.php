@@ -33,7 +33,11 @@ return [
         'local' => [
             'driver' => 'local',
             'root' => storage_path('app/private'),
-            'serve' => true,
+            // Client documents live here. `serve` would register signed
+            // GET/PUT /storage/{path} routes that bypass DocumentController's
+            // permission and firm checks entirely; nothing in the app mints
+            // those URLs, so the routes are pure attack surface.
+            'serve' => false,
             'throw' => false,
             'report' => false,
         ],

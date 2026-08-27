@@ -24,8 +24,11 @@ class Firm extends Model
         'invoice_prefix', 'invoice_sequence', 'vat_rate', 'payment_terms_days',
         'bank_name', 'bank_sort_code', 'bank_account_number', 'bank_account_name',
         'bank_iban', 'bank_swift_code', 'payment_instructions',
-        'setup_token', 'setup_completed_at',
+        'setup_token', 'setup_token_expires_at', 'setup_completed_at',
     ];
+
+    /** The setup token is a credential; never serialise it with the model. */
+    protected $hidden = ['setup_token'];
 
     protected function casts(): array
     {
@@ -33,6 +36,7 @@ class Firm extends Model
             'settings'        => 'array',
             'trial_ends_at'   => 'datetime',
             'setup_completed_at' => 'datetime',
+            'setup_token_expires_at' => 'datetime',
             'default_hourly_rate' => 'decimal:2',
             'vat_rate'        => 'decimal:2',
         ];

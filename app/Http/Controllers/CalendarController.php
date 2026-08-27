@@ -7,6 +7,7 @@ use App\Models\Matter;
 use App\Models\Task;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -89,22 +90,17 @@ class CalendarController extends Controller
     {
         abort_unless($request->user()->hasPermissionTo('create_events'), 403);
 
+        $firmId = $request->user()->firm_id;
+
         $validated = $request->validate([
             'title'        => ['required', 'string', 'max:255'],
             'type'         => ['required', 'in:appointment,court_date,deadline,consultation,other'],
-            'matter_id'    => ['nullable', 'uuid', 'exists:matters,id'],
+            'matter_id'    => ['nullable', 'uuid', Rule::exists('matters', 'id')->where(fn ($q) => $q->where('firm_id', $firmId))],
             'start_at'     => ['required', 'date'],
             'end_at'       => ['nullable', 'date', 'after_or_equal:start_at'],
             'location'     => ['nullable', 'string', 'max:255'],
             'is_court_date' => ['boolean'],
         ]);
-
-        if (!empty($validated['matter_id'])) {
-            $matter = Matter::find($validated['matter_id']);
-            if ($matter && $matter->firm_id !== $request->user()->firm_id) {
-                abort(403);
-            }
-        }
 
         $event = CalendarEvent::create([
             ...$validated,
@@ -126,10 +122,12 @@ class CalendarController extends Controller
             abort(403);
         }
 
+        $firmId = $request->user()->firm_id;
+
         $validated = $request->validate([
             'title'        => ['sometimes', 'required', 'string', 'max:255'],
             'type'         => ['sometimes', 'required', 'in:appointment,court_date,deadline,consultation,other'],
-            'matter_id'    => ['nullable', 'uuid', 'exists:matters,id'],
+            'matter_id'    => ['nullable', 'uuid', Rule::exists('matters', 'id')->where(fn ($q) => $q->where('firm_id', $firmId))],
             'start_at'     => ['sometimes', 'required', 'date'],
             'end_at'       => ['nullable', 'date'],
             'location'     => ['nullable', 'string', 'max:255'],

@@ -442,6 +442,21 @@ class InvoiceController extends Controller
 
         $invoice->load(['matter', 'matter.contacts', 'lineItems']);
 
+        // The invoice carries the firm's bank details, so it may only be sent
+        // to an address already recorded against this matter -- otherwise the
+        // endpoint is a self-service exfiltration channel.
+        $permitted = $invoice->matter?->contacts
+            ->flatMap(fn ($c) => [$c->email, $c->contact_person_email])
+            ->filter()
+            ->map(fn ($email) => strtolower(trim($email)))
+            ->unique();
+
+        if (! $permitted || ! $permitted->contains(strtolower(trim($validated['recipient_email'])))) {
+            return back()->withErrors([
+                'recipient_email' => 'Invoices can only be emailed to a contact on this matter. Add the recipient to the matter first.',
+            ]);
+        }
+
         $firm        = $request->user()->firm;
         $clientName  = $validated['recipient_name']
                     ?? $invoice->matter?->contacts?->first()?->full_name

@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
@@ -64,24 +65,19 @@ class TaskController extends Controller
     {
         abort_unless($request->user()->hasPermissionTo('create_tasks'), 403);
 
+        $firmId = $request->user()->firm_id;
+
         $validated = $request->validate([
             'title'       => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
-            'matter_id'   => ['nullable', 'uuid', 'exists:matters,id'],
-            'assignee_id' => ['nullable', 'uuid', 'exists:users,id'],
+            'matter_id'   => ['nullable', 'uuid', Rule::exists('matters', 'id')->where(fn ($q) => $q->where('firm_id', $firmId))],
+            'assignee_id' => ['nullable', 'uuid', Rule::exists('users', 'id')->where(fn ($q) => $q->where('firm_id', $firmId))],
             'due_date'    => ['nullable', 'date'],
             'priority'    => ['required', 'in:high,medium,low'],
             'status'      => ['sometimes', 'in:todo,in_progress,review,done'],
         ]);
 
         $validated['status'] = $validated['status'] ?? 'todo';
-
-        if (!empty($validated['matter_id'])) {
-            $matter = Matter::find($validated['matter_id']);
-            if ($matter && $matter->firm_id !== $request->user()->firm_id) {
-                abort(403);
-            }
-        }
 
         $task = Task::create([
             ...$validated,
@@ -106,11 +102,13 @@ class TaskController extends Controller
             abort(403);
         }
 
+        $firmId = $request->user()->firm_id;
+
         $validated = $request->validate([
             'title'       => ['sometimes', 'required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
-            'matter_id'   => ['nullable', 'uuid', 'exists:matters,id'],
-            'assignee_id' => ['nullable', 'uuid', 'exists:users,id'],
+            'matter_id'   => ['nullable', 'uuid', Rule::exists('matters', 'id')->where(fn ($q) => $q->where('firm_id', $firmId))],
+            'assignee_id' => ['nullable', 'uuid', Rule::exists('users', 'id')->where(fn ($q) => $q->where('firm_id', $firmId))],
             'due_date'    => ['nullable', 'date'],
             'priority'    => ['sometimes', 'required', 'in:high,medium,low'],
             'status'      => ['sometimes', 'required', 'in:todo,in_progress,review,done'],

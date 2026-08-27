@@ -12,6 +12,10 @@ class ActivityController extends Controller
 {
     public function index(Request $request): Response
     {
+        // Every other read endpoint gates on a permission; this one did not,
+        // so any authenticated user could page the whole firm's audit trail.
+        abort_unless($request->user()->hasPermissionTo('view_reports'), 403);
+
         $firmId = $request->user()->firm_id;
 
         $userIds = User::where('firm_id', $firmId)->pluck('id');

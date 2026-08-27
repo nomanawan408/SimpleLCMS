@@ -10,6 +10,17 @@ use Laravel\Socialite\Facades\Socialite;
 
 class SocialiteController extends Controller
 {
+    /**
+     * Whether the provider states this address has been verified. Without it,
+     * an attacker can register any address at the identity provider.
+     */
+    private function providerVerifiedEmail(object $socialUser): bool
+    {
+        $raw = (array) ($socialUser->user ?? []);
+
+        return ($raw['email_verified'] ?? $raw['verified_email'] ?? false) === true;
+    }
+
     public function redirect(string $provider): RedirectResponse
     {
         abort_unless(in_array($provider, ['google', 'microsoft']), 404);
@@ -29,9 +40,17 @@ class SocialiteController extends Controller
         $field    = $provider === 'google' ? 'google_id' : 'microsoft_id';
         $emailKey = $socialUser->getEmail();
 
-        $user = User::where($field, $socialUser->getId())
-            ->orWhere('email', $emailKey)
-            ->first();
+        // Match on the provider identity only. The previous
+        // `where(provider_id)->orWhere('email')` had no grouping, so anyone
+        // controlling an SSO account with a firm member's address logged in
+        // as that member.
+        $user = User::where($field, $socialUser->getId())->first();
+
+        // Fall back to linking by email only when the provider asserts the
+        // address is verified and no account is linked yet.
+        if (! $user && $emailKey && $this->providerVerifiedEmail($socialUser)) {
+            $user = User::where('email', $emailKey)->whereNull($field)->first();
+        }
 
         if (! $user) {
             return redirect()->route('login')->withErrors([

@@ -2,13 +2,14 @@
 
 namespace App\Console\Commands;
 
+use App\Support\BackupArchive;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\Process\Process;
 
 class RestoreCommand extends Command
 {
-    protected $signature = 'app:restore {file : Backup file path} {--force : Skip confirmation}';
+    protected $signature = 'app:restore {file : Backup file path} {--force : Skip confirmation} {--skip-verify : Bypass the provenance check (disaster recovery only)}';
     protected $description = 'Restore the application from a backup file';
 
     public function handle(): int
@@ -25,6 +26,14 @@ class RestoreCommand extends Command
             return Command::FAILURE;
         }
 
+        // Restore replays SQL with full database privileges and overwrites the
+        // document store. Only archives this installation produced -- and that
+        // have not been altered since -- may be used.
+        if (! $this->option('skip-verify') && ! BackupArchive::verify($backupFile)) {
+            $this->error('Backup signature missing or invalid. Refusing to restore an unverified archive.');
+            return Command::FAILURE;
+        }
+
         if (!$this->option('force')) {
             $this->warn('This will completely overwrite the current database and storage files!');
             if (!$this->confirm('Are you sure you want to continue?')) {
@@ -38,9 +47,9 @@ class RestoreCommand extends Command
 
         try {
             // Create temp directory
-            $tempDir = storage_path('app/backups/temp_restore_' . time());
+            $tempDir = BackupArchive::directory().'/temp_restore_'.bin2hex(random_bytes(8));
             if (!is_dir($tempDir)) {
-                mkdir($tempDir, 0755, true);
+                mkdir($tempDir, 0700, true);
             }
 
             // Extract archive
@@ -84,10 +93,29 @@ class RestoreCommand extends Command
 
     private function extractArchive(string $archivePath, string $targetDir): void
     {
+        // Refuse absolute paths, parent-directory traversal and symlinks in
+        // archive members, so extraction cannot write outside $targetDir.
+        $listing = new Process(['tar', '-tzf', $archivePath]);
+        $listing->mustRun();
+
+        foreach (preg_split('/\R/', trim($listing->getOutput())) ?: [] as $member) {
+            if ($member === '') {
+                continue;
+            }
+
+            if (str_starts_with($member, '/') || str_contains($member, '../')) {
+                throw new \RuntimeException("Unsafe path in archive: {$member}");
+            }
+        }
+
         $process = new Process([
-            'tar', '-xzf', $archivePath, '-C', $targetDir
+            'tar', '-xzf', $archivePath,
+            '-C', $targetDir,
+            '--no-absolute-names',
+            '--no-overwrite-dir',
+            '--no-same-owner',
         ]);
-        
+
         $process->mustRun();
     }
 
@@ -120,22 +148,26 @@ class RestoreCommand extends Command
             "--host={$host}",
             "--port={$port}",
             "--user={$username}",
-            "--password={$password}",
+            '--batch',
             '-e', "DROP DATABASE IF EXISTS `{$database}`; CREATE DATABASE `{$database}`;"
-        ]);
+        ], null, ['MYSQL_PWD' => $password]);
         $dropProcess->mustRun();
 
-        // Then restore
+        // --batch and --skip-comments stop the client interpreting `\!`, which
+        // in interactive mode is a shell escape -- turning a crafted dump into
+        // command execution. --disable-local-infile blocks local file reads.
         $command = [
             'mysql',
             "--host={$host}",
             "--port={$port}",
             "--user={$username}",
-            "--password={$password}",
+            '--batch',
+            '--skip-comments',
+            '--disable-local-infile',
             $database
         ];
 
-        return new Process($command, null, null, file_get_contents($sqlFile), 300);
+        return new Process($command, null, ['MYSQL_PWD' => $password], fopen($sqlFile, 'r'), 300);
     }
 
     private function createPostgresRestoreProcess(array $config, string $sqlFile): Process
@@ -180,7 +212,7 @@ class RestoreCommand extends Command
             $database
         ];
 
-        return new Process($command, null, $env, file_get_contents($sqlFile), 300);
+        return new Process($command, null, $env, fopen($sqlFile, 'r'), 300);
     }
 
     private function createSqliteRestoreProcess(array $config, string $sqlFile): Process
@@ -194,7 +226,7 @@ class RestoreCommand extends Command
 
         // Restore using sqlite3 CLI
         $command = ['sqlite3', $database];
-        return new Process($command, null, null, file_get_contents($sqlFile), 300);
+        return new Process($command, null, null, fopen($sqlFile, 'r'), 300);
     }
 
     private function restoreStorage(string $storageBackupDir): void
@@ -203,7 +235,9 @@ class RestoreCommand extends Command
         
         // Clear existing storage
         if (is_dir($targetPath)) {
-            $clearProcess = new Process(['rm', '-rf', "{$targetPath}/*"]);
+            // Passing "path/*" to Process is a literal argument, not a glob,
+            // so the old form silently cleared nothing.
+            $clearProcess = new Process(['find', $targetPath, '-mindepth', '1', '-delete']);
             $clearProcess->mustRun();
         } else {
             mkdir($targetPath, 0755, true);

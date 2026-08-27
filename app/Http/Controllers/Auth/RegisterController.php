@@ -27,7 +27,7 @@ class RegisterController extends Controller
         $request->validate([
             'firm_name' => ['required', 'string', 'max:255'],
             'full_name' => ['required', 'string', 'max:255'],
-            'email'     => ['required', 'string', 'email', 'max:255'],
+            'email'     => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
             'password'  => ['required', 'confirmed', Password::min(12)],
         ]);
 
@@ -53,6 +53,9 @@ class RegisterController extends Controller
 
         activity()->causedBy($user)->log('registered');
 
-        return redirect()->route('admin.firm.setup');
+        // The session is authenticated but unverified; the `verified`
+        // middleware on the application routes holds it at the notice page
+        // until the emailed link is opened.
+        return redirect()->route('verification.notice');
     }
 }

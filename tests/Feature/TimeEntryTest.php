@@ -116,7 +116,7 @@ class TimeEntryTest extends TestCase
             'rate'             => 200.00,
             'billable'         => true,
             'activity_type'    => 'advising',
-        ])->assertStatus(404);
+        ])->assertStatus(422);
     }
 
     // ── Update ─────────────────────────────────────────────────────────

@@ -9,6 +9,7 @@ import { useState } from 'react';
 
 interface Backup {
     filename: string;
+    verified: boolean;
     size: number;
     created_at: number;
     created_at_formatted: string;
@@ -36,13 +37,13 @@ export default function BackupsIndex({ backups }: Props) {
         }
     };
 
+    const [selectedBackup, setSelectedBackup] = useState('');
+
     const handleRestoreBackup = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        const formData = new FormData(e.currentTarget);
-        const file = formData.get('backup_file') as File;
 
-        if (!file || file.size === 0) {
-            alert('Please select a backup file to restore.');
+        if (!selectedBackup) {
+            alert('Choose a backup to restore.');
             return;
         }
 
@@ -51,7 +52,7 @@ export default function BackupsIndex({ backups }: Props) {
         }
 
         setRestoreProcessing(true);
-        router.post('/superadmin/backups/restore', formData, {
+        router.post('/superadmin/backups/restore', { filename: selectedBackup }, {
             onFinish: () => setRestoreProcessing(false),
             onError: () => setRestoreProcessing(false),
         });
@@ -117,15 +118,28 @@ export default function BackupsIndex({ backups }: Props) {
                         <CardContent>
                             <form onSubmit={handleRestoreBackup} className="space-y-4">
                                 <div>
-                                    <label className="block text-sm font-medium mb-2">Upload Backup File</label>
-                                    <input
-                                        type="file"
-                                        name="backup_file"
-                                        accept=".tar.gz,.gz"
-                                        className="block w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
+                                    <label htmlFor="restore-source" className="block text-sm font-medium mb-2">
+                                        Choose a backup
+                                    </label>
+                                    <select
+                                        id="restore-source"
+                                        value={selectedBackup}
+                                        onChange={(e) => setSelectedBackup(e.target.value)}
+                                        className="block w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                                         required
-                                    />
-                                    <p className="text-xs text-muted-foreground mt-1">Maximum file size: 100MB</p>
+                                    >
+                                        <option value="">Select a backup…</option>
+                                        {backups.filter((b) => b.verified).map((b) => (
+                                            <option key={b.filename} value={b.filename}>
+                                                {b.created_at_formatted} — {b.size_formatted}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                        Only backups created by this system and passing their integrity check can be
+                                        restored. To restore from an off-site copy, place the archive and its
+                                        <code className="mx-1">.sig</code> file in the backups directory on the server.
+                                    </p>
                                 </div>
 
                                 <div className="rounded-md bg-destructive/10 border border-destructive/20 p-3">

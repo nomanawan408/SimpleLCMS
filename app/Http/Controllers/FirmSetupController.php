@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -14,28 +15,46 @@ class FirmSetupController extends Controller
 {
     public function show(string $token): Response|RedirectResponse
     {
-        $firm = Firm::where('setup_token', $token)->first();
-
-        if (!$firm || $firm->setup_completed_at) {
-            abort(404);
-        }
+        $firm = $this->firmForToken($token);
 
         return Inertia::render('FirmSetup/Complete', [
-            'firm'  => $firm,
+            // Only what the form needs -- the whole model would ship the setup
+            // token and every bank field to the browser.
+            'firm'  => [
+                'id'   => $firm->id,
+                'name' => $firm->name,
+                'city' => $firm->city,
+            ],
             'token' => $token,
         ]);
     }
 
-    public function update(Request $request, string $token): RedirectResponse
+    /**
+     * Resolve an unexpired, unused setup token or 404.
+     */
+    private function firmForToken(string $token): Firm
     {
-        $firm = Firm::where('setup_token', $token)->first();
+        $firm = Firm::whereNotNull('setup_token')
+            ->whereNull('setup_completed_at')
+            ->get()
+            ->first(fn (Firm $candidate) => hash_equals((string) $candidate->setup_token, $token));
 
-        if (!$firm || $firm->setup_completed_at) {
-            abort(404);
+        abort_unless($firm, 404);
+
+        // An invitation that was never used should not stay live indefinitely.
+        if ($firm->setup_token_expires_at && $firm->setup_token_expires_at->isPast()) {
+            abort(410, 'This setup link has expired. Ask your administrator to send a new one.');
         }
 
+        return $firm;
+    }
+
+    public function update(Request $request, string $token): RedirectResponse
+    {
+        $firm = $this->firmForToken($token);
+
         $validated = $request->validate([
-            'password'             => ['required', 'string', 'min:8', 'confirmed'],
+            'password'             => ['required', 'confirmed', Password::min(12)],
             'vat_number'           => ['nullable', 'string', 'max:50'],
             'sra_number'          => ['nullable', 'string', 'max:50'],
             'website'             => ['nullable', 'url', 'max:255'],
@@ -64,6 +83,7 @@ class FirmSetupController extends Controller
             ...$validated,
             'setup_completed_at' => now(),
             'setup_token'        => null,
+            'setup_token_expires_at' => null,
         ]);
 
         $admin = User::where('firm_id', $firm->id)->where('role', 'firm_admin')->first();
@@ -71,7 +91,9 @@ class FirmSetupController extends Controller
             $admin->update(['password' => Hash::make($password)]);
         }
 
-        activity()->log('firm_setup_completed');
+        activity()->performedOn($firm)
+            ->withProperties(['ip' => $request->ip(), 'user_agent' => $request->userAgent()])
+            ->log('firm_setup_completed');
 
         return redirect('/login')->with('success', 'Firm setup complete! You can now log in.');
     }

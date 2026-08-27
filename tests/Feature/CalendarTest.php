@@ -75,9 +75,12 @@ class CalendarTest extends TestCase
         [$firm2, $user2] = $this->createFirmAndUser();
         $event2 = CalendarEvent::factory()->forFirm($firm2, $user2)->create();
 
+        // The BelongsToFirm scope hides the record from route-model binding
+        // entirely, so this is a 404 rather than a 403 -- the response no
+        // longer confirms that the id exists.
         $this->actingAsUser($user)->putJson("/calendar/{$event2->id}", [
             'title' => 'Hijacked',
-        ])->assertStatus(403);
+        ])->assertStatus(404);
     }
 
     public function test_court_date_event_linked_to_matter(): void

@@ -8,6 +8,7 @@ use App\Http\Requests\Admin\UpdateUserRequest;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
 use Inertia\Response;
 use Spatie\Permission\Models\Role;
@@ -60,16 +61,15 @@ class UserController extends Controller
 
         $firmId = $request->user()->firm_id;
 
-        if (User::where('firm_id', $firmId)->where('email', $validated['email'])->exists()) {
-            return back()->withErrors(['email' => 'A user with this email already exists in your firm.']);
-        }
-
         $roleName = $validated['role'];
 
         $user = User::create([
             ...$validated,
             'firm_id'  => $firmId,
             'password' => $validated['password'],
+            // The administrator entered this address and set the password, so
+            // the account starts verified rather than emailing the new user.
+            'email_verified_at' => now(),
         ]);
 
         $user->assignRole($roleName);
@@ -116,7 +116,7 @@ class UserController extends Controller
         $this->authorize('update', $user);
 
         $validated = $request->validate([
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
+            'password' => ['required', 'confirmed', Password::min(12)],
         ]);
 
         $user->password = $validated['password'];

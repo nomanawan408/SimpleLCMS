@@ -75,6 +75,8 @@ class RoleController extends Controller
             'permissions.*' => ['string', 'exists:permissions,name'],
         ]);
 
+        $this->assertGrantable($request->user(), $validated['permissions']);
+
         $firmId = $request->user()->firm_id;
 
         // Check for duplicate name within firm scope
@@ -117,11 +119,11 @@ class RoleController extends Controller
             return back()->withErrors(['name' => 'Built-in roles cannot be edited.']);
         }
 
-        // Ensure the role belongs to this firm
+        // A firm may only edit roles it owns. Shared system roles (firm_id IS
+        // NULL) are platform-wide -- editing one would change permissions for
+        // every other firm on the platform.
         $firmId = $request->user()->firm_id;
-        if ($role->firm_id && $role->firm_id !== $firmId) {
-            abort(403);
-        }
+        abort_unless($role->firm_id !== null && $role->firm_id === $firmId, 403);
 
         $validated = $request->validate([
             'name'        => ['required', 'string', 'max:255'],
@@ -129,6 +131,8 @@ class RoleController extends Controller
             'permissions' => ['required', 'array'],
             'permissions.*' => ['string', 'exists:permissions,name'],
         ]);
+
+        $this->assertGrantable($request->user(), $validated['permissions']);
 
         DB::transaction(function () use ($role, $validated) {
             $role->update([
@@ -155,11 +159,10 @@ class RoleController extends Controller
             return back()->withErrors(['name' => 'Built-in roles cannot be deleted.']);
         }
 
-        // Ensure the role belongs to this firm
+        // As in update(): shared system roles are platform-wide and are never
+        // deletable from a firm-scoped route.
         $firmId = $request->user()->firm_id;
-        if ($role->firm_id && $role->firm_id !== $firmId) {
-            abort(403);
-        }
+        abort_unless($role->firm_id !== null && $role->firm_id === $firmId, 403);
 
         $roleName = $role->name;
 
@@ -173,5 +176,19 @@ class RoleController extends Controller
         activity()->causedBy($request->user())->log('role_deleted');
 
         return redirect()->route('admin.roles.index')->with('success', "Role '{$roleName}' deleted.");
+    }
+
+    /**
+     * A role may only carry permissions the granting user holds themselves.
+     * Without this, any admin could mint a role with the full permission
+     * catalogue and assign it onward.
+     */
+    private function assertGrantable(\App\Models\User $actor, array $permissions): void
+    {
+        $held = $actor->getAllPermissions()->pluck('name')->all();
+
+        $escalating = array_values(array_diff($permissions, $held));
+
+        abort_if($escalating !== [], 403, 'You cannot grant permissions you do not hold: '.implode(', ', $escalating));
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToFirm;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,7 +11,7 @@ use Spatie\Activitylog\Models\Concerns\LogsActivity;
 
 class TrustEntry extends Model
 {
-    use HasUuids, LogsActivity;
+    use BelongsToFirm, HasUuids, LogsActivity;
 
     protected $keyType = 'string';
     public $incrementing = false;

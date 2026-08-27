@@ -13,7 +13,13 @@ class RequiresTwoFactor
         $user = $request->user();
 
         if ($user && $user->totp_enabled && ! $request->session()->get('totp_verified')) {
-            if (! $request->routeIs('two-factor.*')) {
+            // Only the challenge and its submission are reachable before the
+            // second factor is presented. Exempting all of `two-factor.*`
+            // would leave the disable endpoint open to a password-only
+            // attacker who never completed the challenge.
+            $allowed = $request->routeIs('two-factor.challenge', 'two-factor.verify', 'logout');
+
+            if (! $allowed) {
                 return redirect()->route('two-factor.challenge');
             }
         }

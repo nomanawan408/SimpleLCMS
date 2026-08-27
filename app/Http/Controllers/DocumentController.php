@@ -4,10 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Models\Document;
 use App\Models\Matter;
+use App\Support\DocumentMediaType;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\HeaderUtils;
 use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -41,8 +45,14 @@ class DocumentController extends Controller
         abort_unless($request->user()->hasPermissionTo('upload_documents'), 403);
 
         $request->validate([
-            'file'             => ['required', 'file', 'max:20480'],
-            'matter_id'        => ['required', 'uuid', 'exists:matters,id'],
+            // An extension allowlist keeps active content (html, svg, xhtml)
+            // out of the library entirely; DocumentMediaType then decides how
+            // whatever did get stored is allowed to leave again.
+            'file'             => [
+                'required', 'file', 'max:20480',
+                'extensions:'.implode(',', DocumentMediaType::ALLOWED_EXTENSIONS),
+            ],
+            'matter_id'        => ['required', 'uuid', Rule::exists('matters', 'id')->where(fn ($q) => $q->where('firm_id', $request->user()->firm_id))],
             'is_client_visible' => ['boolean'],
             'folder'           => ['nullable', 'string', 'max:255'],
         ]);
@@ -56,6 +66,17 @@ class DocumentController extends Controller
         $matterId = $request->matter_id;
         $file     = $request->file('file');
 
+        // Third layer: the extension passed the allowlist, but the bytes are
+        // what the browser would actually act on. Refuse markup and scripts
+        // whatever the file happens to be called.
+        $sniffed = $file->getMimeType() ?: 'application/octet-stream';
+
+        if (! DocumentMediaType::isStorable($sniffed)) {
+            throw ValidationException::withMessages([
+                'file' => 'That file appears to contain web page or script content and cannot be stored.',
+            ]);
+        }
+
         $path = $file->store("documents/{$firmId}/{$matterId}", 'local');
 
         $defaultFolder = $matter->matter_number ?: $matter->name;
@@ -67,7 +88,7 @@ class DocumentController extends Controller
             'original_name'    => $file->getClientOriginalName(),
             's3_key'           => $path,
             'folder'           => $request->input('folder', $defaultFolder) ?: $defaultFolder,
-            'mime_type'        => $file->getClientMimeType(),
+            'mime_type'        => $sniffed,
             'size_bytes'       => $file->getSize(),
             'is_client_visible' => $request->boolean('is_client_visible'),
             'version'          => 1,
@@ -98,7 +119,14 @@ class DocumentController extends Controller
             abort(404, 'File not found.');
         }
 
-        $mime = $document->mime_type ?? 'application/octet-stream';
+        $filename = $document->original_name ?? $document->name;
+
+        // Only known-safe types render inline. Everything else downloads, so a
+        // file that slipped through upload validation still cannot execute
+        // against this origin.
+        $disposition = DocumentMediaType::canDisplayInline($document->mime_type)
+            ? HeaderUtils::DISPOSITION_INLINE
+            : HeaderUtils::DISPOSITION_ATTACHMENT;
 
         return response()->stream(function () use ($path) {
             $stream = Storage::disk('local')->readStream($path);
@@ -107,9 +135,11 @@ class DocumentController extends Controller
                 fclose($stream);
             }
         }, 200, [
-            'Content-Type'        => $mime,
-            'Content-Disposition' => 'inline; filename="' . ($document->original_name ?? $document->name) . '"',
-            'Cache-Control'       => 'private, no-store',
+            'Content-Type'        => DocumentMediaType::responseType($document->mime_type),
+            // makeDisposition escapes and ASCII-folds the filename; string
+            // concatenation would let a quote break the header.
+            'Content-Disposition' => HeaderUtils::makeDisposition($disposition, $filename, 'document'),
+            ...DocumentMediaType::protectiveHeaders(),
         ]);
     }
 
@@ -127,7 +157,11 @@ class DocumentController extends Controller
             abort(404, 'File not found.');
         }
 
-        return Storage::disk('local')->download($path, $document->original_name ?? $document->name);
+        return Storage::disk('local')->download(
+            $path,
+            $document->original_name ?? $document->name,
+            DocumentMediaType::protectiveHeaders() + ['Content-Type' => 'application/octet-stream'],
+        );
     }
 
     public function destroy(Request $request, Document $document): SymfonyResponse
