@@ -168,7 +168,7 @@ export default function AccountsIndex({ entries, summary, firmAccount, clientAcc
                                             )}
                                             {firmAccount.payment_instructions && (
                                                 <div className="pt-2">
-                                                    <p className="text-base font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Payment Instructions</p>
+                                                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Payment Instructions</p>
                                                     <p className="text-sm text-foreground/90 bg-muted/30 rounded-lg p-3 border border-border/30 whitespace-pre-wrap">{firmAccount.payment_instructions}</p>
                                                 </div>
                                             )}
@@ -263,7 +263,7 @@ export default function AccountsIndex({ entries, summary, firmAccount, clientAcc
                                         {/* Linked matters */}
                                         {client.matters.length > 0 && (
                                             <div className="border-t border-border/40 pt-2.5">
-                                                <p className="text-sm font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Active Matters</p>
+                                                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Active Matters</p>
                                                 <div className="space-y-1">
                                                     {client.matters.map((m) => (
                                                         <Link
@@ -298,7 +298,7 @@ export default function AccountsIndex({ entries, summary, firmAccount, clientAcc
                                     <ArrowDownCircle className="h-5 w-5 text-success" />
                                 </div>
                                 <div>
-                                    <p className="text-base font-bold text-muted-foreground uppercase tracking-widest">Total Receipts</p>
+                                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Total Receipts</p>
                                     <p className="text-xl font-black text-success tabular-nums">{formatCurrency(summary.total_receipts)}</p>
                                 </div>
                             </CardContent>
@@ -309,7 +309,7 @@ export default function AccountsIndex({ entries, summary, firmAccount, clientAcc
                                     <ArrowUpCircle className="h-5 w-5 text-destructive" />
                                 </div>
                                 <div>
-                                    <p className="text-base font-bold text-muted-foreground uppercase tracking-widest">Total Disbursements</p>
+                                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Total Disbursements</p>
                                     <p className="text-xl font-black text-destructive tabular-nums">{formatCurrency(summary.total_disbursements)}</p>
                                 </div>
                             </CardContent>
@@ -320,7 +320,7 @@ export default function AccountsIndex({ entries, summary, firmAccount, clientAcc
                                     <Wallet className="h-5 w-5 text-primary" />
                                 </div>
                                 <div>
-                                    <p className="text-base font-bold text-muted-foreground uppercase tracking-widest">Current Balance</p>
+                                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Current Balance</p>
                                     <p className={cn('text-xl font-black tabular-nums', summary.balance < 0 && 'text-destructive')}>
                                         {formatCurrency(summary.balance)}
                                     </p>
@@ -446,7 +446,7 @@ function DetailRow({ icon: Icon, label, value, onCopy, copied }: {
                 <Icon className="h-3.5 w-3.5 text-muted-foreground" />
             </div>
             <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-muted-foreground uppercase tracking-widest">{label}</p>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">{label}</p>
                 <p className="text-sm font-medium text-foreground truncate">{value}</p>
             </div>
             <button

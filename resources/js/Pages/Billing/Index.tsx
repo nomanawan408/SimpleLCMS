@@ -150,7 +150,7 @@ export default function BillingIndex({ invoices, stats, filters, filterOptions }
                 <CardContent className="p-4 space-y-4">
                     <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
                         <div className="space-y-2">
-                            <Label className="text-base font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5"><Calendar className="h-3 w-3" /> Timeframe</Label>
+                            <Label className="text-xs font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5"><Calendar className="h-3 w-3" /> Timeframe</Label>
                             <div className="flex flex-wrap gap-1.5">
                                 {TIMEFRAMES.map(t => (
                                     <button key={t.value} onClick={() => handleTimeframe(t.value)} className={cn('rounded-full px-3.5 py-1.5 text-xs font-medium border transition-colors', timeframe === t.value ? 'bg-primary text-primary-foreground border-primary shadow-sm' : 'bg-muted text-muted-foreground border-transparent hover:bg-muted/80 hover:text-foreground')}>{t.label}</button>

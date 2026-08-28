@@ -1,3 +1,10 @@
+/* Lato, self-hosted via @fontsource so it renders identically on every OS and
+   nothing is fetched from a third-party CDN at runtime. */
+@import '@fontsource/lato/400.css';
+@import '@fontsource/lato/400-italic.css';
+@import '@fontsource/lato/700.css';
+@import '@fontsource/lato/900.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -92,6 +99,22 @@
     * {
         @apply border-border;
     }
+
+    /* ── Type scale ───────────────────────────────────────────────────────
+       Every size is a rem token so it scales with the root above. Never author
+       text-[Npx] -- it pins the size and the design comes apart on large
+       displays.
+
+         text-xs    eyebrows, uppercase micro-labels, badges, table headers
+         text-sm    body copy, table cells, list rows, secondary meta
+         text-base  the value in a fact tile, card and section titles
+         text-lg    sub-headings
+         text-xl    KPI values
+         text-2xl   page titles
+
+       The rule that matters: a label must never be larger than the value it
+       describes. Labels sit at text-xs muted; their values sit at text-base
+       semibold. */
 
     /* Fluid root size. Every rem-based size in the app -- type, spacing,
        radii, the table standard -- scales from this one value.

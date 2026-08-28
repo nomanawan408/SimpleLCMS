@@ -250,13 +250,13 @@ export default function ShowContact({ contact, invoices = [], documents = [], ca
                 <CardContent className="p-0">
                     <div className="flex flex-wrap items-center gap-2 px-5 pt-3.5 text-xs text-muted-foreground">
                         <span className={cn('h-1.5 w-1.5 rounded-full', contact.lead_status ? leadAccent[contact.lead_status] : typeAccent[contact.type])} />
-                        <Badge variant={typeVariant[contact.type]} className="text-base font-semibold uppercase tracking-widest px-2 py-0 rounded-full">
+                        <Badge variant={typeVariant[contact.type]} className="text-xs font-semibold uppercase tracking-widest px-2 py-0 rounded-full">
                             {CONTACT_TYPE_LABELS[contact.type] || contact.type}
                         </Badge>
                         {contact.lead_status && (
                             <>
                                 <span className="text-border">·</span>
-                                <Badge variant={leadVariant[contact.lead_status] ?? 'secondary'} className="text-base font-semibold uppercase tracking-widest px-2 py-0 rounded-full">
+                                <Badge variant={leadVariant[contact.lead_status] ?? 'secondary'} className="text-xs font-semibold uppercase tracking-widest px-2 py-0 rounded-full">
                                     {LEAD_STATUS_LABELS[contact.lead_status] || contact.lead_status.replace('_', ' ')}
                                 </Badge>
                             </>
@@ -307,8 +307,8 @@ export default function ShowContact({ contact, invoices = [], documents = [], ca
                                 <div className="rounded-xl border border-border/60 bg-muted/[0.18] px-3.5 py-2.5 flex items-center gap-2.5">
                                     <span className="flex h-7 w-7 items-center justify-center rounded-full bg-sky-50 shrink-0"><Phone className="h-3.5 w-3.5 text-sky-600" /></span>
                                     <div className="min-w-0">
-                                        <p className="text-base font-medium text-muted-foreground leading-none">Phone</p>
-                                        <a href={`tel:${contact.phone}`} className="text-sm font-semibold text-foreground truncate block hover:text-primary transition-colors">
+                                        <p className="text-xs font-medium text-muted-foreground leading-none">Phone</p>
+                                        <a href={`tel:${contact.phone}`} className="text-base font-semibold text-foreground truncate block hover:text-primary transition-colors">
                                             {contact.phone}
                                         </a>
                                     </div>
@@ -318,25 +318,25 @@ export default function ShowContact({ contact, invoices = [], documents = [], ca
                                 <div className="rounded-xl border border-border/60 bg-muted/[0.18] px-3.5 py-2.5 flex items-center gap-2.5">
                                     <span className="flex h-7 w-7 items-center justify-center rounded-full bg-rose-50 shrink-0"><MapPin className="h-3.5 w-3.5 text-rose-600" /></span>
                                     <div className="min-w-0">
-                                        <p className="text-base font-medium text-muted-foreground leading-none">Address</p>
-                                        <p className="text-sm font-semibold text-foreground truncate">{addr.line1}</p>
-                                        {addressLines && <p className="text-base text-muted-foreground truncate">{addressLines}</p>}
+                                        <p className="text-xs font-medium text-muted-foreground leading-none">Address</p>
+                                        <p className="text-base font-semibold text-foreground truncate">{addr.line1}</p>
+                                        {addressLines && <p className="text-sm text-muted-foreground truncate">{addressLines}</p>}
                                     </div>
                                 </div>
                             )}
                             <div className="rounded-xl border border-border/60 bg-muted/[0.18] px-3.5 py-2.5 flex items-center gap-2.5">
                                 <span className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-50 shrink-0"><Calendar className="h-3.5 w-3.5 text-emerald-600" /></span>
                                 <div className="min-w-0">
-                                    <p className="text-base font-medium text-muted-foreground leading-none">Added</p>
-                                    <p className="text-sm font-semibold text-foreground">{formatDate(contact.created_at)}</p>
+                                    <p className="text-xs font-medium text-muted-foreground leading-none">Added</p>
+                                    <p className="text-base font-semibold text-foreground">{formatDate(contact.created_at)}</p>
                                 </div>
                             </div>
                             {(contact as any).dob && (
                                 <div className="rounded-xl border border-border/60 bg-muted/[0.18] px-3.5 py-2.5 flex items-center gap-2.5">
                                     <span className="flex h-7 w-7 items-center justify-center rounded-full bg-violet-50 shrink-0"><Calendar className="h-3.5 w-3.5 text-violet-600" /></span>
                                     <div className="min-w-0">
-                                        <p className="text-base font-medium text-muted-foreground leading-none">Date of Birth</p>
-                                        <p className="text-sm font-semibold text-foreground">{formatDate((contact as any).dob)}</p>
+                                        <p className="text-xs font-medium text-muted-foreground leading-none">Date of Birth</p>
+                                        <p className="text-base font-semibold text-foreground">{formatDate((contact as any).dob)}</p>
                                     </div>
                                 </div>
                             )}
@@ -344,8 +344,8 @@ export default function ShowContact({ contact, invoices = [], documents = [], ca
                                 <div className="rounded-xl border border-border/60 bg-muted/[0.18] px-3.5 py-2.5 flex items-center gap-2.5">
                                     <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 shrink-0"><Building2 className="h-3.5 w-3.5 text-slate-600" /></span>
                                     <div className="min-w-0">
-                                        <p className="text-base font-medium text-muted-foreground leading-none">Company Number</p>
-                                        <p className="font-mono text-sm font-bold text-foreground tabular-nums truncate">{contact.company_number}</p>
+                                        <p className="text-xs font-medium text-muted-foreground leading-none">Company Number</p>
+                                        <p className="font-mono text-base font-bold text-foreground tabular-nums truncate">{contact.company_number}</p>
                                     </div>
                                 </div>
                             )}
@@ -535,7 +535,7 @@ export default function ShowContact({ contact, invoices = [], documents = [], ca
                                                         {(note.user?.full_name || 'S')[0].toUpperCase()}
                                                     </span>
                                                     <span className="text-xs font-semibold text-foreground truncate">{note.user?.full_name || 'System'}</span>
-                                                    <Badge variant="secondary" className="text-base capitalize ml-auto rounded-full font-medium">
+                                                    <Badge variant="secondary" className="text-xs capitalize ml-auto rounded-full font-medium">
                                                         {noteMeta(note.type).label}
                                                     </Badge>
                                                 </div>
@@ -575,7 +575,7 @@ export default function ShowContact({ contact, invoices = [], documents = [], ca
                                                 <FileText className="h-4 w-4 text-muted-foreground" />
                                             </span>
                                             <div className="min-w-0">
-                                                <p className="text-sm font-semibold text-foreground truncate">{doc.original_name || doc.name}</p>
+                                                <p className="text-base font-semibold text-foreground truncate">{doc.original_name || doc.name}</p>
                                                 <p className="text-xs text-muted-foreground truncate">
                                                     {doc.matter?.name ?? 'Matter'} · {formatBytes(doc.size_bytes)} · {formatDate(doc.created_at)}
                                                 </p>
@@ -730,7 +730,7 @@ export default function ShowContact({ contact, invoices = [], documents = [], ca
                                                 <span className="text-xs text-muted-foreground">· {formatDate(note.logged_at)}</span>
 
                                                 <div className="ml-auto flex items-center gap-1.5">
-                                                    <Badge variant="secondary" className="text-base rounded-full font-medium inline-flex items-center gap-1">
+                                                    <Badge variant="secondary" className="text-xs rounded-full font-medium inline-flex items-center gap-1">
                                                         <Icon className="h-3 w-3" />
                                                         {noteMeta(note.type).label}
                                                     </Badge>

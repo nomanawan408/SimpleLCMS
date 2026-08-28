@@ -136,7 +136,7 @@ export default function ReportsIndex({ financialSummary, timeByUser, mattersByPr
                     {/* Row 1: timeframe pills + custom dates */}
                     <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
                         <div className="space-y-2">
-                            <Label className="text-base font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5"><Calendar className="h-3 w-3" /> Timeframe</Label>
+                            <Label className="text-xs font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5"><Calendar className="h-3 w-3" /> Timeframe</Label>
                             <div className="flex flex-wrap gap-1.5">
                                 {TIMEFRAMES.map(t => (
                                     <button key={t.value} onClick={() => setTimeframe(t.value)}
@@ -162,7 +162,7 @@ export default function ReportsIndex({ financialSummary, timeByUser, mattersByPr
                     {/* Row 2: selects */}
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                         <div className="space-y-1.5">
-                            <Label className="text-base font-semibold uppercase tracking-widest text-muted-foreground">Matter</Label>
+                            <Label className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Matter</Label>
                             <Select value={matterId} onValueChange={setMatterId}>
                                 <SelectTrigger className="h-9 rounded-xl"><SelectValue placeholder="All matters" /></SelectTrigger>
                                 <SelectContent>
@@ -172,7 +172,7 @@ export default function ReportsIndex({ financialSummary, timeByUser, mattersByPr
                             </Select>
                         </div>
                         <div className="space-y-1.5">
-                            <Label className="text-base font-semibold uppercase tracking-widest text-muted-foreground">Team Member</Label>
+                            <Label className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Team Member</Label>
                             <Select value={userId} onValueChange={setUserId}>
                                 <SelectTrigger className="h-9 rounded-xl"><SelectValue placeholder="All users" /></SelectTrigger>
                                 <SelectContent>
@@ -182,7 +182,7 @@ export default function ReportsIndex({ financialSummary, timeByUser, mattersByPr
                             </Select>
                         </div>
                         <div className="space-y-1.5">
-                            <Label className="text-base font-semibold uppercase tracking-widest text-muted-foreground">Practice Area</Label>
+                            <Label className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Practice Area</Label>
                             <Select value={practiceArea} onValueChange={setPracticeArea}>
                                 <SelectTrigger className="h-9 rounded-xl"><SelectValue placeholder="All areas" /></SelectTrigger>
                                 <SelectContent>
@@ -192,7 +192,7 @@ export default function ReportsIndex({ financialSummary, timeByUser, mattersByPr
                             </Select>
                         </div>
                         <div className="space-y-1.5">
-                            <Label className="text-base font-semibold uppercase tracking-widest text-muted-foreground">Status</Label>
+                            <Label className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Status</Label>
                             <Select value={status} onValueChange={setStatus}>
                                 <SelectTrigger className="h-9 rounded-xl"><SelectValue placeholder="All statuses" /></SelectTrigger>
                                 <SelectContent>

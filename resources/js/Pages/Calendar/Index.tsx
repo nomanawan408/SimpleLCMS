@@ -209,7 +209,7 @@ export default function CalendarIndex({ events, matters, year, month }: Props) {
                                                 <div
                                                     key={ev.id}
                                                     className={cn(
-                                                        'text-base px-1.5 py-0.5 rounded truncate cursor-pointer font-medium',
+                                                        'text-xs px-1.5 py-0.5 rounded truncate cursor-pointer font-medium',
                                                         ev.type === 'task_deadline'
                                                             ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400'
                                                             : ev.is_court_date || ev.type === 'court_date'

@@ -111,33 +111,12 @@ export default {
                 sm: 'calc(var(--radius) - 4px)',
             },
             fontFamily: {
-                /* Segoe UI everywhere, including tables and reference codes.
-                   It ships with Windows only and is not licensed for
-                   self-hosting, so the fallbacks matter: -apple-system gives
-                   macOS/iOS San Francisco and Roboto covers Android, both far
-                   closer to Segoe UI than Arial is. */
-                sans: [
-                    'Segoe UI',
-                    'Segoe UI Variable Text',
-                    '-apple-system',
-                    'BlinkMacSystemFont',
-                    'Roboto',
-                    'Helvetica Neue',
-                    'Arial',
-                    ...defaultTheme.fontFamily.sans,
-                ],
-                /* Intentionally the same face: reference numbers stay in Segoe
-                   UI and rely on tabular-nums to line their digits up. */
-                mono: [
-                    'Segoe UI',
-                    'Segoe UI Variable Text',
-                    '-apple-system',
-                    'BlinkMacSystemFont',
-                    'Roboto',
-                    'Helvetica Neue',
-                    'Arial',
-                    ...defaultTheme.fontFamily.sans,
-                ],
+                /* Lato, self-hosted (see app.css). The fallbacks are only for
+                   the moment before the webfont lands. */
+                sans: ['Lato', ...defaultTheme.fontFamily.sans],
+                /* Deliberately the same face: reference numbers stay in Lato
+                   and rely on tabular-nums to keep their digits aligned. */
+                mono: ['Lato', ...defaultTheme.fontFamily.sans],
             },
             keyframes: {
                 'accordion-down': {

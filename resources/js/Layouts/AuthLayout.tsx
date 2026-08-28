@@ -21,7 +21,7 @@ export default function AuthLayout({ children, title, description, split = false
             <img src="/assets/simplelaw-mark-transparent.svg" alt="Simple Lawyer" className="h-10 w-10 object-contain" />
             <div>
                 <span className="text-2xl font-bold tracking-tight text-foreground">Simple Lawyer</span>
-                <p className="text-base uppercase tracking-[0.2em] text-muted-foreground">Management System</p>
+                <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Management System</p>
             </div>
         </div>
     );
@@ -71,7 +71,7 @@ export default function AuthLayout({ children, title, description, split = false
                         <h2 className="text-3xl font-bold tracking-tight">
                             {brandHeadline ?? 'Manage your practice with confidence'}
                         </h2>
-                        <p className="mt-4 text-base text-white/80">
+                        <p className="mt-4 text-sm text-white/80">
                             {brandSubheadline ?? 'Streamline cases, contacts, billing, and time tracking in one place.'}
                         </p>
 
