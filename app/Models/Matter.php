@@ -20,8 +20,40 @@ class Matter extends Model
     protected $keyType = 'string';
     public $incrementing = false;
 
+    /**
+     * Every status the database column will currently accept. This is the
+     * single source of truth for validation -- the database enum has grown
+     * across a few migrations, so hand-listing the values again anywhere
+     * else is exactly how a value ends up accepted by one layer and rejected
+     * by another.
+     */
+    public const ALL_STATUSES = [
+        'open', 'pending_court_date', 'awaiting_client', 'awaiting_opponent',
+        'on_hold', 'closed', 'archived',
+        'actively_progressing', 'reviewing', 'being_worked', 'in_progress', 'in_review',
+        'awaiting_response', 'awaiting_third_party',
+        'awaiting_respondent_solicitors', 'awaiting_claimant_solicitors',
+    ];
+
+    /**
+     * Statuses that mean "this matter is currently open and being worked",
+     * as opposed to waiting on someone else's action (the awaiting_*
+     * statuses) or a terminal/paused state (on_hold, closed, archived).
+     *
+     * Several places used to check status = 'open' specifically to decide
+     * whether a matter counts toward the dashboard's open-matters figure,
+     * whether it is eligible to appear in the invoice-creation matter
+     * picker, and the reports page's default filter. A matter moved into
+     * one of the newer "actively working" statuses would otherwise vanish
+     * from all three without anything actually changing about the work. Use
+     * this list wherever "open" was meant loosely rather than literally.
+     */
+    public const ACTIVE_STATUSES = [
+        'open', 'actively_progressing', 'reviewing', 'being_worked', 'in_progress', 'in_review',
+    ];
+
     protected $fillable = [
-        'firm_id', 'matter_number', 'name', 'description', 'status',
+        'firm_id', 'matter_number', 'name', 'description', 'status', 'priority',
         'practice_area', 'fee_arrangement', 'responsible_user_id',
         'originating_user_id', 'court', 'court_reference',
         'opened_at', 'closed_at', 'custom_fields',

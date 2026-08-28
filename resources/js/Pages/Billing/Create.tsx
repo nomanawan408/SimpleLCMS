@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Combobox, type ComboboxOption } from '@/components/ui/combobox';
 import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, Plus, Trash2, Clock, Receipt, PlusCircle, Send, Save } from 'lucide-react';
 import { cn, formatCurrency, formatDuration } from '@/lib/utils';
@@ -60,6 +61,16 @@ export default function CreateInvoice({ matters, unbilledTime, unbilledExpenses,
     const actionRef = useRef<'draft' | 'send'>('draft');
 
     const [selectedMatter, setSelectedMatter] = useState<MatterWithContacts | null>(null);
+
+    const matterOptions: ComboboxOption[] = useMemo(() => matters.map((m) => {
+        const clients = (m.contacts ?? []).filter(c => ['client','claimant','applicant'].includes(c.pivot?.role ?? ''));
+        const labelClient = clients.length ? clients.map(c => (c as any).full_name || c.name).join(', ') : ((m.contacts?.[0] as any)?.full_name ?? m.contacts?.[0]?.name ?? '');
+        return {
+            value: m.id,
+            label: `${m.matter_number} — ${m.name}`,
+            description: labelClient || m.matter_number,
+        };
+    }), [matters]);
 
     const subtotal    = useMemo(() => data.line_items.reduce((s, i) => s + i.amount, 0), [data.line_items]);
     const vatTotal    = useMemo(() => data.line_items.reduce((s, i) => s + i.vat_amount, 0), [data.line_items]);
@@ -234,21 +245,15 @@ export default function CreateInvoice({ matters, unbilledTime, unbilledExpenses,
                             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                 <div className="space-y-2">
                                     <Label>Matter *</Label>
-                                    <Select value={data.matter_id || '_none'} onValueChange={(v) => handleMatterChange(v === '_none' ? '' : v)}>
-                                        <SelectTrigger className="h-10"><SelectValue placeholder="Select matter…" /></SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="_none">Select matter…</SelectItem>
-                                            {matters.map(m => {
-                                                const clients = (m.contacts ?? []).filter(c => ['client','claimant','applicant'].includes(c.pivot?.role ?? ''));
-                                                const label   = clients.length ? clients.map(c => c.full_name || c.name).join(', ') : (m.contacts?.[0]?.full_name ?? m.contacts?.[0]?.name ?? '');
-                                                return (
-                                                    <SelectItem key={m.id} value={m.id}>
-                                                        {m.matter_number} — {m.name}{label ? ` (${label})` : ''}
-                                                    </SelectItem>
-                                                );
-                                            })}
-                                        </SelectContent>
-                                    </Select>
+                                    <Combobox
+                                        options={matterOptions}
+                                        value={data.matter_id}
+                                        onChange={(v) => handleMatterChange(v)}
+                                        placeholder="Search by matter, number or client…"
+                                        searchPlaceholder="Type matter number, name or client…"
+                                        emptyText="No matters found."
+                                        className="h-10"
+                                    />
                                     {selectedMatter && clientName && (
                                         <p className="text-xs text-muted-foreground">Client: <span className="font-medium">{clientName}</span></p>
                                     )}
@@ -257,8 +262,9 @@ export default function CreateInvoice({ matters, unbilledTime, unbilledExpenses,
 
                                 <div className="space-y-2">
                                     <Label>Invoice Number *</Label>
-                                    <Input value={data.invoice_number} onChange={e => setData('invoice_number', e.target.value)} className="h-10" />
+                                    <Input value={data.invoice_number} readOnly className="h-10 bg-muted text-muted-foreground cursor-not-allowed" title="Auto-generated — not editable" />
                                     {errors.invoice_number && <p className="text-xs text-destructive">{errors.invoice_number}</p>}
+                                    <p className="text-xs text-muted-foreground">Auto-generated — cannot be edited</p>
                                 </div>
                             </div>
 

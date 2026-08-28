@@ -50,6 +50,8 @@ export default function CreateMatter({ users, contacts, prefill_contact_id, view
         description: '',
         practice_area: '',
         fee_arrangement: '',
+        priority: 'medium' as string,
+        status: 'open' as string,
         responsible_user_id: '',
         contact_ids: (prefill_contact_id ? [prefill_contact_id] : []) as string[],
         court: '',
@@ -220,6 +222,45 @@ export default function CreateMatter({ users, contacts, prefill_contact_id, view
 
                             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                                 <div className="space-y-3">
+                                    <Label className="text-sm font-medium">Priority</Label>
+                                    <Select value={data.priority} onValueChange={(v) => setData('priority', v)}>
+                                        <SelectTrigger className="h-11">
+                                            <SelectValue placeholder="Select priority…" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="low">Low</SelectItem>
+                                            <SelectItem value="medium">Medium</SelectItem>
+                                            <SelectItem value="high">High</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    {errors.priority && <p className="text-xs text-destructive mt-1">{errors.priority}</p>}
+                                </div>
+                                <div className="space-y-3">
+                                    <Label className="text-sm font-medium">Status</Label>
+                                    <Select value={data.status} onValueChange={(v) => setData('status', v)}>
+                                        <SelectTrigger className="h-11">
+                                            <SelectValue placeholder="Select status…" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="open">Open</SelectItem>
+                                            <SelectItem value="in_progress">In Progress</SelectItem>
+                                            <SelectItem value="in_review">In Review</SelectItem>
+                                            <SelectItem value="pending_court_date">Pending</SelectItem>
+                                            <SelectItem value="awaiting_client">Awaiting Client</SelectItem>
+                                            <SelectItem value="awaiting_opponent">Opponent</SelectItem>
+                                            <SelectItem value="awaiting_response">Awaiting Response</SelectItem>
+                                            <SelectItem value="awaiting_third_party">Awaiting Third Party</SelectItem>
+                                            <SelectItem value="awaiting_respondent_solicitors">Awaiting Respondent Solicitors</SelectItem>
+                                            <SelectItem value="awaiting_claimant_solicitors">Awaiting Claimant Solicitors</SelectItem>
+                                            <SelectItem value="on_hold">On Hold</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    {errors.status && <p className="text-xs text-destructive mt-1">{errors.status}</p>}
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                                <div className="space-y-3">
                                     <Label className="text-sm font-medium">Practice area *</Label>
                                     <Select
                                         value={data.practice_area}
@@ -258,7 +299,7 @@ export default function CreateMatter({ users, contacts, prefill_contact_id, view
                                 </div>
 
                                 <div className="space-y-3">
-                                    <Label className="text-sm font-medium">Responsible solicitor *</Label>
+                                    <Label className="text-sm font-medium">Responsible User *</Label>
                                     <Select
                                         value={data.responsible_user_id}
                                         onValueChange={(v) => setData('responsible_user_id', v)}

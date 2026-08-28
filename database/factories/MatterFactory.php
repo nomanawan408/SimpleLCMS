@@ -25,6 +25,7 @@ class MatterFactory extends Factory
             'name'                => fake()->sentence(4),
             'description'         => fake()->paragraph(),
             'status'              => 'open',
+            'priority'            => fake()->randomElement(['low', 'medium', 'high']),
             'practice_area'       => fake()->randomElement(['litigation', 'family_law', 'conveyancing', 'employment']),
             'fee_arrangement'     => 'hourly_rate',
             'responsible_user_id' => null,

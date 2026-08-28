@@ -54,7 +54,7 @@ class AccountController extends Controller
         // Client accounts: contacts with their matter links
         $clientAccounts = Contact::where('firm_id', $firmId)
             ->whereHas('matters')
-            ->with(['matters' => fn ($q) => $q->select('matters.id', 'matters.name', 'matters.matter_number', 'matters.status')->where('status', 'open')])
+            ->with(['matters' => fn ($q) => $q->select('matters.id', 'matters.name', 'matters.matter_number', 'matters.status')->whereIn('status', Matter::ACTIVE_STATUSES)])
             ->orderBy('name')
             ->get(['id', 'name', 'type', 'email', 'phone', 'contact_person_name', 'contact_person_email']);
 

@@ -90,7 +90,8 @@ export interface Matter {
     matter_number: string;
     name: string;
     description: string | null;
-    status: 'open' | 'pending_court_date' | 'awaiting_client' | 'awaiting_opponent' | 'on_hold' | 'closed' | 'archived';
+    status: 'open' | 'pending_court_date' | 'awaiting_client' | 'awaiting_opponent' | 'on_hold' | 'closed' | 'archived' | 'actively_progressing' | 'reviewing' | 'being_worked' | 'in_progress' | 'in_review' | 'awaiting_response' | 'awaiting_third_party' | 'awaiting_respondent_solicitors' | 'awaiting_claimant_solicitors';
+    priority: 'low' | 'medium' | 'high';
     practice_area: 'conveyancing' | 'family_law' | 'litigation' | 'employment' | 'wills_probate' | 'corporate' | 'immigration' | 'criminal' | 'personal_injury' | 'custom';
     fee_arrangement: 'hourly_rate' | 'fixed_fee' | 'contingency' | 'retainer';
     responsible_user_id: string | null;

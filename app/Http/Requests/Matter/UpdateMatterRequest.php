@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Matter;
 
+use App\Models\Matter;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -16,7 +17,8 @@ class UpdateMatterRequest extends FormRequest
         return [
             'name'                => ['sometimes', 'string', 'max:255'],
             'description'         => ['nullable', 'string'],
-            'status'              => ['sometimes', 'in:open,pending_court_date,awaiting_client,awaiting_opponent,on_hold,closed,archived'],
+            'status'              => ['sometimes', Rule::in(Matter::ALL_STATUSES)],
+            'priority'            => ['sometimes', 'in:low,medium,high'],
             'practice_area'       => ['sometimes', 'in:conveyancing,family_law,litigation,employment,wills_probate,corporate,immigration,criminal,personal_injury,custom'],
             'fee_arrangement'     => ['sometimes', 'in:hourly_rate,fixed_fee,contingency,retainer'],
             'responsible_user_id' => ['sometimes', 'uuid', Rule::exists('users', 'id')->where(fn ($q) => $q->where('firm_id', $firmId))],

@@ -131,7 +131,7 @@ class InvoiceController extends Controller
         $firmId = $user->firm_id;
 
         $matters = Matter::where('firm_id', $firmId)
-            ->where('status', 'open')
+            ->whereIn('status', Matter::ACTIVE_STATUSES)
             ->with(['responsibleUser', 'contacts'])
             ->orderBy('name')
             ->get()
@@ -175,10 +175,7 @@ class InvoiceController extends Controller
                 'required', 'uuid',
                 Rule::exists('matters', 'id')->where(fn ($q) => $q->where('firm_id', $firmId)),
             ],
-            'invoice_number'          => [
-                'required', 'string', 'max:255',
-                Rule::unique('invoices', 'invoice_number')->where(fn ($q) => $q->where('firm_id', $firmId)),
-            ],
+            'invoice_number'          => ['required', 'string', 'max:255'],
             'due_date'                => 'required|date',
             'issue_date'              => 'nullable|date',
             'line_items'              => 'required|array|min:1',
@@ -210,6 +207,10 @@ class InvoiceController extends Controller
         $invoiceId = null;
 
         DB::transaction(function () use ($validated, $firmId, $request, &$invoiceId) {
+            // Invoice number is not editable — always auto-generate next free (handles
+            // race/belated form). Ignore client-supplied value.
+            $invoiceNumber = $this->getNextInvoiceNumber($firmId);
+
             // Recalculate all money server-side; never trust client-computed amounts.
             $vatRate = (float) $validated['vat_rate'];
             $subtotal = 0;
@@ -244,7 +245,7 @@ class InvoiceController extends Controller
             $invoice = Invoice::create([
                 'firm_id'         => $firmId,
                 'matter_id'       => $validated['matter_id'],
-                'invoice_number'  => $validated['invoice_number'],
+                'invoice_number'  => $invoiceNumber,
                 'status'          => $action === 'send' ? 'sent' : 'draft',
                 'subtotal'        => $subtotal,
                 'vat_amount'      => $vatAmount,
@@ -279,12 +280,15 @@ class InvoiceController extends Controller
 
             // Claim the firm sequence when the number follows the auto scheme,
             // so future auto-generated numbers can never collide with this one.
+            // Keep sequence in sync regardless of auto-roll
             $firm = Firm::lockForUpdate()->find($firmId);
             if ($firm) {
-                $expected = str_pad((string) ($firm->invoice_sequence + 1), 4, '0', STR_PAD_LEFT);
-                $prefix   = "{$firm->invoice_prefix}-" . date('Y') . '-';
-                if ($validated['invoice_number'] === "{$prefix}{$expected}") {
-                    $firm->increment('invoice_sequence');
+                $prefix = ($firm->invoice_prefix ?: 'INV') . "-" . date('Y') . "-";
+                if (str_starts_with($invoiceNumber, $prefix)) {
+                    $num = (int) substr($invoiceNumber, -4);
+                    if ($num > $firm->invoice_sequence) {
+                        $firm->update(['invoice_sequence' => $num]);
+                    }
                 }
             }
         });
@@ -522,14 +526,39 @@ class InvoiceController extends Controller
     private function getNextInvoiceNumber(string $firmId): string
     {
         $firm = Firm::find($firmId);
+        $year = date('Y');
 
+        // Determine base prefix/sequence candidate. Loop until free so the form
+        // never renders "already taken" (e.g. sequence stale after manual edits
+        // or deletions). Handles >100 matters/invoices fine — just rolls 0002→0003.
         if ($firm) {
-            // Preview only: mirrors TimeController's sequence+increment scheme.
-            $number = str_pad((string) ($firm->invoice_sequence + 1), 4, '0', STR_PAD_LEFT);
-            return "{$firm->invoice_prefix}-" . date('Y') . "-{$number}";
+            $prefix = ($firm->invoice_prefix ?: 'INV') . "-{$year}-";
+            $seq = (int) ($firm->invoice_sequence ?? 0) + 1;
+            // Also consider actual max in DB — sequence can lag if invoices were
+            // created via seeder or before sequence existed.
+            $maxDb = Invoice::where('firm_id', $firmId)
+                ->where('invoice_number', 'like', $prefix . '%')
+                ->get(['invoice_number'])
+                ->map(fn ($inv) => (int) substr($inv->invoice_number, -4))
+                ->max();
+            if ($maxDb !== null && $maxDb >= $seq) {
+                $seq = $maxDb + 1;
+            }
+            $candidate = $prefix . str_pad((string) $seq, 4, '0', STR_PAD_LEFT);
+            while (Invoice::where('firm_id', $firmId)->where('invoice_number', $candidate)->exists()) {
+                $seq++;
+                $candidate = $prefix . str_pad((string) $seq, 4, '0', STR_PAD_LEFT);
+            }
+            return $candidate;
         }
 
-        $count = Invoice::where('firm_id', $firmId)->count() + 1;
-        return 'INV-' . date('Y') . '-' . str_pad($count, 4, '0', STR_PAD_LEFT);
+        $prefix = "INV-{$year}-";
+        $seq = Invoice::where('firm_id', $firmId)->count() + 1;
+        $candidate = $prefix . str_pad((string) $seq, 4, '0', STR_PAD_LEFT);
+        while (Invoice::where('firm_id', $firmId)->where('invoice_number', $candidate)->exists()) {
+            $seq++;
+            $candidate = $prefix . str_pad((string) $seq, 4, '0', STR_PAD_LEFT);
+        }
+        return $candidate;
     }
 }

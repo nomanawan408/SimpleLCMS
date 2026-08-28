@@ -42,7 +42,7 @@ class DashboardController extends Controller
             ->sum('duration_minutes') / 60;
 
         $openMattersCount = Matter::where('firm_id', $firmId)
-            ->where('status', 'open')
+            ->whereIn('status', Matter::ACTIVE_STATUSES)
             ->count();
 
         $overdueTasks = Task::where('firm_id', $firmId)

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Matter;
 
+use App\Models\Matter;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -18,6 +19,8 @@ class StoreMatterRequest extends FormRequest
             'description'           => ['nullable', 'string'],
             'practice_area'         => ['required', 'in:conveyancing,family_law,litigation,employment,wills_probate,corporate,immigration,criminal,personal_injury,custom'],
             'fee_arrangement'       => ['required', 'in:hourly_rate,fixed_fee,contingency,retainer'],
+            'priority'              => ['sometimes', 'in:low,medium,high'],
+            'status'                => ['sometimes', Rule::in(Matter::ALL_STATUSES)],
             // Firm-scoped: a bare 'uuid' rule let a matter be pointed at a
             // user or contact belonging to another firm, which then rendered
             // on the matter page.

@@ -136,7 +136,7 @@ class ReportController extends Controller
 
         // Matters by practice area - respects timeframe (opened_at) + filters
         $mattersByPracticeArea = Matter::where('firm_id', $firmId)
-            ->when($status, fn ($q) => $q->where('status', $status), fn ($q) => $q->where('status', 'open'))
+            ->when($status, fn ($q) => $q->where('status', $status), fn ($q) => $q->whereIn('status', Matter::ACTIVE_STATUSES))
             ->when($practiceArea, fn ($q) => $q->where('practice_area', $practiceArea))
             ->when($matterId, fn ($q) => $q->where('id', $matterId))
             ->when($userId, fn ($q) => $q->where('responsible_user_id', $userId))

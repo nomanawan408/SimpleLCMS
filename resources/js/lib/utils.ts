@@ -36,12 +36,33 @@ export function initials(name: string): string {
 
 export const MATTER_STATUS_LABELS: Record<string, string> = {
     open: 'Open',
-    pending_court_date: 'Pending Court Date',
+    in_progress: 'In Progress',
+    in_review: 'In Review',
+    actively_progressing: 'In Progress',
+    reviewing: 'In Review',
+    being_worked: 'Working',
+    pending_court_date: 'Pending',
     awaiting_client: 'Awaiting Client',
-    awaiting_opponent: 'Awaiting Opponent',
+    awaiting_opponent: 'Opponent',
+    awaiting_response: 'Awaiting Response',
+    awaiting_third_party: 'Awaiting Third Party',
+    awaiting_respondent_solicitors: 'Awaiting Respondent Solicitors',
+    awaiting_claimant_solicitors: 'Awaiting Claimant Solicitors',
     on_hold: 'On Hold',
     closed: 'Closed',
     archived: 'Archived',
+};
+
+export const MATTER_PRIORITY_LABELS: Record<string, string> = {
+    low: 'Low',
+    medium: 'Medium',
+    high: 'High',
+};
+
+export const MATTER_PRIORITY_STYLES: Record<string, string> = {
+    low: 'bg-muted text-muted-foreground border-border',
+    medium: 'bg-info/10 text-info border-info/20',
+    high: 'bg-destructive/10 text-destructive border-destructive/20',
 };
 
 export const PRACTICE_AREA_LABELS: Record<string, string> = {

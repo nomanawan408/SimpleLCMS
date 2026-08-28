@@ -32,6 +32,10 @@ class MatterController extends Controller
             $query->where('practice_area', $request->practice_area);
         }
 
+        if ($request->filled('priority')) {
+            $query->where('priority', $request->priority);
+        }
+
         if ($request->filled('search')) {
             $query->where(function ($q) use ($request) {
                 $q->where('name', 'like', "%{$request->search}%")
@@ -43,7 +47,7 @@ class MatterController extends Controller
 
         return Inertia::render('Matters/Index', [
             'matters' => $matters,
-            'filters' => $request->only('status', 'practice_area', 'search'),
+            'filters' => $request->only('status', 'practice_area', 'priority', 'search'),
         ]);
     }
 
@@ -293,11 +297,26 @@ class MatterController extends Controller
 
         $prefix = "{$datePart}-{$initials}";
 
-        $serial = Matter::where('firm_id', $firmId)
-            ->where('matter_number', 'like', "{$prefix}-%")
+        // Global sequential per firm — suffix must progress across all matters,
+        // not reset per date+initials (bug: every new client/day got 00001).
+        // Requirement: sequence starts at 00100. Use MAX suffix so jumping to
+        // 00100 for existing data is respected and soft-deleted numbers are still
+        // reserved.
+        $maxSuffix = Matter::where('firm_id', $firmId)
             ->withTrashed()
-            ->count() + 1;
+            ->get(['matter_number'])
+            ->map(fn ($m) => (int) substr($m->matter_number, -5))
+            ->filter(fn ($n) => $n > 0)
+            ->max();
 
-        return $prefix . '-' . str_pad($serial, 5, '0', STR_PAD_LEFT);
+        $serial = max(100, ($maxSuffix ?? 99) + 1);
+
+        $candidate = $prefix . '-' . str_pad($serial, 5, '0', STR_PAD_LEFT);
+        while (Matter::where('firm_id', $firmId)->withTrashed()->where('matter_number', $candidate)->exists()) {
+            $serial++;
+            $candidate = $prefix . '-' . str_pad($serial, 5, '0', STR_PAD_LEFT);
+        }
+
+        return $candidate;
     }
 }

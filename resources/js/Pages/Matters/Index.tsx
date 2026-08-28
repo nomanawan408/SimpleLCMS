@@ -11,8 +11,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { formatDate, MATTER_STATUS_LABELS, PRACTICE_AREA_LABELS } from '@/lib/utils';
-import { Plus, Search, X, Calendar, Clock, ListTodo, Briefcase } from 'lucide-react';
+import { DateUrgencyDot } from '@/components/ui/urgency-dot';
+import { formatDate, MATTER_STATUS_LABELS, MATTER_PRIORITY_LABELS, MATTER_PRIORITY_STYLES, PRACTICE_AREA_LABELS } from '@/lib/utils';
+import { Plus, Search, X, Calendar, Clock, ListTodo, Briefcase, Flag } from 'lucide-react';
 import type { Matter, PaginatedData } from '@/types';
 
 interface Props {
@@ -30,15 +31,28 @@ function useDebounce(value: string, delay: number) {
 }
 
 const statusVariant: Record<string, any> = {
-    open: 'success', pending_court_date: 'warning', awaiting_client: 'info',
-    awaiting_opponent: 'info', on_hold: 'secondary', closed: 'default', archived: 'secondary',
+    open: 'success', in_progress: 'info', in_review: 'warning',
+    actively_progressing: 'info', reviewing: 'warning', being_worked: 'info',
+    pending_court_date: 'warning', awaiting_client: 'info',
+    awaiting_opponent: 'info', awaiting_response: 'info', awaiting_third_party: 'info',
+    awaiting_respondent_solicitors: 'info', awaiting_claimant_solicitors: 'info',
+    on_hold: 'secondary', closed: 'default', archived: 'secondary',
 };
 
 const statusBadgeStyles: Record<string, string> = {
     open: 'bg-success/15 text-success border-success/25',
+    in_progress: 'bg-info/15 text-info border-info/25',
+    in_review: 'bg-warning/15 text-warning border-warning/25',
+    actively_progressing: 'bg-info/15 text-info border-info/25',
+    reviewing: 'bg-warning/15 text-warning border-warning/25',
+    being_worked: 'bg-info/15 text-info border-info/25',
     pending_court_date: 'bg-warning/15 text-warning border-warning/25',
     awaiting_client: 'bg-info/15 text-info border-info/25',
     awaiting_opponent: 'bg-info/15 text-info border-info/25',
+    awaiting_response: 'bg-info/15 text-info border-info/25',
+    awaiting_third_party: 'bg-info/15 text-info border-info/25',
+    awaiting_respondent_solicitors: 'bg-info/15 text-info border-info/25',
+    awaiting_claimant_solicitors: 'bg-info/15 text-info border-info/25',
     on_hold: 'bg-muted text-muted-foreground border-border',
     closed: 'bg-muted text-muted-foreground border-border',
     archived: 'bg-muted text-muted-foreground border-border',
@@ -48,6 +62,7 @@ export default function MattersIndex({ matters, filters }: Props) {
     const [search, setSearch]   = useState(filters.search ?? '');
     const [status, setStatus]   = useState(filters.status ?? '_all');
     const [area, setArea]       = useState(filters.practice_area ?? '_all');
+    const [priority, setPriority] = useState((filters as any).priority ?? '_all');
     const debouncedSearch       = useDebounce(search, 300);
     const isFirstRun            = useRef(true);
     const [editingHearing, setEditingHearing] = useState<Matter | null>(null);
@@ -64,13 +79,14 @@ export default function MattersIndex({ matters, filters }: Props) {
             search:        debouncedSearch || undefined,
             status:        status === '_all' ? undefined : status,
             practice_area: area === '_all' ? undefined : area,
+            priority:      priority === '_all' ? undefined : priority,
         }, { preserveState: true, replace: true });
-    }, [debouncedSearch, status, area]);
+    }, [debouncedSearch, status, area, priority]);
 
-    const hasFilters = search || status !== '_all' || area !== '_all';
+    const hasFilters = search || status !== '_all' || area !== '_all' || priority !== '_all';
 
     function clearAll() {
-        setSearch(''); setStatus('_all'); setArea('_all');
+        setSearch(''); setStatus('_all'); setArea('_all'); setPriority('_all');
     }
 
     return (
@@ -113,6 +129,13 @@ export default function MattersIndex({ matters, filters }: Props) {
                             {Object.entries(PRACTICE_AREA_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
                         </SelectContent>
                     </Select>
+                    <Select value={priority} onValueChange={setPriority}>
+                        <SelectTrigger className="h-9 w-32 text-sm"><SelectValue placeholder="Priority" /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="_all">All priorities</SelectItem>
+                            {Object.entries(MATTER_PRIORITY_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
                     {hasFilters && (
                         <button onClick={clearAll} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive transition-colors">
                             <X className="h-3 w-3" />Clear
@@ -146,6 +169,7 @@ export default function MattersIndex({ matters, filters }: Props) {
                                         <TableHead className="hidden lg:table-cell">Clients / Contact</TableHead>
                                         <TableHead className="hidden lg:table-cell">Responsible</TableHead>
                                         <TableHead>Status</TableHead>
+                                        <TableHead>Priority</TableHead>
                                         <TableHead className="hidden xl:table-cell">Next Step</TableHead>
                                         <TableHead className="hidden xl:table-cell">Deadline</TableHead>
                                         <TableHead className="hidden xl:table-cell">Hearing Date</TableHead>
@@ -171,7 +195,13 @@ export default function MattersIndex({ matters, filters }: Props) {
                                             </TableCell>
                                             <TableCell>
                                                 <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${statusBadgeStyles[matter.status] ?? 'bg-muted text-muted-foreground border-border'}`}>
-                                                    {MATTER_STATUS_LABELS[matter.status]}
+                                                    {MATTER_STATUS_LABELS[matter.status] ?? matter.status.replace(/_/g, ' ')}
+                                                </span>
+                                            </TableCell>
+                                            <TableCell>
+                                                <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium ${MATTER_PRIORITY_STYLES[(matter as any).priority ?? 'medium'] ?? 'bg-muted text-muted-foreground border-border'}`}>
+                                                    <Flag className="h-3 w-3" />
+                                                    {MATTER_PRIORITY_LABELS[(matter as any).priority ?? 'medium']}
                                                 </span>
                                             </TableCell>
                                             <TableCell className="hidden xl:table-cell">
@@ -201,6 +231,7 @@ export default function MattersIndex({ matters, filters }: Props) {
                                                     }}
                                                 >
                                                     <Clock className="h-3.5 w-3.5" />
+                                                    <DateUrgencyDot date={matter.next_deadline} />
                                                     <span>{matter.next_deadline ? formatDate(matter.next_deadline) : 'Set deadline'}</span>
                                                 </button>
                                             </TableCell>

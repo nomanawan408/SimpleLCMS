@@ -31,6 +31,7 @@ export default function EditMatter({ matter, users, contacts, viewFinancial }: P
         name: matter.name,
         description: matter.description || '',
         status: matter.status || 'open',
+        priority: (matter as any).priority || 'medium',
         practice_area: matter.practice_area || '',
         fee_arrangement: matter.fee_arrangement || '',
         responsible_user_id: matter.responsible_user_id || '',
@@ -121,15 +122,35 @@ export default function EditMatter({ matter, users, contacts, viewFinancial }: P
                                         </SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="open">Open</SelectItem>
-                                            <SelectItem value="pending_court_date">Pending Court Date</SelectItem>
+                                            <SelectItem value="in_progress">In Progress</SelectItem>
+                                            <SelectItem value="in_review">In Review</SelectItem>
+                                            <SelectItem value="pending_court_date">Pending</SelectItem>
                                             <SelectItem value="awaiting_client">Awaiting Client</SelectItem>
-                                            <SelectItem value="awaiting_opponent">Awaiting Opponent</SelectItem>
+                                            <SelectItem value="awaiting_opponent">Opponent</SelectItem>
+                                            <SelectItem value="awaiting_response">Awaiting Response</SelectItem>
+                                            <SelectItem value="awaiting_third_party">Awaiting Third Party</SelectItem>
+                                            <SelectItem value="awaiting_respondent_solicitors">Awaiting Respondent Solicitors</SelectItem>
+                                            <SelectItem value="awaiting_claimant_solicitors">Awaiting Claimant Solicitors</SelectItem>
                                             <SelectItem value="on_hold">On Hold</SelectItem>
                                             <SelectItem value="closed">Closed</SelectItem>
                                             <SelectItem value="archived">Archived</SelectItem>
                                         </SelectContent>
                                     </Select>
                                     {errors.status && <p className="text-xs text-destructive mt-1">{errors.status}</p>}
+                                </div>
+                                <div className="space-y-3">
+                                    <Label className="text-sm font-medium">Priority</Label>
+                                    <Select value={data.priority} onValueChange={(v) => setData('priority', v)}>
+                                        <SelectTrigger className="h-11">
+                                            <SelectValue placeholder="Select priority…" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="low">Low</SelectItem>
+                                            <SelectItem value="medium">Medium</SelectItem>
+                                            <SelectItem value="high">High</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    {errors.priority && <p className="text-xs text-destructive mt-1">{errors.priority}</p>}
                                 </div>
 
                                 <div className="space-y-3">
@@ -172,7 +193,7 @@ export default function EditMatter({ matter, users, contacts, viewFinancial }: P
                             </div>
 
                             <div className="space-y-3">
-                                <Label className="text-sm font-medium">Responsible solicitor *</Label>
+                                <Label className="text-sm font-medium">Responsible User *</Label>
                                 <Select
                                     value={data.responsible_user_id}
                                     onValueChange={(v) => setData('responsible_user_id', v)}

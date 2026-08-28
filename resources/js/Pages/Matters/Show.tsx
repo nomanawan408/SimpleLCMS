@@ -14,12 +14,12 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
-import { cn, formatCurrency, formatDate, MATTER_STATUS_LABELS, PRACTICE_AREA_LABELS } from '@/lib/utils';
+import { cn, formatCurrency, formatDate, MATTER_STATUS_LABELS, MATTER_PRIORITY_LABELS, MATTER_PRIORITY_STYLES, PRACTICE_AREA_LABELS } from '@/lib/utils';
 import {
     ArrowLeft, Clock, Receipt, Wallet, FileText, CheckSquare, Users, Edit, Plus, Download,
     Gavel, Calendar, TrendingUp, AlertTriangle, ChevronRight, MessageSquare, Timer,
     Paperclip, ExternalLink, DollarSign, PoundSterling, Eye, X, Pencil, Trash2,
-    Landmark, CalendarClock,
+    Landmark, CalendarClock, Flag,
 } from 'lucide-react';
 import type { Matter, Expense, Document, TrustEntry, User } from '@/types';
 import { useUploadQueue } from '@/hooks/useUploadQueue';
@@ -591,9 +591,18 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
 
     const statusVariant: Record<string, 'default' | 'success' | 'warning' | 'destructive' | 'secondary'> = {
         open:                'success',
+        in_progress:         'warning',
+        in_review:           'warning',
+        actively_progressing:'warning',
+        reviewing:           'warning',
+        being_worked:        'warning',
         pending_court_date:  'warning',
         awaiting_client:     'warning',
         awaiting_opponent:   'secondary',
+        awaiting_response:            'warning',
+        awaiting_third_party:         'warning',
+        awaiting_respondent_solicitors: 'warning',
+        awaiting_claimant_solicitors: 'warning',
         on_hold:             'secondary',
         closed:              'default',
         archived:            'secondary',
@@ -601,9 +610,18 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
 
     const statusAccent: Record<string, string> = {
         open:                'bg-success',
+        in_progress:         'bg-info',
+        in_review:           'bg-warning',
+        actively_progressing:'bg-info',
+        reviewing:           'bg-warning',
+        being_worked:        'bg-info',
         pending_court_date:  'bg-warning',
         awaiting_client:     'bg-warning',
         awaiting_opponent:   'bg-primary/40',
+        awaiting_response:            'bg-warning',
+        awaiting_third_party:         'bg-warning',
+        awaiting_respondent_solicitors: 'bg-warning',
+        awaiting_claimant_solicitors: 'bg-warning',
         on_hold:             'bg-muted-foreground/40',
         closed:              'bg-foreground/70',
         archived:            'bg-muted-foreground/40',
@@ -686,8 +704,12 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                     <div className="flex items-center gap-2 px-5 pt-3.5 text-xs text-muted-foreground">
                         <span className={cn('h-1.5 w-1.5 rounded-full', statusAccent[matter.status] ?? 'bg-primary')} />
                         <Badge variant={statusVariant[matter.status] ?? 'default'} className="text-xs font-semibold uppercase tracking-widest px-2 py-0 rounded-full">
-                            {MATTER_STATUS_LABELS[matter.status]}
+                            {MATTER_STATUS_LABELS[matter.status] ?? matter.status.replace(/_/g, ' ')}
                         </Badge>
+                        <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium ${MATTER_PRIORITY_STYLES[(matter as any).priority ?? 'medium']}`}>
+                            <Flag className="h-3 w-3" />
+                            {MATTER_PRIORITY_LABELS[(matter as any).priority ?? 'medium']}
+                        </span>
                         <span className="text-border">·</span>
                         <span className="font-mono tabular-nums text-base">{matter.matter_number}</span>
                         {daysUntil !== null && daysUntil <= 7 && (
@@ -733,7 +755,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                             </div>
                         )}
 
-                        <div className="mt-4 grid grid-cols-2 lg:grid-cols-4 gap-3">
+                        <div className="mt-4 grid grid-cols-2 lg:grid-cols-5 gap-3">
                             {matter.practice_area && (
                                 <div className="rounded-xl border border-border/60 bg-muted/[0.18] px-3.5 py-2.5 flex items-center gap-2.5">
                                     <span className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-50 shrink-0"><Gavel className="h-3.5 w-3.5 text-amber-600" /></span>
@@ -751,7 +773,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                         {matter.responsible_user.full_name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
                                     </span>
                                     <div className="min-w-0">
-                                        <p className="text-xs font-medium text-muted-foreground leading-none">Solicitor</p>
+                                        <p className="text-xs font-medium text-muted-foreground leading-none">User</p>
                                         <p className="text-base font-semibold text-foreground truncate">{matter.responsible_user.full_name}</p>
                                     </div>
                                 </div>
@@ -765,6 +787,13 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                     </div>
                                 </div>
                             )}
+                            <div className={`rounded-xl border px-3.5 py-2.5 flex items-center gap-2.5 ${MATTER_PRIORITY_STYLES[(matter as any).priority ?? 'medium'] ?? 'bg-muted/[0.18] border-border/60'}`}>
+                                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-background shrink-0"><Flag className="h-3.5 w-3.5" /></span>
+                                <div className="min-w-0">
+                                    <p className="text-xs font-medium opacity-70 leading-none">Priority</p>
+                                    <p className="text-base font-semibold truncate">{MATTER_PRIORITY_LABELS[(matter as any).priority ?? 'medium']}</p>
+                                </div>
+                            </div>
                             {matter.matter_number && (
                                 <div className="rounded-xl border border-border/60 bg-muted/[0.18] px-3.5 py-2.5 flex items-center gap-2.5">
                                     <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 shrink-0"><FileText className="h-3.5 w-3.5 text-slate-600" /></span>
@@ -922,7 +951,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                             <CardContent className="p-6 space-y-5">
                                 {matter.responsible_user && (
                                     <div>
-                                        <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">Handling Solicitor</p>
+                                        <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">Responsible User</p>
                                         <div className="flex items-center gap-3">
                                             <span className="h-9 w-9 rounded-full bg-primary text-primary-foreground text-sm font-bold flex items-center justify-center shrink-0">
                                                 {matter.responsible_user.full_name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}

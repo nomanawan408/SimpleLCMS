@@ -41,9 +41,18 @@ interface KpiCard {
 
 const statusColors: Record<string, 'default' | 'success' | 'warning' | 'destructive' | 'secondary'> = {
     open: 'success',
+    in_progress: 'warning',
+    in_review: 'warning',
+    actively_progressing: 'warning',
+    reviewing: 'warning',
+    being_worked: 'warning',
     pending_court_date: 'warning',
     awaiting_client: 'secondary',
     awaiting_opponent: 'secondary',
+    awaiting_response: 'secondary',
+    awaiting_third_party: 'secondary',
+    awaiting_respondent_solicitors: 'secondary',
+    awaiting_claimant_solicitors: 'secondary',
     on_hold: 'secondary',
     closed: 'default',
     archived: 'secondary',
