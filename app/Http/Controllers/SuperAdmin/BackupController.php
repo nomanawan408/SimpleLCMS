@@ -28,17 +28,47 @@ class BackupController extends Controller
     {
         $this->authorizeSuperAdmin();
         
+        $validated = $request->validate([
+            'include_database' => ['sometimes', 'boolean'],
+            'include_files' => ['sometimes', 'boolean'],
+        ]);
+
+        $database = $request->boolean('include_database', true);
+        $files = $request->boolean('include_files', true);
+
+        if (! $database && ! $files) {
+            return back()->with('error', 'Choose at least one thing to back up.');
+        }
+
+        $options = ['--cleanup' => true];
+
+        if (! $database) {
+            $options['--no-database'] = true;
+        }
+
+        if (! $files) {
+            $options['--no-files'] = true;
+        }
+
         try {
-            // Run backup command
-            $exitCode = Artisan::call('app:backup', ['--cleanup' => true]);
-            
-            if ($exitCode === 0) {
-                return back()->with('success', 'Backup created successfully');
-            } else {
-                return back()->with('error', 'Backup failed to create');
+            $exitCode = Artisan::call('app:backup', $options);
+
+            if ($exitCode !== 0) {
+                return back()->with('error', 'Backup failed to create.');
             }
+
+            activity()->causedBy($request->user())
+                ->withProperties(['database' => $database, 'files' => $files])
+                ->log('backup_created');
+
+            $what = collect(['database' => $database, 'documents' => $files])
+                ->filter()->keys()->join(' and ');
+
+            return back()->with('success', "Backup created ({$what}).");
         } catch (\Exception $e) {
-            return back()->with('error', 'Backup failed: ' . $e->getMessage());
+            report($e);
+
+            return back()->with('error', 'Backup failed. See the application log for details.');
         }
     }
     
@@ -71,6 +101,8 @@ class BackupController extends Controller
         // archive would be arbitrary SQL from an untrusted source.
         $validated = $request->validate([
             'filename' => ['required', 'string', 'max:255'],
+            'restore_database' => ['sometimes', 'boolean'],
+            'restore_files' => ['sometimes', 'boolean'],
         ]);
 
         try {
@@ -91,15 +123,35 @@ class BackupController extends Controller
             return back()->with('error', 'That backup failed its integrity check and was not restored.');
         }
 
+        $contents = BackupArchive::contents($backupPath);
+        $database = $request->boolean('restore_database', true) && $contents['database'];
+        $files = $request->boolean('restore_files', true) && $contents['files'];
+
+        if (! $database && ! $files) {
+            return back()->with('error', 'Choose at least one thing to restore that this backup actually contains.');
+        }
+
+        $options = ['file' => $backupPath, '--force' => true];
+
+        if (! $database) {
+            $options['--no-database'] = true;
+        }
+
+        if (! $files) {
+            $options['--no-files'] = true;
+        }
+
         activity()->causedBy($request->user())
-            ->withProperties(['filename' => basename($backupPath), 'ip' => $request->ip()])
+            ->withProperties([
+                'filename' => basename($backupPath),
+                'ip' => $request->ip(),
+                'database' => $database,
+                'files' => $files,
+            ])
             ->log('backup_restore_started');
 
         try {
-            $exitCode = Artisan::call('app:restore', [
-                'file' => $backupPath,
-                '--force' => true,
-            ]);
+            $exitCode = Artisan::call('app:restore', $options);
         } catch (\Exception $e) {
             report($e);
 
@@ -157,9 +209,13 @@ class BackupController extends Controller
         
         foreach ($files as $file) {
             $filename = basename($file);
+            $contents = BackupArchive::contents($file);
+
             $backups[] = [
                 'filename' => $filename,
                 'verified' => BackupArchive::verify($file),
+                'has_database' => $contents['database'],
+                'has_files' => $contents['files'],
                 'size' => filesize($file),
                 'created_at' => filemtime($file),
                 'created_at_formatted' => date('Y-m-d H:i:s', filemtime($file)),

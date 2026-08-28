@@ -4,6 +4,7 @@ namespace App\Http\Controllers\SuperAdmin;
 
 use App\Http\Controllers\Controller;
 use App\Mail\FirmSetupInviteMail;
+use App\Models\Document;
 use App\Models\Firm;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
@@ -11,7 +12,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Spatie\Permission\Models\Role;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -26,6 +29,8 @@ class FirmController extends Controller
             ->get();
 
         return Inertia::render('SuperAdmin/Firms/Index', [
+            // Every field the edit dialog can write must be sent back, or
+            // saving an edit resets the ones it never received.
             'firms' => $firms->map(fn ($firm) => [
                 'id'                  => $firm->id,
                 'name'                => $firm->name,
@@ -35,7 +40,12 @@ class FirmController extends Controller
                 'trial_ends_at'       => $firm->trial_ends_at,
                 'email'               => $firm->email,
                 'phone'               => $firm->phone,
+                'address_line1'       => $firm->address_line1,
                 'city'                => $firm->city,
+                'postcode'            => $firm->postcode,
+                'timezone'            => $firm->timezone,
+                'default_hourly_rate' => $firm->default_hourly_rate,
+                'vat_rate'            => $firm->vat_rate,
                 'users_count'         => $firm->users_count,
                 'matters_count'       => $firm->matters_count,
                 'created_at'          => $firm->created_at,
@@ -161,11 +171,49 @@ class FirmController extends Controller
         abort_unless($request->user()->hasRole('super_admin'), 403);
 
         $firmName = $firm->name;
+        $firmId = $firm->id;
 
-        $firm->users()->delete();
-        $firm->delete();
+        // Record what is about to be destroyed, while it still exists.
+        $counts = [
+            'users' => $firm->users()->count(),
+            'matters' => $firm->matters()->count(),
+            'contacts' => $firm->contacts()->count(),
+        ];
 
-        activity()->causedBy($request->user())->log('firm_deleted');
+        // Documents cascade out of the database but their files do not, so
+        // they would sit in storage forever.
+        $documentKeys = Document::withoutGlobalScope('firm')
+            ->withTrashed()
+            ->where('firm_id', $firmId)
+            ->pluck('s3_key')
+            ->filter()
+            ->all();
+
+        DB::transaction(function () use ($firm, $firmId) {
+            // roles.firm_id is nullOnDelete, and a null firm_id now marks a
+            // role as platform-wide. Without this, deleting a firm would hand
+            // its private roles to every other firm on the platform.
+            $roles = Role::where('firm_id', $firmId)->get();
+            foreach ($roles as $role) {
+                $role->users()->detach();
+                $role->delete();
+            }
+
+            $firm->users()->forceDelete();
+            $firm->delete();
+        });
+
+        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+
+        foreach ($documentKeys as $key) {
+            if (Storage::disk('local')->exists($key)) {
+                Storage::disk('local')->delete($key);
+            }
+        }
+
+        activity()->causedBy($request->user())
+            ->withProperties(['firm_id' => $firmId, 'firm_name' => $firmName] + $counts)
+            ->log('firm_deleted');
 
         return redirect()->route('superadmin.firms.index')
             ->with('success', "Firm '{$firmName}' and all its data deleted.");

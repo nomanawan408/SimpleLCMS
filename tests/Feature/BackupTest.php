@@ -71,4 +71,93 @@ class BackupTest extends TestCase
             ->get('/superadmin/backups/backup-2026-08-27-09-00-00-1234abcd.tar.gz')
             ->assertForbidden();
     }
+
+    /** A backup records what it contains, so restore never has to guess. */
+    public function test_backup_archive_reports_its_contents(): void
+    {
+        $dir = \App\Support\BackupArchive::directory();
+        $work = $dir.'/backup-2026-08-28-10-00-00-aaaabbbb';
+        @mkdir($work, 0700, true);
+
+        file_put_contents($work.'/manifest.json', json_encode([
+            'version' => 1,
+            'created_at' => '2026-08-28T10:00:00+00:00',
+            'contents' => ['database' => true, 'files' => false],
+        ]));
+
+        $archive = $dir.'/backup-2026-08-28-10-00-00-aaaabbbb.tar.gz';
+        (new \Symfony\Component\Process\Process(
+            ['tar', '-czf', $archive, '-C', $dir, 'backup-2026-08-28-10-00-00-aaaabbbb']
+        ))->mustRun();
+
+        try {
+            $contents = \App\Support\BackupArchive::contents($archive);
+            $this->assertTrue($contents['database']);
+            $this->assertFalse($contents['files']);
+        } finally {
+            (new \Symfony\Component\Process\Process(['rm', '-rf', $work]))->run();
+            @unlink($archive);
+        }
+    }
+
+    /** An archive with no manifest predates them and held both parts. */
+    public function test_archives_without_a_manifest_report_both_parts(): void
+    {
+        $dir = \App\Support\BackupArchive::directory();
+        if (! is_dir($dir)) {
+            mkdir($dir, 0700, true);
+        }
+        $archive = $dir.'/backup-2026-08-28-11-00-00-ccccdddd.tar.gz';
+        file_put_contents($archive, 'not really a tar');
+
+        try {
+            $contents = \App\Support\BackupArchive::contents($archive);
+            $this->assertTrue($contents['database']);
+            $this->assertTrue($contents['files']);
+        } finally {
+            @unlink($archive);
+        }
+    }
+
+    public function test_backup_requires_at_least_one_thing_selected(): void
+    {
+        $this->actingAsUser($this->superAdminUser())
+            ->post('/superadmin/backups', [
+                'include_database' => false,
+                'include_files' => false,
+            ])
+            ->assertSessionHas('error');
+    }
+
+    public function test_restore_requires_at_least_one_thing_selected(): void
+    {
+        $dir = \App\Support\BackupArchive::directory();
+        if (! is_dir($dir)) {
+            mkdir($dir, 0700, true);
+        }
+        $name = 'backup-2026-08-28-12-00-00-eeeeffff.tar.gz';
+        file_put_contents($dir.'/'.$name, 'archive');
+        \App\Support\BackupArchive::sign($dir.'/'.$name);
+
+        try {
+            $this->actingAsUser($this->superAdminUser())
+                ->post('/superadmin/backups/restore', [
+                    'filename' => $name,
+                    'restore_database' => false,
+                    'restore_files' => false,
+                ])
+                ->assertSessionHas('error');
+        } finally {
+            @unlink($dir.'/'.$name);
+            @unlink($dir.'/'.$name.'.sig');
+        }
+    }
+
+    public function test_backup_listing_reports_contents_per_archive(): void
+    {
+        $this->actingAsUser($this->superAdminUser())
+            ->get('/superadmin/backups')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->has('backups'));
+    }
 }

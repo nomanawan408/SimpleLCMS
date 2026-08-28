@@ -11,7 +11,10 @@ use Symfony\Component\Process\Exception\ProcessFailedException;
 
 class BackupCommand extends Command
 {
-    protected $signature = 'app:backup {--cleanup : Remove old backups (keep last 5)}';
+    protected $signature = 'app:backup
+        {--cleanup : Remove old backups (keep last 5)}
+        {--no-database : Skip the database dump}
+        {--no-files : Skip the document store}';
     protected $description = 'Create a backup of the application database and storage files';
 
     public function handle(): int
@@ -26,14 +29,34 @@ class BackupCommand extends Command
             mkdir($backupDir, 0700, true);
         }
 
-        try {
-            // Backup database
-            $this->info('Backing up database...');
-            $this->backupDatabase("{$backupDir}/database.sql");
+        $includeDatabase = ! $this->option('no-database');
+        $includeFiles = ! $this->option('no-files');
 
-            // Backup storage files
-            $this->info('Backing up storage files...');
-            $this->backupStorage($backupDir);
+        if (! $includeDatabase && ! $includeFiles) {
+            $this->error('Nothing selected to back up.');
+            $this->cleanupTempDir($backupDir);
+
+            return Command::FAILURE;
+        }
+
+        try {
+            if ($includeDatabase) {
+                $this->info('Backing up database...');
+                $this->backupDatabase("{$backupDir}/database.sql");
+            } else {
+                $this->line('Skipping database.');
+            }
+
+            if ($includeFiles) {
+                $this->info('Backing up storage files...');
+                $this->backupStorage($backupDir);
+            } else {
+                $this->line('Skipping documents.');
+            }
+
+            // Restore reads this to know what the archive actually holds, so it
+            // can offer only the parts that are really in there.
+            $this->writeManifest($backupDir, $includeDatabase, $includeFiles);
 
             // Create archive
             $this->info('Creating archive...');
@@ -197,5 +220,22 @@ class BackupCommand extends Command
             @unlink(BackupArchive::signaturePathFor($file));
             $this->line("Deleted old backup: " . basename($file));
         }
+    }
+
+    /**
+     * Describes the archive's contents so restore never has to guess.
+     */
+    private function writeManifest(string $backupDir, bool $database, bool $files): void
+    {
+        file_put_contents("{$backupDir}/manifest.json", json_encode([
+            'version' => 1,
+            'created_at' => now()->toIso8601String(),
+            'app_name' => config('app.name'),
+            'db_driver' => config('database.default'),
+            'contents' => [
+                'database' => $database,
+                'files' => $files,
+            ],
+        ], JSON_PRETTY_PRINT));
     }
 }

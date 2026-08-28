@@ -1,4 +1,4 @@
-import { Head, useForm, Link } from '@inertiajs/react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
 import { useState } from 'react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,7 +22,12 @@ interface FirmRow {
     trial_ends_at: string | null;
     email: string | null;
     phone: string | null;
+    address_line1: string | null;
     city: string | null;
+    postcode: string | null;
+    timezone: string | null;
+    default_hourly_rate: string | number | null;
+    vat_rate: string | number | null;
     users_count: number;
     matters_count: number;
     created_at: string;
@@ -72,14 +77,19 @@ export default function FirmsIndex({ firms }: Props) {
 
     const openCreate = () => {
         setEditingFirm(null);
-        reset(emptyForm);
+        // reset() takes field names; passing the object did nothing, so the
+        // dialog kept whatever had been typed into it previously.
+        setData(emptyForm);
         clearErrors();
         setDialogOpen(true);
     };
 
     const openEdit = (firm: FirmRow) => {
         setEditingFirm(firm);
-        reset({
+        // setData, not reset: reset() ignores an object, so the edit dialog
+        // never showed the firm's own values -- and saving wrote back whatever
+        // the form happened to hold.
+        setData({
             name: firm.name,
             slug: firm.slug,
             email: firm.email ?? '',
@@ -87,12 +97,15 @@ export default function FirmsIndex({ firms }: Props) {
             plan: firm.plan,
             subscription_status: firm.subscription_status,
             trial_ends_at: firm.trial_ends_at ? firm.trial_ends_at.slice(0, 10) : '',
-            address_line1: '',
+            address_line1: firm.address_line1 ?? '',
             city: firm.city ?? '',
-            postcode: '',
-            timezone: 'Europe/London',
-            default_hourly_rate: '250',
-            vat_rate: '20',
+            postcode: firm.postcode ?? '',
+            timezone: firm.timezone ?? 'Europe/London',
+            default_hourly_rate: firm.default_hourly_rate != null ? String(firm.default_hourly_rate) : '',
+            vat_rate: firm.vat_rate != null ? String(firm.vat_rate) : '',
+            // Only used when creating; the firm already has its administrator.
+            admin_name: '',
+            admin_email: '',
         });
         clearErrors();
         setDialogOpen(true);
@@ -111,10 +124,20 @@ export default function FirmsIndex({ firms }: Props) {
         }
     };
 
+    const [deleting, setDeleting] = useState(false);
+
     const handleDelete = () => {
         if (!deleteConfirm) return;
-        useForm({}).delete(`/superadmin/firms/${deleteConfirm.id}`, {
-            onSuccess: () => setDeleteConfirm(null),
+
+        // router.delete, not useForm(): useForm is a hook and calling it from
+        // an event handler breaks the Rules of Hooks.
+        setDeleting(true);
+        router.delete(`/superadmin/firms/${deleteConfirm.id}`, {
+            preserveScroll: true,
+            onFinish: () => {
+                setDeleting(false);
+                setDeleteConfirm(null);
+            },
         });
     };
 

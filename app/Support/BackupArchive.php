@@ -92,4 +92,37 @@ class BackupArchive
             ? base64_decode(substr($key, 7))
             : $key;
     }
+
+    /**
+     * Reads the manifest out of an archive without unpacking the whole thing,
+     * so the console can show what each backup actually contains.
+     *
+     * Archives written before manifests existed report both parts present,
+     * which is what they always held.
+     */
+    public static function contents(string $archivePath): array
+    {
+        $default = ['database' => true, 'files' => true, 'created_at' => null];
+
+        $process = new \Symfony\Component\Process\Process(
+            ['tar', '-xzOf', $archivePath, '--wildcards', '*/manifest.json']
+        );
+        $process->run();
+
+        if (! $process->isSuccessful()) {
+            return $default;
+        }
+
+        $manifest = json_decode(trim($process->getOutput()), true);
+
+        if (! is_array($manifest) || ! isset($manifest['contents'])) {
+            return $default;
+        }
+
+        return [
+            'database' => (bool) ($manifest['contents']['database'] ?? true),
+            'files' => (bool) ($manifest['contents']['files'] ?? true),
+            'created_at' => $manifest['created_at'] ?? null,
+        ];
+    }
 }

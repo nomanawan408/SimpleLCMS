@@ -9,7 +9,12 @@ use Symfony\Component\Process\Process;
 
 class RestoreCommand extends Command
 {
-    protected $signature = 'app:restore {file : Backup file path} {--force : Skip confirmation} {--skip-verify : Bypass the provenance check (disaster recovery only)}';
+    protected $signature = 'app:restore
+        {file : Backup file path}
+        {--force : Skip confirmation}
+        {--skip-verify : Bypass the provenance check (disaster recovery only)}
+        {--no-database : Leave the database untouched}
+        {--no-files : Leave the document store untouched}';
     protected $description = 'Restore the application from a backup file';
 
     public function handle(): int
@@ -64,20 +69,42 @@ class RestoreCommand extends Command
             
             $backupContents = reset($extractedItems); // First directory
 
-            // Restore database
+            $manifest = $this->readManifest($backupContents);
+            $wantDatabase = ! $this->option('no-database');
+            $wantFiles = ! $this->option('no-files');
+
             $dbFile = "{$backupContents}/database.sql";
-            if (file_exists($dbFile)) {
+            $storageDir = "{$backupContents}/storage";
+
+            $hasDatabase = file_exists($dbFile);
+            $hasFiles = is_dir($storageDir);
+
+            // Asking to restore something the archive does not contain is a
+            // mistake worth stopping for, not silently skipping.
+            if ($wantDatabase && ! $hasDatabase) {
+                throw new \Exception('This backup contains no database dump. Re-run with --no-database to restore files only.');
+            }
+
+            if ($wantFiles && ! $hasFiles && ($manifest['contents']['files'] ?? true)) {
+                throw new \Exception('This backup contains no document store. Re-run with --no-files to restore the database only.');
+            }
+
+            if (! $wantDatabase && ! $wantFiles) {
+                throw new \Exception('Nothing selected to restore.');
+            }
+
+            if ($wantDatabase) {
                 $this->info('Restoring database...');
                 $this->restoreDatabase($dbFile);
             } else {
-                throw new \Exception('Database backup not found in archive');
+                $this->line('Leaving the database untouched.');
             }
 
-            // Restore storage
-            $storageDir = "{$backupContents}/storage";
-            if (is_dir($storageDir)) {
+            if ($wantFiles && $hasFiles) {
                 $this->info('Restoring storage files...');
                 $this->restoreStorage($storageDir);
+            } else {
+                $this->line('Leaving the document store untouched.');
             }
 
             // Cleanup
@@ -256,5 +283,20 @@ class RestoreCommand extends Command
             $process = new Process(['rm', '-rf', $tempDir]);
             $process->run();
         }
+    }
+
+    /**
+     * Reads the archive's manifest. Archives written before manifests existed
+     * simply report nothing, and the on-disk checks take over.
+     */
+    private function readManifest(string $backupContents): array
+    {
+        $path = "{$backupContents}/manifest.json";
+
+        if (! is_file($path)) {
+            return [];
+        }
+
+        return json_decode((string) file_get_contents($path), true) ?: [];
     }
 }

@@ -6,13 +6,15 @@ import {
 } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { formatDate } from '@/lib/utils';
+import { cn, formatDate } from '@/lib/utils';
 import { Download, Trash2, Upload, HardDrive, AlertCircle } from 'lucide-react';
 import { useState } from 'react';
 
 interface Backup {
     filename: string;
     verified: boolean;
+    has_database: boolean;
+    has_files: boolean;
     size: number;
     created_at: number;
     created_at_formatted: string;
@@ -23,14 +25,55 @@ interface Props {
     backups: Backup[];
 }
 
+
+const Choice = ({ id, checked, onChange, disabled, label, hint }: {
+    id: string; checked: boolean; onChange: (v: boolean) => void;
+    disabled?: boolean; label: string; hint: string;
+}) => (
+    <label
+        htmlFor={id}
+        className={cn(
+            'flex items-start gap-3 rounded-xl border p-3 transition-colors',
+            disabled
+                ? 'border-border/40 bg-muted/20 opacity-60 cursor-not-allowed'
+                : checked
+                    ? 'border-primary/40 bg-secondary/40 cursor-pointer'
+                    : 'border-border/60 hover:bg-muted/30 cursor-pointer',
+        )}
+    >
+        <input
+            id={id}
+            type="checkbox"
+            checked={checked}
+            disabled={disabled}
+            onChange={(e) => onChange(e.target.checked)}
+            className="mt-0.5 h-4 w-4 shrink-0 rounded border-border accent-primary"
+        />
+        <span className="min-w-0">
+            <span className="block text-sm font-semibold text-foreground">{label}</span>
+            <span className="block text-xs text-muted-foreground">{hint}</span>
+        </span>
+    </label>
+);
+
 export default function BackupsIndex({ backups }: Props) {
     const { post, processing } = useForm();
 
     const [restoreProcessing, setRestoreProcessing] = useState(false);
 
+    const [includeDatabase, setIncludeDatabase] = useState(true);
+    const [includeFiles, setIncludeFiles] = useState(true);
+
     const handleCreateBackup = () => {
-        if (confirm('Are you sure you want to create a new backup? This may take several minutes.')) {
-            post('/superadmin/backups');
+        if (!includeDatabase && !includeFiles) {
+            alert('Choose at least one thing to back up.');
+            return;
+        }
+        if (confirm('Create a new backup? This may take several minutes.')) {
+            router.post('/superadmin/backups', {
+                include_database: includeDatabase,
+                include_files: includeFiles,
+            });
         }
     };
 
@@ -41,6 +84,10 @@ export default function BackupsIndex({ backups }: Props) {
     };
 
     const [selectedBackup, setSelectedBackup] = useState('');
+    const [restoreDatabase, setRestoreDatabase] = useState(true);
+    const [restoreFiles, setRestoreFiles] = useState(true);
+
+    const chosen = backups.find((b) => b.filename === selectedBackup) ?? null;
 
     const handleRestoreBackup = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -101,6 +148,23 @@ export default function BackupsIndex({ backups }: Props) {
                                 <div className="rounded-md bg-yellow-50 border border-yellow-200 p-3 mt-4">
                                     <div className="flex">
                                         <AlertCircle className="h-5 w-5 text-yellow-600 mr-2 flex-shrink-0" />
+                                <div className="grid gap-2 sm:grid-cols-2 mb-4">
+                                    <Choice
+                                        id="include-database"
+                                        checked={includeDatabase}
+                                        onChange={setIncludeDatabase}
+                                        label="Database"
+                                        hint="Every firm, user, matter and invoice"
+                                    />
+                                    <Choice
+                                        id="include-files"
+                                        checked={includeFiles}
+                                        onChange={setIncludeFiles}
+                                        label="Documents"
+                                        hint="Uploaded client files on disk"
+                                    />
+                                </div>
+
                                         <div>
                                             <p className="text-sm font-medium text-yellow-800">Important</p>
                                             <p className="text-sm text-yellow-700">
@@ -135,6 +199,9 @@ export default function BackupsIndex({ backups }: Props) {
                                         {backups.filter((b) => b.verified).map((b) => (
                                             <option key={b.filename} value={b.filename}>
                                                 {b.created_at_formatted} — {b.size_formatted}
+                                                {' — '}
+                                                {[b.has_database && 'database', b.has_files && 'documents']
+                                                    .filter(Boolean).join(' + ')}
                                             </option>
                                         ))}
                                     </select>
@@ -143,6 +210,29 @@ export default function BackupsIndex({ backups }: Props) {
                                         restored. To restore from an off-site copy, place the archive and its
                                         <code className="mx-1">.sig</code> file in the backups directory on the server.
                                     </p>
+                                </div>
+
+                                <div className="grid gap-2 sm:grid-cols-2">
+                                    <Choice
+                                        id="restore-database"
+                                        checked={restoreDatabase && !!chosen?.has_database}
+                                        onChange={setRestoreDatabase}
+                                        disabled={!chosen?.has_database}
+                                        label="Database"
+                                        hint={chosen && !chosen.has_database
+                                            ? 'Not included in this backup'
+                                            : 'Replaces all current records'}
+                                    />
+                                    <Choice
+                                        id="restore-files"
+                                        checked={restoreFiles && !!chosen?.has_files}
+                                        onChange={setRestoreFiles}
+                                        disabled={!chosen?.has_files}
+                                        label="Documents"
+                                        hint={chosen && !chosen.has_files
+                                            ? 'Not included in this backup'
+                                            : 'Replaces the current document store'}
+                                    />
                                 </div>
 
                                 <div className="rounded-md bg-destructive/10 border border-destructive/20 p-3">
