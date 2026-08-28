@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Contact;
+use App\Models\Document;
 use App\Models\Invoice;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -109,10 +110,23 @@ class ContactController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
+        // Documents belong to matters, so a contact's documents are those on
+        // the matters they are party to.
+        $canViewDocuments = $request->user()->hasPermissionTo('view_documents');
+
+        $documents = $canViewDocuments && $matterIds->isNotEmpty()
+            ? Document::whereIn('matter_id', $matterIds)
+                ->with(['matter:id,name,matter_number', 'uploadedBy:id,full_name'])
+                ->orderBy('created_at', 'desc')
+                ->get(['id', 'matter_id', 'uploaded_by_id', 'name', 'original_name', 'mime_type', 'size_bytes', 'created_at'])
+            : collect();
+
         return Inertia::render('Contacts/Show', [
             'contact'  => $contact,
             'invoices' => $invoices,
+            'documents' => $documents,
             'canEditContact' => $request->user()->can('update', $contact),
+            'canViewDocuments' => $canViewDocuments,
         ]);
     }
 

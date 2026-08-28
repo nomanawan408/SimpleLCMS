@@ -124,4 +124,59 @@ class ContactNoteTest extends TestCase
 
         $this->assertSame('Author note', $note->fresh()->body);
     }
+
+    /** Documents on a contact are the documents of the matters they are on. */
+    public function test_contact_documents_come_from_their_matters(): void
+    {
+        [$firm, $admin] = $this->createFirmAndAdmin();
+        $contact = Contact::factory()->create(['firm_id' => $firm->id]);
+        $matter = \App\Models\Matter::factory()->create(['firm_id' => $firm->id]);
+        $matter->contacts()->attach($contact->id, ['role' => 'client']);
+
+        \App\Models\Document::create([
+            'firm_id' => $firm->id, 'matter_id' => $matter->id, 'uploaded_by_id' => $admin->id,
+            'name' => 'engagement-letter.pdf', 'original_name' => 'engagement-letter.pdf',
+            's3_key' => 'documents/x.pdf', 'folder' => 'General',
+            'mime_type' => 'application/pdf', 'size_bytes' => 2048, 'version' => 1,
+        ]);
+
+        // A document on an unrelated matter must not appear.
+        $otherMatter = \App\Models\Matter::factory()->create(['firm_id' => $firm->id]);
+        \App\Models\Document::create([
+            'firm_id' => $firm->id, 'matter_id' => $otherMatter->id, 'uploaded_by_id' => $admin->id,
+            'name' => 'unrelated.pdf', 'original_name' => 'unrelated.pdf',
+            's3_key' => 'documents/y.pdf', 'folder' => 'General',
+            'mime_type' => 'application/pdf', 'size_bytes' => 1024, 'version' => 1,
+        ]);
+
+        $this->actingAsUser($admin)
+            ->get("/contacts/{$contact->id}")
+            ->assertOk()
+            ->assertSee('engagement-letter.pdf', false)
+            ->assertDontSee('unrelated.pdf', false);
+    }
+
+    /** Without view_documents the tab is not offered and no files are sent. */
+    public function test_documents_are_withheld_without_the_permission(): void
+    {
+        [$firm, $admin] = $this->createFirmAndAdmin();
+        $contact = Contact::factory()->create(['firm_id' => $firm->id]);
+        $matter = \App\Models\Matter::factory()->create(['firm_id' => $firm->id]);
+        $matter->contacts()->attach($contact->id, ['role' => 'client']);
+
+        \App\Models\Document::create([
+            'firm_id' => $firm->id, 'matter_id' => $matter->id, 'uploaded_by_id' => $admin->id,
+            'name' => 'private.pdf', 'original_name' => 'private.pdf',
+            's3_key' => 'documents/z.pdf', 'folder' => 'General',
+            'mime_type' => 'application/pdf', 'size_bytes' => 10, 'version' => 1,
+        ]);
+
+        $admin->syncRoles([]);
+        $admin->syncPermissions(['view_contacts', 'edit_contacts']);
+
+        $this->actingAsUser($admin->fresh())
+            ->get("/contacts/{$contact->id}")
+            ->assertOk()
+            ->assertDontSee('private.pdf', false);
+    }
 }
