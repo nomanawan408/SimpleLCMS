@@ -1914,8 +1914,10 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                 <Label className="text-sm font-medium">Amount *</Label>
                                 <Input type="number" min="0" step="0.01" className="h-11" value={expenseForm.amount} onChange={(e) => setExpenseForm((p) => ({ ...p, amount: e.target.value }))} />
                             </div>
-                            <div className="space-y-1.5">
-                                <Label>VAT</Label>
+                            <div className="space-y-2">
+                                <Label className="text-sm font-medium">
+                                    VAT <span className="font-normal text-muted-foreground">(optional)</span>
+                                </Label>
                                 <Input
                                     type="number"
                                     min="0"

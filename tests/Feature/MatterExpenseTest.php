@@ -41,6 +41,50 @@ class MatterExpenseTest extends TestCase
         ]);
     }
 
+    /** VAT is optional -- an expense with no VAT figure (e.g. a receipt with
+     *  none applied) must still save, defaulting to zero. */
+    public function test_can_add_an_expense_without_vat(): void
+    {
+        [$firm, $admin, $matter] = $this->matterAndAdmin();
+
+        $this->actingAsUser($admin)->postJson("/matters/{$matter->id}/expenses", [
+            'date' => '2026-08-27',
+            'amount' => 50.00,
+            'billable' => true,
+            'description' => 'Postage',
+        ])->assertOk();
+
+        $this->assertDatabaseHas('expenses', [
+            'matter_id' => $matter->id,
+            'amount' => 50.00,
+            'vat_amount' => 0,
+        ]);
+    }
+
+    /**
+     * The form offers "No category" as an explicit choice, which sends
+     * category: null rather than omitting the field. The column was NOT NULL
+     * until now, so this request shape used to 500.
+     */
+    public function test_can_add_an_expense_with_no_category(): void
+    {
+        [$firm, $admin, $matter] = $this->matterAndAdmin();
+
+        $this->actingAsUser($admin)->postJson("/matters/{$matter->id}/expenses", [
+            'date' => '2026-08-27',
+            'amount' => 15.00,
+            'billable' => false,
+            'category' => null,
+            'description' => 'Miscellaneous',
+        ])->assertOk();
+
+        $this->assertDatabaseHas('expenses', [
+            'matter_id' => $matter->id,
+            'description' => 'Miscellaneous',
+            'category' => null,
+        ]);
+    }
+
     /**
      * The category column is an enum. A free-text value used to reach the
      * database and return a 500; it must now be a normal field error.

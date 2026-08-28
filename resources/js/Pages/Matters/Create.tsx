@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Combobox, type ComboboxOption } from '@/components/ui/combobox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, Plus, Info } from 'lucide-react';
@@ -71,6 +72,14 @@ export default function CreateMatter({ users, contacts, prefill_contact_id, view
     const selectedClient = useMemo(
         () => contactList.find((c) => c.id === selectedClientId) ?? null,
         [contactList, selectedClientId],
+    );
+    const clientOptions: ComboboxOption[] = useMemo(
+        () => contactList.map((c) => ({
+            value: c.id,
+            label: c.full_name || c.name,
+            description: c.email ?? undefined,
+        })),
+        [contactList],
     );
 
     const openContactModal = () => {
@@ -182,21 +191,15 @@ export default function CreateMatter({ users, contacts, prefill_contact_id, view
                                         New contact
                                     </Button>
                                 </div>
-                                <Select
+                                <Combobox
+                                    options={clientOptions}
                                     value={selectedClientId}
-                                    onValueChange={(v) => setData('contact_ids', v ? [v] : [])}
-                                >
-                                    <SelectTrigger className="h-11">
-                                        <SelectValue placeholder="Search or select a client…" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {contactList.map((c) => (
-                                            <SelectItem key={c.id} value={c.id}>
-                                                {c.full_name || c.name}{c.email ? ` (${c.email})` : ''}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                    onChange={(v) => setData('contact_ids', v ? [v] : [])}
+                                    placeholder="Search or select a client…"
+                                    searchPlaceholder="Search by name or email…"
+                                    emptyText="No clients match your search."
+                                    className="h-11"
+                                />
                                 {errors.contact_ids && <p className="text-xs text-destructive mt-1">{errors.contact_ids}</p>}
                                 {!errors.contact_ids && !selectedClient && (
                                     <p className="text-xs text-muted-foreground">Select the client/customer for this matter.</p>
