@@ -1,6 +1,9 @@
 import { Head, router, useForm } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Button } from '@/components/ui/button';
+import {
+    Table, TableHeader, TableHeaderRow, TableBody, TableRow, TableHead, TableCell,
+} from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { formatDate } from '@/lib/utils';
@@ -180,26 +183,26 @@ export default function BackupsIndex({ backups }: Props) {
                             </div>
                         ) : (
                             <div className="overflow-x-auto">
-                                <table className="w-full text-sm">
-                                    <thead>
-                                        <tr className="border-b">
-                                            <th className="text-left px-4 py-3 font-medium text-muted-foreground">Filename</th>
-                                            <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden md:table-cell">Size</th>
-                                            <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden sm:table-cell">Date Created</th>
-                                            <th className="text-right px-4 py-3 font-medium text-muted-foreground">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
+                                <Table>
+                                    <TableHeader>
+                                        <TableHeaderRow>
+                                            <TableHead>Filename</TableHead>
+                                            <TableHead className="hidden md:table-cell">Size</TableHead>
+                                            <TableHead className="hidden sm:table-cell">Date Created</TableHead>
+                                            <TableHead className="text-right">Actions</TableHead>
+                                        </TableHeaderRow>
+                                    </TableHeader>
+                                    <TableBody>
                                         {backups.map((backup) => (
-                                            <tr key={backup.filename} className="border-b last:border-0">
-                                                <td className="px-4 py-3 font-medium">{backup.filename}</td>
-                                                <td className="px-4 py-3 hidden md:table-cell">
+                                            <TableRow key={backup.filename} className="last:border-0">
+                                                <TableCell className="font-medium">{backup.filename}</TableCell>
+                                                <TableCell className="hidden md:table-cell">
                                                     <Badge variant="secondary">{backup.size_formatted}</Badge>
-                                                </td>
-                                                <td className="px-4 py-3 hidden sm:table-cell">
+                                                </TableCell>
+                                                <TableCell className="hidden sm:table-cell">
                                                     {formatDate(backup.created_at_formatted)}
-                                                </td>
-                                                <td className="px-4 py-3 text-right space-x-2">
+                                                </TableCell>
+                                                <TableCell className="text-right space-x-2">
                                                     <Button
                                                         variant="outline"
                                                         size="sm"
@@ -218,11 +221,11 @@ export default function BackupsIndex({ backups }: Props) {
                                                         <Trash2 className="h-4 w-4 mr-1" />
                                                         Delete
                                                     </Button>
-                                                </td>
-                                            </tr>
+                                                </TableCell>
+                                            </TableRow>
                                         ))}
-                                    </tbody>
-                                </table>
+                                    </TableBody>
+                                </Table>
                             </div>
                         )}
                     </CardContent>

@@ -2,6 +2,9 @@ import { Head } from '@inertiajs/react';
 import { useEffect, useMemo, useState } from 'react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Card, CardContent } from '@/components/ui/card';
+import {
+    Table, TableHeader, TableHeaderRow, TableBody, TableRow, TableHead, TableCell,
+} from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Link } from '@inertiajs/react';
@@ -126,38 +129,38 @@ export default function ActiveSessions({ sessions, stats }: Props) {
                     <Card className="surface-card">
                         <CardContent className="p-0">
                             <div className="overflow-x-auto">
-                                <table className="w-full">
-                                    <thead>
-                                        <tr className="border-b bg-muted/30">
-                                            <th className="text-left px-5 py-3 font-semibold text-muted-foreground">Employee</th>
-                                            <th className="text-left px-5 py-3 font-semibold text-muted-foreground">Matter</th>
-                                            <th className="text-left px-5 py-3 font-semibold text-muted-foreground">Activity</th>
-                                            <th className="text-left px-5 py-3 font-semibold text-muted-foreground">State</th>
-                                            <th className="text-right px-5 py-3 font-semibold text-muted-foreground">Elapsed</th>
-                                            <th className="text-right px-5 py-3 font-semibold text-muted-foreground">Running Total</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-border/60">
+                                <Table>
+                                    <TableHeader>
+                                        <TableHeaderRow>
+                                            <TableHead>Employee</TableHead>
+                                            <TableHead>Matter</TableHead>
+                                            <TableHead>Activity</TableHead>
+                                            <TableHead>State</TableHead>
+                                            <TableHead className="text-right">Elapsed</TableHead>
+                                            <TableHead className="text-right">Running Total</TableHead>
+                                        </TableHeaderRow>
+                                    </TableHeader>
+                                    <TableBody>
                                         {rows.map(s => (
-                                            <tr key={s.id} className="hover:bg-muted/20 transition-colors">
-                                                <td className="px-5 py-3.5">
+                                            <TableRow key={s.id}>
+                                                <TableCell>
                                                     <span className="font-medium">{s.user?.full_name ?? 'Unknown'}</span>
-                                                </td>
-                                                <td className="px-5 py-3.5">
+                                                </TableCell>
+                                                <TableCell>
                                                     {s.matter ? (
                                                         <>
                                                             <p className="font-medium truncate max-w-[240px]">{s.matter.name}</p>
                                                             <p className="text-xs text-muted-foreground font-mono">{s.matter.matter_number}</p>
                                                         </>
                                                     ) : '—'}
-                                                </td>
-                                                <td className="px-5 py-3.5 text-muted-foreground">
+                                                </TableCell>
+                                                <TableCell className="text-muted-foreground">
                                                     {ACTIVITY_LABELS[s.activity_type] ?? s.activity_type}
                                                     {s.description && (
                                                         <p className="text-xs truncate max-w-[200px]" title={s.description}>{s.description}</p>
                                                     )}
-                                                </td>
-                                                <td className="px-5 py-3.5">
+                                                </TableCell>
+                                                <TableCell>
                                                     {s.status === 'active' ? (
                                                         <Badge className="bg-success/15 text-success border-success/25 gap-1.5">
                                                             <PlayCircle className="h-3 w-3" /> Working
@@ -167,20 +170,20 @@ export default function ActiveSessions({ sessions, stats }: Props) {
                                                             <PauseCircle className="h-3 w-3" /> On Break
                                                         </Badge>
                                                     )}
-                                                </td>
-                                                <td className="px-5 py-3.5 text-right">
+                                                </TableCell>
+                                                <TableCell className="text-right">
                                                     <span className={cn('font-mono font-bold tabular-nums text-base', s.status === 'active' ? 'text-foreground' : 'text-muted-foreground')}>
                                                         {s.elapsed_display}
                                                     </span>
-                                                </td>
-                                                <td className="px-5 py-3.5 text-right font-semibold tabular-nums text-primary">
+                                                </TableCell>
+                                                <TableCell className="text-right font-semibold tabular-nums text-primary">
                                                     {s.live_amount_display}
                                                     <p className="text-xs text-muted-foreground font-normal">{formatCurrency(s.rate)}/hr</p>
-                                                </td>
-                                            </tr>
+                                                </TableCell>
+                                            </TableRow>
                                         ))}
-                                    </tbody>
-                                </table>
+                                    </TableBody>
+                                </Table>
                             </div>
                         </CardContent>
                     </Card>

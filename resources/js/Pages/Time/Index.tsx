@@ -2,6 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    Table, TableHeader, TableHeaderRow, TableBody, TableFooter, TableRow, TableHead, TableCell,
+} from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -848,37 +851,34 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
                     </div>
                 ) : (
                     <div className="overflow-x-auto">
-                        <table className="w-full text-base">
-                            <thead>
-                                <tr className="border-b border-border/60 bg-muted/40">
-                                    <th className="px-4 py-3 w-10">
+                        <Table>
+                            <TableHeader>
+                                <TableHeaderRow>
+                                    <TableHead className="w-10">
                                         <input
                                             type="checkbox"
                                             className="rounded accent-primary"
                                             checked={selectedIds.length > 0 && selectedIds.length === entries.data.filter(e => !e.billed && !e.is_locked).length}
                                             onChange={toggleSelectAll}
                                         />
-                                    </th>
-                                    <th className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Date</th>
-                                    <th className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Matter</th>
-                                    {isAdmin && <th className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider hidden lg:table-cell">User</th>}
-                                    <th className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider hidden md:table-cell">Activity</th>
-                                    <th className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Description</th>
-                                    <th className="text-right px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Duration</th>
-                                    <th className="text-right px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider hidden md:table-cell">Rate/hr</th>
-                                    <th className="text-right px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Amount</th>
-                                    <th className="text-center px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Billable</th>
-                                    <th className="text-center px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
-                                    <th className="px-4 py-3 w-16" />
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-border/40">
+                                    </TableHead>
+                                    <TableHead>Date</TableHead>
+                                    <TableHead>Matter</TableHead>
+                                    {isAdmin && <TableHead className="hidden lg:table-cell">User</TableHead>}
+                                    <TableHead className="hidden md:table-cell">Activity</TableHead>
+                                    <TableHead>Description</TableHead>
+                                    <TableHead className="text-right">Duration</TableHead>
+                                    <TableHead className="text-right hidden md:table-cell">Rate/hr</TableHead>
+                                    <TableHead className="text-right">Amount</TableHead>
+                                    <TableHead className="text-center">Billable</TableHead>
+                                    <TableHead className="text-center">Status</TableHead>
+                                    <TableHead className="w-16" />
+                                </TableHeaderRow>
+                            </TableHeader>
+                            <TableBody>
                                 {entries.data.map((entry) => (
-                                    <tr key={entry.id} className={cn(
-                                        'hover:bg-muted/25 transition-colors group',
-                                        selectedIds.includes(entry.id) && 'bg-primary/5 hover:bg-primary/8'
-                                    )}>
-                                        <td className="px-4 py-3.5">
+                                    <TableRow key={entry.id} className={cn( 'hover:bg-muted/25 transition-colors group', selectedIds.includes(entry.id) && 'bg-primary/5 hover:bg-primary/8' )}>
+                                        <TableCell>
                                             <input
                                                 type="checkbox"
                                                 className="rounded accent-primary"
@@ -886,51 +886,51 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
                                                 checked={selectedIds.includes(entry.id)}
                                                 onChange={() => toggleSelect(entry.id)}
                                             />
-                                        </td>
-                                        <td className="px-4 py-3.5 whitespace-nowrap">
+                                        </TableCell>
+                                        <TableCell className="whitespace-nowrap">
                                             <div className="flex items-center gap-1.5">
                                                 <CalendarDays className="h-3.5 w-3.5 text-muted-foreground/50 shrink-0" />
                                                 <span className="text-sm text-muted-foreground">{formatDate(entry.date)}</span>
                                             </div>
-                                        </td>
-                                        <td className="px-4 py-3.5 max-w-[160px]">
+                                        </TableCell>
+                                        <TableCell className="max-w-[160px]">
                                             {entry.matter ? (
                                                 <Link href={`/matters/${entry.matter.id}`} className="font-semibold text-foreground hover:text-primary transition-colors truncate block">
                                                     {entry.matter.name}
                                                 </Link>
                                             ) : <span className="text-muted-foreground">—</span>}
                                             {entry.matter && <p className="text-[11px] text-muted-foreground font-mono mt-0.5">{entry.matter.matter_number}</p>}
-                                        </td>
+                                        </TableCell>
                                         {isAdmin && (
-                                            <td className="px-4 py-3.5 hidden lg:table-cell">
+                                            <TableCell className="hidden lg:table-cell">
                                                 <span className="text-sm text-muted-foreground">{entry.user?.full_name ?? '—'}</span>
-                                            </td>
+                                            </TableCell>
                                         )}
-                                        <td className="px-4 py-3.5 hidden md:table-cell">
+                                        <TableCell className="hidden md:table-cell">
                                             <span
                                                 title={ACTIVITY_LABELS[entry.activity_type] ?? entry.activity_type}
                                                 className={cn('inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap', ACTIVITY_COLORS[entry.activity_type] ?? ACTIVITY_COLORS.other)}
                                             >
                                                 {ACTIVITY_SHORT_LABELS[entry.activity_type] ?? entry.activity_type}
                                             </span>
-                                        </td>
-                                        <td className="px-4 py-3.5 max-w-[200px]">
+                                        </TableCell>
+                                        <TableCell className="max-w-[200px]">
                                             {entry.description ? (
                                                 <p className="truncate text-sm text-foreground">{entry.description}</p>
                                             ) : (
                                                 <span className="text-muted-foreground/40 text-sm italic">—</span>
                                             )}
-                                        </td>
-                                        <td className="px-4 py-3.5 text-right">
+                                        </TableCell>
+                                        <TableCell className="text-right">
                                             <span className="font-mono text-sm tabular-nums font-medium">{formatDuration(entry.duration_minutes)}</span>
-                                        </td>
-                                        <td className="px-4 py-3.5 text-right hidden md:table-cell">
+                                        </TableCell>
+                                        <TableCell className="text-right hidden md:table-cell">
                                             <span className="text-sm text-muted-foreground tabular-nums">{formatCurrency(Number(entry.rate))}</span>
-                                        </td>
-                                        <td className="px-4 py-3.5 text-right">
+                                        </TableCell>
+                                        <TableCell className="text-right">
                                             <span className="text-sm font-bold tabular-nums text-foreground">{formatCurrency(Number(entry.amount))}</span>
-                                        </td>
-                                        <td className="px-4 py-3.5">
+                                        </TableCell>
+                                        <TableCell>
                                             {(() => {
                                                 const isBillable = billableOverrides[entry.id] ?? entry.billable;
                                                 const locked = entry.billed || entry.is_locked;
@@ -969,8 +969,8 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
                                                     </button>
                                                 );
                                             })()}
-                                        </td>
-                                        <td className="px-4 py-3.5 text-center">
+                                        </TableCell>
+                                        <TableCell className="text-center">
                                             {entry.billed ? (
                                                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
                                                     <CheckCircle2 className="h-3 w-3" />Billed
@@ -984,8 +984,8 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
                                                     <AlertCircle className="h-3 w-3" />Unbilled
                                                 </span>
                                             )}
-                                        </td>
-                                        <td className="px-4 py-3.5">
+                                        </TableCell>
+                                        <TableCell>
                                             {!entry.billed && !entry.is_locked && (
                                                 <div className="flex items-center gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
                                                     <button
@@ -1003,24 +1003,24 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
                                                     </button>
                                                 </div>
                                             )}
-                                        </td>
-                                    </tr>
+                                        </TableCell>
+                                    </TableRow>
                                 ))}
-                            </tbody>
+                            </TableBody>
                             {entries.data.length > 0 && (
-                                <tfoot>
-                                    <tr className="border-t border-border/60 bg-muted/30">
-                                        <td colSpan={isAdmin ? 8 : 7} className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                                <TableFooter>
+                                    <TableRow>
+                                        <TableCell colSpan={isAdmin ? 8 : 7} className="text-right font-semibold text-muted-foreground uppercase tracking-wider">
                                             Page Total
-                                        </td>
-                                        <td className="px-4 py-3 text-right text-sm font-bold text-foreground tabular-nums">
+                                        </TableCell>
+                                        <TableCell className="text-right font-bold text-foreground tabular-nums">
                                             {formatCurrency(entries.data.reduce((s, e) => s + Number(e.amount), 0))}
-                                        </td>
-                                        <td colSpan={3} />
-                                    </tr>
-                                </tfoot>
+                                        </TableCell>
+                                        <TableCell colSpan={3} />
+                                    </TableRow>
+                                </TableFooter>
                             )}
-                        </table>
+                        </Table>
                     </div>
                 )}
 

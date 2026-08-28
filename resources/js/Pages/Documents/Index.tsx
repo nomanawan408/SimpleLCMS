@@ -2,6 +2,9 @@ import { useRef, useState } from 'react';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Card, CardContent } from '@/components/ui/card';
+import {
+    Table, TableHeader, TableHeaderRow, TableBody, TableRow, TableHead, TableCell,
+} from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -106,37 +109,37 @@ export default function DocumentsIndex({ documents, matters, filters }: Props) {
                         </div>
                     ) : (
                         <div className="overflow-x-auto">
-                            <table className="w-full">
-                                <thead>
-                                    <tr className="border-b border-border/60 bg-muted/20">
-                                        <th className="text-left px-5 py-3.5 text-xs font-bold uppercase tracking-widest text-muted-foreground">Name</th>
-                                        <th className="text-left px-5 py-3.5 text-xs font-bold uppercase tracking-widest text-muted-foreground">Matter</th>
-                                        <th className="text-left px-5 py-3.5 text-xs font-bold uppercase tracking-widest text-muted-foreground">Uploaded by</th>
-                                        <th className="text-left px-5 py-3.5 text-xs font-bold uppercase tracking-widest text-muted-foreground">Date</th>
-                                        <th className="text-right px-5 py-3.5 text-xs font-bold uppercase tracking-widest text-muted-foreground">Size</th>
-                                        <th className="px-5 py-3.5" />
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-border/40">
+                            <Table>
+                                <TableHeader>
+                                    <TableHeaderRow>
+                                        <TableHead>Name</TableHead>
+                                        <TableHead>Matter</TableHead>
+                                        <TableHead>Uploaded by</TableHead>
+                                        <TableHead>Date</TableHead>
+                                        <TableHead className="text-right">Size</TableHead>
+                                        <TableHead />
+                                    </TableHeaderRow>
+                                </TableHeader>
+                                <TableBody>
                                     {documents.data.map((doc) => (
-                                        <tr key={doc.id} className="hover:bg-muted/20 transition-colors">
-                                            <td className="px-5 py-4">
+                                        <TableRow key={doc.id}>
+                                            <TableCell>
                                                 <p className="text-[14px] font-semibold text-foreground">{doc.name}</p>
                                                 <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium mt-1 ${visibilityBadgeStyles[doc.is_client_visible ? 'success' : 'secondary']}`}>
                                                     {doc.is_client_visible ? 'Client visible' : 'Internal'}
                                                 </span>
-                                            </td>
-                                            <td className="px-5 py-4 text-[14px] text-muted-foreground">
+                                            </TableCell>
+                                            <TableCell className="text-muted-foreground">
                                                 {doc.matter ? (
                                                     <Link href={`/matters/${doc.matter.id}`} className="hover:text-primary transition-colors font-medium">
                                                         {doc.matter.name}
                                                     </Link>
                                                 ) : '—'}
-                                            </td>
-                                            <td className="px-5 py-4 text-[14px] text-muted-foreground">{(doc as any).uploadedBy?.full_name ?? '—'}</td>
-                                            <td className="px-5 py-4 text-[14px] text-muted-foreground">{formatDate(doc.created_at)}</td>
-                                            <td className="px-5 py-4 text-right text-[14px] tabular-nums text-muted-foreground">{formatBytes(doc.size_bytes)}</td>
-                                            <td className="px-5 py-4">
+                                            </TableCell>
+                                            <TableCell className="text-muted-foreground">{(doc as any).uploadedBy?.full_name ?? '—'}</TableCell>
+                                            <TableCell className="text-muted-foreground">{formatDate(doc.created_at)}</TableCell>
+                                            <TableCell className="text-right tabular-nums text-muted-foreground">{formatBytes(doc.size_bytes)}</TableCell>
+                                            <TableCell>
                                                 <div className="flex items-center gap-1 justify-end">
                                                     <Button variant="ghost" size="icon" className="h-8 w-8" title="View" onClick={() => setViewerDoc(doc as any)}>
                                                         <Eye className="h-3.5 w-3.5" />
@@ -155,11 +158,11 @@ export default function DocumentsIndex({ documents, matters, filters }: Props) {
                                                         <Trash2 className="h-3.5 w-3.5" />
                                                     </Button>
                                                 </div>
-                                            </td>
-                                        </tr>
+                                            </TableCell>
+                                        </TableRow>
                                     ))}
-                                </tbody>
-                            </table>
+                                </TableBody>
+                            </Table>
                         </div>
                     )}
 
@@ -247,7 +250,7 @@ export default function DocumentsIndex({ documents, matters, filters }: Props) {
             {/* ── Document Viewer Modal ── */}
             {viewerDoc && (
                 <Dialog open={!!viewerDoc} onOpenChange={() => setViewerDoc(null)}>
-                    <DialogContent className="max-w-5xl w-full h-[90vh] flex flex-col p-0 gap-0">
+                    <DialogContent className="max-w-5xl w-full h-[90vh] flex flex-col p-0 gap-0 [&>button]:hidden">
                         <div className="flex items-center justify-between px-5 py-3 border-b shrink-0">
                             <div className="flex items-center gap-2 min-w-0">
                                 <Paperclip className="h-4 w-4 text-muted-foreground shrink-0" />

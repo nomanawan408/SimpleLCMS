@@ -2,6 +2,9 @@ import { Head, Link } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    Table, TableHeader, TableHeaderRow, TableBody, TableFooter, TableRow, TableHead, TableCell,
+} from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -1394,52 +1397,52 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                     <CardContent className="p-0">
                         {timeEntries?.length ? (
                             <div className="overflow-x-auto">
-                                <table className="w-full text-base">
-                                    <thead>
-                                        <tr className="border-b bg-muted/30 text-muted-foreground">
-                                            <th className="text-left px-4 py-2.5 font-medium">Date</th>
-                                            <th className="text-left px-4 py-2.5 font-medium">Description</th>
-                                            <th className="text-left px-4 py-2.5 font-medium hidden md:table-cell">Activity</th>
-                                            <th className="text-left px-4 py-2.5 font-medium hidden lg:table-cell">User</th>
-                                            <th className="text-center px-4 py-2.5 font-medium">Billable</th>
-                                            <th className="text-right px-4 py-2.5 font-medium">Duration</th>
-                                            <th className="text-right px-4 py-2.5 font-medium">Amount</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-border/60">
+                                <Table>
+                                    <TableHeader>
+                                        <TableHeaderRow>
+                                            <TableHead>Date</TableHead>
+                                            <TableHead>Description</TableHead>
+                                            <TableHead className="hidden md:table-cell">Activity</TableHead>
+                                            <TableHead className="hidden lg:table-cell">User</TableHead>
+                                            <TableHead className="text-center">Billable</TableHead>
+                                            <TableHead className="text-right">Duration</TableHead>
+                                            <TableHead className="text-right">Amount</TableHead>
+                                        </TableHeaderRow>
+                                    </TableHeader>
+                                    <TableBody>
                                         {timeEntries.map((entry: any) => (
-                                            <tr key={entry.id} className="hover:bg-muted/30 transition-colors">
-                                                <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap">{formatDate(entry.date)}</td>
-                                                <td className="px-4 py-2.5 max-w-xs">
+                                            <TableRow key={entry.id}>
+                                                <TableCell className="text-muted-foreground whitespace-nowrap">{formatDate(entry.date)}</TableCell>
+                                                <TableCell className="max-w-xs">
                                                     <p className="truncate">{entry.description || 'Legal services'}</p>
-                                                </td>
-                                                <td className="px-4 py-2.5 text-muted-foreground hidden md:table-cell">
+                                                </TableCell>
+                                                <TableCell className="text-muted-foreground hidden md:table-cell">
                                                     {ACTIVITY_LABELS[entry.activity_type] ?? entry.activity_type ?? '—'}
-                                                </td>
-                                                <td className="px-4 py-2.5 text-muted-foreground hidden lg:table-cell">{entry.user?.full_name ?? '—'}</td>
-                                                <td className="px-4 py-2.5 text-center">
+                                                </TableCell>
+                                                <TableCell className="text-muted-foreground hidden lg:table-cell">{entry.user?.full_name ?? '—'}</TableCell>
+                                                <TableCell className="text-center">
                                                     <Badge variant={entry.billable ? 'success' : 'secondary'} className="text-xs">
                                                         {entry.billable ? 'Yes' : 'No'}
                                                     </Badge>
-                                                </td>
-                                                <td className="px-4 py-2.5 text-right font-mono tabular-nums">
+                                                </TableCell>
+                                                <TableCell className="text-right font-mono tabular-nums">
                                                     {Math.floor(entry.duration_minutes / 60)}h {String(entry.duration_minutes % 60).padStart(2, '0')}m
-                                                </td>
-                                                <td className="px-4 py-2.5 text-right font-semibold tabular-nums">
+                                                </TableCell>
+                                                <TableCell className="text-right font-semibold tabular-nums">
                                                     {formatCurrency(Number(entry.amount || 0))}
-                                                </td>
-                                            </tr>
+                                                </TableCell>
+                                            </TableRow>
                                         ))}
-                                    </tbody>
-                                    <tfoot>
-                                        <tr className="border-t bg-muted/20 font-semibold">
-                                            <td colSpan={6} className="px-4 py-2 text-right text-xs text-muted-foreground uppercase tracking-wide">Total</td>
-                                            <td className="px-4 py-2 text-right text-success tabular-nums">
+                                    </TableBody>
+                                    <TableFooter>
+                                        <TableRow className="font-semibold">
+                                            <TableCell colSpan={6} className="text-right text-muted-foreground uppercase tracking-wide">Total</TableCell>
+                                            <TableCell className="text-right text-success tabular-nums">
                                                 {formatCurrency(timeEntries.reduce((s: number, e: any) => s + Number(e.amount || 0), 0))}
-                                            </td>
-                                        </tr>
-                                    </tfoot>
-                                </table>
+                                            </TableCell>
+                                        </TableRow>
+                                    </TableFooter>
+                                </Table>
                             </div>
                         ) : (
                             <div className="px-6 py-10 text-center text-sm text-muted-foreground">
@@ -1471,38 +1474,38 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                     <CardContent className="p-0">
                         {expenses?.length ? (
                             <div className="overflow-x-auto">
-                                <table className="w-full text-base">
-                                    <thead>
-                                        <tr className="border-b bg-muted/30 text-muted-foreground">
-                                            <th className="text-left px-4 py-2.5 font-medium">Date</th>
-                                            <th className="text-left px-4 py-2.5 font-medium">Description</th>
-                                            <th className="text-left px-4 py-2.5 font-medium hidden md:table-cell">Vendor</th>
-                                            <th className="text-left px-4 py-2.5 font-medium hidden lg:table-cell">Category</th>
-                                            <th className="text-center px-4 py-2.5 font-medium">Billable</th>
-                                            <th className="text-right px-4 py-2.5 font-medium hidden sm:table-cell">VAT</th>
-                                            <th className="text-right px-4 py-2.5 font-medium">Amount</th>
-                                            <th className="text-center px-4 py-2.5 font-medium">Status</th>
-                                            <th className="text-right px-4 py-2.5 font-medium"><span className="sr-only">Actions</span></th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-border/60">
+                                <Table>
+                                    <TableHeader>
+                                        <TableHeaderRow>
+                                            <TableHead>Date</TableHead>
+                                            <TableHead>Description</TableHead>
+                                            <TableHead className="hidden md:table-cell">Vendor</TableHead>
+                                            <TableHead className="hidden lg:table-cell">Category</TableHead>
+                                            <TableHead className="text-center">Billable</TableHead>
+                                            <TableHead className="text-right hidden sm:table-cell">VAT</TableHead>
+                                            <TableHead className="text-right">Amount</TableHead>
+                                            <TableHead className="text-center">Status</TableHead>
+                                            <TableHead className="text-right"><span className="sr-only">Actions</span></TableHead>
+                                        </TableHeaderRow>
+                                    </TableHeader>
+                                    <TableBody>
                                         {expenses.map((exp: any) => (
-                                            <tr key={exp.id} className="hover:bg-muted/30 transition-colors">
-                                                <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap">{formatDate(exp.date)}</td>
-                                                <td className="px-4 py-2.5 max-w-xs"><p className="truncate">{exp.description}</p></td>
-                                                <td className="px-4 py-2.5 text-muted-foreground hidden md:table-cell">{exp.vendor || '—'}</td>
-                                                <td className="px-4 py-2.5 text-muted-foreground hidden lg:table-cell">{expenseCategoryLabel(exp.category)}</td>
-                                                <td className="px-4 py-2.5 text-center">
+                                            <TableRow key={exp.id}>
+                                                <TableCell className="text-muted-foreground whitespace-nowrap">{formatDate(exp.date)}</TableCell>
+                                                <TableCell className="max-w-xs"><p className="truncate">{exp.description}</p></TableCell>
+                                                <TableCell className="text-muted-foreground hidden md:table-cell">{exp.vendor || '—'}</TableCell>
+                                                <TableCell className="text-muted-foreground hidden lg:table-cell">{expenseCategoryLabel(exp.category)}</TableCell>
+                                                <TableCell className="text-center">
                                                     <Badge variant={exp.billable ? 'success' : 'secondary'} className="text-xs">{exp.billable ? 'Yes' : 'No'}</Badge>
-                                                </td>
-                                                <td className="px-4 py-2.5 text-right text-muted-foreground tabular-nums hidden sm:table-cell">
+                                                </TableCell>
+                                                <TableCell className="text-right text-muted-foreground tabular-nums hidden sm:table-cell">
                                                     {Number(exp.vat_amount) ? formatCurrency(Number(exp.vat_amount)) : '—'}
-                                                </td>
-                                                <td className="px-4 py-2.5 text-right font-semibold tabular-nums">{formatCurrency(Number(exp.amount || 0))}</td>
-                                                <td className="px-4 py-2.5 text-center">
+                                                </TableCell>
+                                                <TableCell className="text-right font-semibold tabular-nums">{formatCurrency(Number(exp.amount || 0))}</TableCell>
+                                                <TableCell className="text-center">
                                                     <Badge variant={exp.billed ? 'default' : 'warning'} className="text-xs">{exp.billed ? 'Billed' : 'Unbilled'}</Badge>
-                                                </td>
-                                                <td className="px-4 py-2.5 text-right whitespace-nowrap">
+                                                </TableCell>
+                                                <TableCell className="text-right whitespace-nowrap">
                                                     {exp.billed ? (
                                                         <span className="text-xs text-muted-foreground">Locked</span>
                                                     ) : (
@@ -1529,24 +1532,24 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                                             </Button>
                                                         </div>
                                                     )}
-                                                </td>
-                                            </tr>
+                                                </TableCell>
+                                            </TableRow>
                                         ))}
-                                    </tbody>
-                                    <tfoot>
-                                        <tr className="border-t bg-muted/20 font-semibold">
-                                            <td colSpan={5} className="px-4 py-2 text-right text-xs text-muted-foreground uppercase tracking-wide">Total</td>
-                                            <td className="px-4 py-2 text-right text-muted-foreground tabular-nums hidden sm:table-cell">
+                                    </TableBody>
+                                    <TableFooter>
+                                        <TableRow className="font-semibold">
+                                            <TableCell colSpan={5} className="text-right text-muted-foreground uppercase tracking-wide">Total</TableCell>
+                                            <TableCell className="text-right text-muted-foreground tabular-nums hidden sm:table-cell">
                                                 {formatCurrency(expenses.reduce((s: number, e: any) => s + Number(e.vat_amount || 0), 0))}
-                                            </td>
-                                            <td className="px-4 py-2 text-right text-success tabular-nums">
+                                            </TableCell>
+                                            <TableCell className="text-right text-success tabular-nums">
                                                 {formatCurrency(expenses.reduce((s: number, e: any) => s + Number(e.amount || 0), 0))}
-                                            </td>
-                                            <td />
-                                            <td />
-                                        </tr>
-                                    </tfoot>
-                                </table>
+                                            </TableCell>
+                                            <TableCell />
+                                            <TableCell />
+                                        </TableRow>
+                                    </TableFooter>
+                                </Table>
                             </div>
                         ) : (
                             <div className="px-6 py-10 text-center text-sm text-muted-foreground">
@@ -1753,44 +1756,44 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                     <CardContent className="p-0">
                         {matter.invoices?.length ? (
                             <div className="overflow-x-auto">
-                                <table className="w-full text-base">
-                                    <thead>
-                                        <tr className="border-b bg-muted/30 text-muted-foreground">
-                                            <th className="text-left px-4 py-2.5 font-medium">Invoice #</th>
-                                            <th className="text-left px-4 py-2.5 font-medium hidden md:table-cell">Date</th>
-                                            <th className="text-left px-4 py-2.5 font-medium hidden lg:table-cell">Due</th>
-                                            <th className="text-right px-4 py-2.5 font-medium">Total</th>
-                                            <th className="text-right px-4 py-2.5 font-medium hidden md:table-cell">Paid</th>
-                                            <th className="text-left px-4 py-2.5 font-medium">Status</th>
-                                            <th className="px-4 py-2.5 w-8" />
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-border/60">
+                                <Table>
+                                    <TableHeader>
+                                        <TableHeaderRow>
+                                            <TableHead>Invoice #</TableHead>
+                                            <TableHead className="hidden md:table-cell">Date</TableHead>
+                                            <TableHead className="hidden lg:table-cell">Due</TableHead>
+                                            <TableHead className="text-right">Total</TableHead>
+                                            <TableHead className="text-right hidden md:table-cell">Paid</TableHead>
+                                            <TableHead>Status</TableHead>
+                                            <TableHead className="w-8" />
+                                        </TableHeaderRow>
+                                    </TableHeader>
+                                    <TableBody>
                                         {matter.invoices.map((inv: any) => (
-                                            <tr key={inv.id} className="hover:bg-muted/30 transition-colors">
-                                                <td className="px-4 py-2.5 font-medium">{inv.invoice_number}</td>
-                                                <td className="px-4 py-2.5 text-muted-foreground hidden md:table-cell">{formatDate(inv.created_at)}</td>
-                                                <td className={cn('px-4 py-2.5 hidden lg:table-cell', inv.status === 'sent' && inv.due_date && new Date(inv.due_date) < new Date() ? 'text-destructive font-medium' : 'text-muted-foreground')}>
+                                            <TableRow key={inv.id}>
+                                                <TableCell className="font-medium">{inv.invoice_number}</TableCell>
+                                                <TableCell className="text-muted-foreground hidden md:table-cell">{formatDate(inv.created_at)}</TableCell>
+                                                <TableCell className={cn('hidden lg:table-cell', inv.status === 'sent' && inv.due_date && new Date(inv.due_date) < new Date() ? 'text-destructive font-medium' : 'text-muted-foreground')}>
                                                     {formatDate(inv.due_date)}
-                                                </td>
-                                                <td className="px-4 py-2.5 text-right font-semibold tabular-nums">{formatCurrency(Number(inv.total))}</td>
-                                                <td className="px-4 py-2.5 text-right text-success tabular-nums hidden md:table-cell">
+                                                </TableCell>
+                                                <TableCell className="text-right font-semibold tabular-nums">{formatCurrency(Number(inv.total))}</TableCell>
+                                                <TableCell className="text-right text-success tabular-nums hidden md:table-cell">
                                                     {formatCurrency(Number(inv.amount_paid || 0))}
-                                                </td>
-                                                <td className="px-4 py-2.5">
+                                                </TableCell>
+                                                <TableCell>
                                                     <Badge variant={inv.status === 'paid' ? 'success' : inv.status === 'sent' ? 'warning' : inv.status === 'partial' ? 'warning' : 'secondary'} className="text-xs capitalize">
                                                         {inv.status}
                                                     </Badge>
-                                                </td>
-                                                <td className="px-4 py-2.5">
+                                                </TableCell>
+                                                <TableCell>
                                                     <Link href={`/billing/${inv.id}`} className="text-muted-foreground hover:text-primary transition-colors">
                                                         <ExternalLink className="h-3.5 w-3.5" />
                                                     </Link>
-                                                </td>
-                                            </tr>
+                                                </TableCell>
+                                            </TableRow>
                                         ))}
-                                    </tbody>
-                                </table>
+                                    </TableBody>
+                                </Table>
                             </div>
                         ) : (
                             <div className="px-6 py-10 text-center text-sm text-muted-foreground">
@@ -1825,35 +1828,35 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                     <CardContent className="p-0">
                         {matter.trust_entries?.length ? (
                             <div className="overflow-x-auto">
-                                <table className="w-full text-base">
-                                    <thead>
-                                        <tr className="border-b bg-muted/30 text-muted-foreground">
-                                            <th className="text-left px-4 py-2.5 font-medium">Date</th>
-                                            <th className="text-left px-4 py-2.5 font-medium">Type</th>
-                                            <th className="text-left px-4 py-2.5 font-medium">Description</th>
-                                            <th className="text-right px-4 py-2.5 font-medium">Amount</th>
-                                            <th className="text-right px-4 py-2.5 font-medium">Balance</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-border/60">
+                                <Table>
+                                    <TableHeader>
+                                        <TableHeaderRow>
+                                            <TableHead>Date</TableHead>
+                                            <TableHead>Type</TableHead>
+                                            <TableHead>Description</TableHead>
+                                            <TableHead className="text-right">Amount</TableHead>
+                                            <TableHead className="text-right">Balance</TableHead>
+                                        </TableHeaderRow>
+                                    </TableHeader>
+                                    <TableBody>
                                         {matter.trust_entries.map((te: any) => (
-                                            <tr key={te.id} className="hover:bg-muted/30 transition-colors">
-                                                <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap">{formatDate(te.date)}</td>
-                                                <td className="px-4 py-2.5">
+                                            <TableRow key={te.id}>
+                                                <TableCell className="text-muted-foreground whitespace-nowrap">{formatDate(te.date)}</TableCell>
+                                                <TableCell>
                                                     <span className={cn('text-xs px-2 py-0.5 rounded-full font-medium',
                                                         te.type === 'receipt' ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning')}>
                                                         {te.type.replace(/_/g, ' ')}
                                                     </span>
-                                                </td>
-                                                <td className="px-4 py-2.5 text-muted-foreground">{te.description || '—'}</td>
-                                                <td className={cn('px-4 py-2.5 text-right font-semibold tabular-nums', te.type === 'receipt' ? 'text-success' : 'text-warning')}>
+                                                </TableCell>
+                                                <TableCell className="text-muted-foreground">{te.description || '—'}</TableCell>
+                                                <TableCell className={cn('text-right font-semibold tabular-nums', te.type === 'receipt' ? 'text-success' : 'text-warning')}>
                                                     {te.type === 'receipt' ? '+' : '-'}{formatCurrency(Math.abs(te.amount || 0))}
-                                                </td>
-                                                <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrency(te.balance_after || 0)}</td>
-                                            </tr>
+                                                </TableCell>
+                                                <TableCell className="text-right tabular-nums">{formatCurrency(te.balance_after || 0)}</TableCell>
+                                            </TableRow>
                                         ))}
-                                    </tbody>
-                                </table>
+                                    </TableBody>
+                                </Table>
                             </div>
                         ) : (
                             <div className="px-6 py-10 text-center text-sm text-muted-foreground">

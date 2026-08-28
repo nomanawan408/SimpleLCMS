@@ -159,49 +159,10 @@
         background: #8a8a8a;
     }
 
-    /* Shared table baseline used by list and report views. */
-    table {
-        border-collapse: separate;
-        border-spacing: 0;
-        font-family: 'Segoe UI', Arial, sans-serif;
-        font-size: 0.8125rem;
-        line-height: 1.4;
-    }
-
-    table thead tr {
-        background: hsl(var(--muted) / 0.5);
-    }
-
-    table th {
-        color: hsl(var(--muted-foreground));
-        font-size: 0.75rem;
-        font-weight: 600;
-        letter-spacing: 0.02em;
-        text-transform: none;
-        padding: 0.625rem 1rem;
-    }
-
-    table td {
-        padding: 0.625rem 1rem;
-        color: hsl(var(--foreground));
-    }
-
-    table tbody tr {
-        transition: background-color 150ms ease;
-    }
-
-    table tbody tr:hover {
-        background: hsl(var(--muted) / 0.35);
-    }
-
-    table td,
-    table th {
-        border-bottom: 1px solid hsl(var(--border) / 0.6);
-    }
-
-    table tbody tr:last-child td {
-        border-bottom: 0;
-    }
+    /* Table styling lives in components/ui/table.tsx, not here.
+       These element selectors sat in the components layer, so any Tailwind
+       utility on a table silently overrode them -- which is why tables drifted
+       apart in the first place. The component is now the single source. */
 
     .flash-success {
         @apply rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-800;

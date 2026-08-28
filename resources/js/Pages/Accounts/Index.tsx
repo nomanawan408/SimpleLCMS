@@ -2,6 +2,9 @@ import { Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    Table, TableHeader, TableHeaderRow, TableBody, TableRow, TableHead, TableCell,
+} from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -353,42 +356,42 @@ export default function AccountsIndex({ entries, summary, firmAccount, clientAcc
                                 </div>
                             ) : (
                                 <div className="overflow-x-auto">
-                                    <table className="w-full text-sm">
-                                        <thead>
-                                            <tr className="border-b bg-muted/30 text-muted-foreground">
-                                                <th className="text-left px-4 py-3 font-medium text-[11px] uppercase tracking-wider">Date</th>
-                                                <th className="text-left px-4 py-3 font-medium text-[11px] uppercase tracking-wider">Matter</th>
-                                                <th className="text-left px-4 py-3 font-medium text-[11px] uppercase tracking-wider">Type</th>
-                                                <th className="text-left px-4 py-3 font-medium text-[11px] uppercase tracking-wider">Description</th>
-                                                <th className="text-right px-4 py-3 font-medium text-[11px] uppercase tracking-wider">Amount</th>
-                                                <th className="text-right px-4 py-3 font-medium text-[11px] uppercase tracking-wider">Balance After</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-border/40">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableHeaderRow>
+                                                <TableHead>Date</TableHead>
+                                                <TableHead>Matter</TableHead>
+                                                <TableHead>Type</TableHead>
+                                                <TableHead>Description</TableHead>
+                                                <TableHead className="text-right">Amount</TableHead>
+                                                <TableHead className="text-right">Balance After</TableHead>
+                                            </TableHeaderRow>
+                                        </TableHeader>
+                                        <TableBody>
                                             {entries.data.map((entry) => (
-                                                <tr key={entry.id} className="hover:bg-muted/20 transition-colors">
-                                                    <td className="px-4 py-3 text-muted-foreground">{formatDate(entry.date)}</td>
-                                                    <td className="px-4 py-3">
+                                                <TableRow key={entry.id}>
+                                                    <TableCell className="text-muted-foreground">{formatDate(entry.date)}</TableCell>
+                                                    <TableCell>
                                                         {entry.matter?.name ?? '--'}
-                                                    </td>
-                                                    <td className="px-4 py-3">
+                                                    </TableCell>
+                                                    <TableCell>
                                                         <Badge variant={TYPE_COLORS[entry.type] ?? 'default'} className="text-xs capitalize">
                                                             {entry.type}
                                                         </Badge>
-                                                    </td>
-                                                    <td className="px-4 py-3 text-muted-foreground">{entry.description || '--'}</td>
-                                                    <td className="px-4 py-3 text-right font-medium tabular-nums">
+                                                    </TableCell>
+                                                    <TableCell className="text-muted-foreground">{entry.description || '--'}</TableCell>
+                                                    <TableCell className="text-right font-medium tabular-nums">
                                                         <span className={entry.type === 'receipt' ? 'text-success' : entry.type === 'disbursement' ? 'text-destructive' : ''}>
                                                             {entry.type === 'disbursement' ? '-' : ''}{formatCurrency(Number(entry.amount))}
                                                         </span>
-                                                    </td>
-                                                    <td className="px-4 py-3 text-right text-muted-foreground tabular-nums">
+                                                    </TableCell>
+                                                    <TableCell className="text-right text-muted-foreground tabular-nums">
                                                         {formatCurrency(Number(entry.balance_after))}
-                                                    </td>
-                                                </tr>
+                                                    </TableCell>
+                                                </TableRow>
                                             ))}
-                                        </tbody>
-                                    </table>
+                                        </TableBody>
+                                    </Table>
                                 </div>
                             )}
 

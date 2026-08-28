@@ -2,6 +2,9 @@ import { Head, Link, router } from '@inertiajs/react';
 import { useState, useEffect, useRef } from 'react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Card, CardContent } from '@/components/ui/card';
+import {
+    Table, TableHeader, TableHeaderRow, TableBody, TableRow, TableHead, TableCell,
+} from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -135,46 +138,43 @@ export default function MattersIndex({ matters, filters }: Props) {
                         </div>
                     ) : (
                         <div className="overflow-x-auto">
-                            <table className="w-full text-sm">
-                                <thead>
-                                    <tr className="border-b border-border/60 bg-muted/20">
-                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs font-bold uppercase tracking-widest">Matter</th>
-                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs font-bold uppercase tracking-widest hidden md:table-cell">Practice Area</th>
-                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs font-bold uppercase tracking-widest hidden lg:table-cell">Clients / Contact</th>
-                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs font-bold uppercase tracking-widest hidden lg:table-cell">Responsible</th>
-                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs font-bold uppercase tracking-widest">Status</th>
-                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs font-bold uppercase tracking-widest hidden xl:table-cell">Next Step</th>
-                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs font-bold uppercase tracking-widest hidden xl:table-cell">Deadline</th>
-                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs font-bold uppercase tracking-widest hidden xl:table-cell">Hearing Date</th>
-                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs font-bold uppercase tracking-widest hidden xl:table-cell">Opened</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-border/60">
+                            <Table>
+                                <TableHeader>
+                                    <TableHeaderRow>
+                                        <TableHead>Matter</TableHead>
+                                        <TableHead className="hidden md:table-cell">Practice Area</TableHead>
+                                        <TableHead className="hidden lg:table-cell">Clients / Contact</TableHead>
+                                        <TableHead className="hidden lg:table-cell">Responsible</TableHead>
+                                        <TableHead>Status</TableHead>
+                                        <TableHead className="hidden xl:table-cell">Next Step</TableHead>
+                                        <TableHead className="hidden xl:table-cell">Deadline</TableHead>
+                                        <TableHead className="hidden xl:table-cell">Hearing Date</TableHead>
+                                        <TableHead className="hidden xl:table-cell">Opened</TableHead>
+                                    </TableHeaderRow>
+                                </TableHeader>
+                                <TableBody>
                                     {matters.data.map((matter) => (
-                                        <tr
-                                            key={matter.id}
-                                            className="hover:bg-muted/40 cursor-pointer transition-colors"
-                                            onClick={() => router.visit(`/matters/${matter.id}`)}
+                                        <TableRow key={matter.id} className="cursor-pointer" onClick={() => router.visit(`/matters/${matter.id}`)}
                                         >
-                                            <td className="px-4 py-3">
+                                            <TableCell>
                                                 <p className="font-medium text-foreground group-hover:text-primary transition-colors">{matter.name}</p>
                                                 <p className="text-xs text-muted-foreground mt-0.5">{matter.matter_number}</p>
-                                            </td>
-                                            <td className="px-4 py-3 hidden md:table-cell text-muted-foreground">
+                                            </TableCell>
+                                            <TableCell className="hidden md:table-cell text-muted-foreground">
                                                 {PRACTICE_AREA_LABELS[matter.practice_area]}
-                                            </td>
-                                            <td className="px-4 py-3 hidden lg:table-cell text-muted-foreground">
+                                            </TableCell>
+                                            <TableCell className="hidden lg:table-cell text-muted-foreground">
                                                 {matter.client_names ?? '—'}
-                                            </td>
-                                            <td className="px-4 py-3 hidden lg:table-cell text-muted-foreground">
+                                            </TableCell>
+                                            <TableCell className="hidden lg:table-cell text-muted-foreground">
                                                 {matter.responsible_user?.full_name ?? '—'}
-                                            </td>
-                                            <td className="px-4 py-3">
+                                            </TableCell>
+                                            <TableCell>
                                                 <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${statusBadgeStyles[matter.status] ?? 'bg-muted text-muted-foreground border-border'}`}>
                                                     {MATTER_STATUS_LABELS[matter.status]}
                                                 </span>
-                                            </td>
-                                            <td className="px-4 py-3 hidden xl:table-cell">
+                                            </TableCell>
+                                            <TableCell className="hidden xl:table-cell">
                                                 <div className="flex items-center gap-2">
                                                     <span className="text-muted-foreground truncate max-w-[140px]">{matter.next_step ?? '—'}</span>
                                                     {matter.tasks && matter.tasks.length > 0 && (
@@ -190,8 +190,8 @@ export default function MattersIndex({ matters, filters }: Props) {
                                                         </button>
                                                     )}
                                                 </div>
-                                            </td>
-                                            <td className="px-4 py-3 hidden xl:table-cell">
+                                            </TableCell>
+                                            <TableCell className="hidden xl:table-cell">
                                                 <button
                                                     className="flex items-center gap-1.5 text-muted-foreground hover:text-primary transition-colors"
                                                     onClick={(e) => {
@@ -203,8 +203,8 @@ export default function MattersIndex({ matters, filters }: Props) {
                                                     <Clock className="h-3.5 w-3.5" />
                                                     <span>{matter.next_deadline ? formatDate(matter.next_deadline) : 'Set deadline'}</span>
                                                 </button>
-                                            </td>
-                                            <td className="px-4 py-3 hidden xl:table-cell">
+                                            </TableCell>
+                                            <TableCell className="hidden xl:table-cell">
                                                 <button
                                                     className="flex items-center gap-1.5 text-muted-foreground hover:text-primary transition-colors"
                                                     onClick={(e) => {
@@ -216,14 +216,14 @@ export default function MattersIndex({ matters, filters }: Props) {
                                                     <Calendar className="h-3.5 w-3.5" />
                                                     <span>{matter.hearing_date ? formatDate(matter.hearing_date) : 'Set date'}</span>
                                                 </button>
-                                            </td>
-                                            <td className="px-4 py-3 hidden xl:table-cell text-muted-foreground">
+                                            </TableCell>
+                                            <TableCell className="hidden xl:table-cell text-muted-foreground">
                                                 {formatDate(matter.opened_at)}
-                                            </td>
-                                        </tr>
+                                            </TableCell>
+                                        </TableRow>
                                     ))}
-                                </tbody>
-                            </table>
+                                </TableBody>
+                            </Table>
                         </div>
                     )}
 

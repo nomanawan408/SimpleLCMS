@@ -2,6 +2,9 @@ import { Head, Link, router, useForm } from '@inertiajs/react';
 import { useState } from 'react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    Table, TableHeader, TableHeaderRow, TableBody, TableRow, TableHead, TableCell,
+} from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -199,30 +202,30 @@ export default function ShowInvoice({ invoice }: Props) {
 
                         {/* Line Items Table */}
                         <div className="overflow-x-auto">
-                            <table className="w-full text-base">
-                                <thead>
-                                    <tr className="border-b bg-muted/20">
-                                        <th className="text-left py-2.5 px-3 font-medium text-muted-foreground">Description</th>
-                                        <th className="text-right py-2.5 px-3 font-medium text-muted-foreground">Qty</th>
-                                        <th className="text-right py-2.5 px-3 font-medium text-muted-foreground">Rate</th>
-                                        <th className="text-right py-2.5 px-3 font-medium text-muted-foreground">Net</th>
-                                        {hasVat && <th className="text-right py-2.5 px-3 font-medium text-muted-foreground">VAT</th>}
-                                        <th className="text-right py-2.5 px-3 font-medium text-muted-foreground">Total</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y">
+                            <Table>
+                                <TableHeader>
+                                    <TableHeaderRow>
+                                        <TableHead>Description</TableHead>
+                                        <TableHead className="text-right">Qty</TableHead>
+                                        <TableHead className="text-right">Rate</TableHead>
+                                        <TableHead className="text-right">Net</TableHead>
+                                        {hasVat && <TableHead className="text-right">VAT</TableHead>}
+                                        <TableHead className="text-right">Total</TableHead>
+                                    </TableHeaderRow>
+                                </TableHeader>
+                                <TableBody>
                                     {lineItems.map(item => (
-                                        <tr key={item.id} className="hover:bg-muted/20">
-                                            <td className="py-3 px-3">{item.description}</td>
-                                            <td className="py-3 px-3 text-right text-muted-foreground tabular-nums">{Number(item.quantity).toFixed(2)}</td>
-                                            <td className="py-3 px-3 text-right text-muted-foreground tabular-nums">{formatCurrency(item.unit_rate)}</td>
-                                            <td className="py-3 px-3 text-right tabular-nums">{formatCurrency(item.amount)}</td>
-                                            {hasVat && <td className="py-3 px-3 text-right text-muted-foreground tabular-nums">{formatCurrency(item.vat_amount)}</td>}
-                                            <td className="py-3 px-3 text-right font-semibold tabular-nums">{formatCurrency(Number(item.amount) + Number(item.vat_amount))}</td>
-                                        </tr>
+                                        <TableRow key={item.id}>
+                                            <TableCell>{item.description}</TableCell>
+                                            <TableCell className="text-right text-muted-foreground tabular-nums">{Number(item.quantity).toFixed(2)}</TableCell>
+                                            <TableCell className="text-right text-muted-foreground tabular-nums">{formatCurrency(item.unit_rate)}</TableCell>
+                                            <TableCell className="text-right tabular-nums">{formatCurrency(item.amount)}</TableCell>
+                                            {hasVat && <TableCell className="text-right text-muted-foreground tabular-nums">{formatCurrency(item.vat_amount)}</TableCell>}
+                                            <TableCell className="text-right font-semibold tabular-nums">{formatCurrency(Number(item.amount) + Number(item.vat_amount))}</TableCell>
+                                        </TableRow>
                                     ))}
-                                </tbody>
-                            </table>
+                                </TableBody>
+                            </Table>
                         </div>
 
                         {/* Totals */}

@@ -2,6 +2,9 @@ import { Head, router, useForm } from '@inertiajs/react';
 import { useState } from 'react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Card, CardContent } from '@/components/ui/card';
+import {
+    Table, TableHeader, TableHeaderRow, TableBody, TableRow, TableHead, TableCell,
+} from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -150,43 +153,43 @@ export default function UsersIndex({ users, firms, filters }: Props) {
                         </div>
                     ) : (
                         <div className="overflow-x-auto">
-                            <table className="w-full text-sm">
-                                <thead>
-                                    <tr className="border-b border-border/60">
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">User</th>
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">Firm</th>
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">Role</th>
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">Status</th>
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">Last Login</th>
-                                        <th className="px-4 py-3 text-right font-medium text-muted-foreground">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-border/40">
+                            <Table>
+                                <TableHeader>
+                                    <TableHeaderRow>
+                                        <TableHead>User</TableHead>
+                                        <TableHead>Firm</TableHead>
+                                        <TableHead>Role</TableHead>
+                                        <TableHead>Status</TableHead>
+                                        <TableHead>Last Login</TableHead>
+                                        <TableHead className="text-right">Actions</TableHead>
+                                    </TableHeaderRow>
+                                </TableHeader>
+                                <TableBody>
                                     {users.data.map(user => (
-                                        <tr key={user.id} className="hover:bg-muted/30 transition-colors">
-                                            <td className="px-4 py-3">
+                                        <TableRow key={user.id}>
+                                            <TableCell>
                                                 <div>
                                                     <p className="font-medium">{user.full_name}</p>
                                                     <p className="text-xs text-muted-foreground">{user.email}</p>
                                                 </div>
-                                            </td>
-                                            <td className="px-4 py-3">
+                                            </TableCell>
+                                            <TableCell>
                                                 <span className="text-sm">{user.firm?.name ?? '—'}</span>
-                                            </td>
-                                            <td className="px-4 py-3">
+                                            </TableCell>
+                                            <TableCell>
                                                 <Badge variant={roleVariant[user.role] ?? 'secondary'} className="capitalize">
                                                     {user.role}
                                                 </Badge>
-                                            </td>
-                                            <td className="px-4 py-3">
+                                            </TableCell>
+                                            <TableCell>
                                                 <Badge variant={user.is_active ? 'success' : 'destructive'}>
                                                     {user.is_active ? 'Active' : 'Inactive'}
                                                 </Badge>
-                                            </td>
-                                            <td className="px-4 py-3 text-muted-foreground">
+                                            </TableCell>
+                                            <TableCell className="text-muted-foreground">
                                                 {user.last_login_at ? formatDate(user.last_login_at) : 'Never'}
-                                            </td>
-                                            <td className="px-4 py-3">
+                                            </TableCell>
+                                            <TableCell>
                                                 <div className="flex items-center justify-end gap-1">
                                                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(user)} title="Edit">
                                                         <Pencil className="h-3.5 w-3.5" />
@@ -198,11 +201,11 @@ export default function UsersIndex({ users, firms, filters }: Props) {
                                                         <Trash2 className="h-3.5 w-3.5" />
                                                     </Button>
                                                 </div>
-                                            </td>
-                                        </tr>
+                                            </TableCell>
+                                        </TableRow>
                                     ))}
-                                </tbody>
-                            </table>
+                                </TableBody>
+                            </Table>
                         </div>
                     )}
 

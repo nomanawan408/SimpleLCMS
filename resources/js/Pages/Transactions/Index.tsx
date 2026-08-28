@@ -2,6 +2,9 @@ import { Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    Table, TableHeader, TableHeaderRow, TableBody, TableFooter, TableRow, TableHead, TableCell,
+} from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -182,71 +185,71 @@ export default function TransactionsIndex({ transactions, stats, matters, openIn
                         </div>
                     ) : (
                         <div className="overflow-x-auto">
-                            <table className="w-full text-base">
-                                <thead>
-                                    <tr className="border-b bg-muted/30 text-muted-foreground">
-                                        <th className="text-left px-4 py-3 font-medium">Date</th>
-                                        <th className="text-left px-4 py-3 font-medium">Client</th>
-                                        <th className="text-left px-4 py-3 font-medium hidden md:table-cell">Matter</th>
-                                        <th className="text-left px-4 py-3 font-medium hidden lg:table-cell">Invoice</th>
-                                        <th className="text-left px-4 py-3 font-medium hidden md:table-cell">Method</th>
-                                        <th className="text-right px-4 py-3 font-medium">Amount</th>
-                                        <th className="text-left px-4 py-3 font-medium hidden lg:table-cell">Notes</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-border/60">
+                            <Table>
+                                <TableHeader>
+                                    <TableHeaderRow>
+                                        <TableHead>Date</TableHead>
+                                        <TableHead>Client</TableHead>
+                                        <TableHead className="hidden md:table-cell">Matter</TableHead>
+                                        <TableHead className="hidden lg:table-cell">Invoice</TableHead>
+                                        <TableHead className="hidden md:table-cell">Method</TableHead>
+                                        <TableHead className="text-right">Amount</TableHead>
+                                        <TableHead className="hidden lg:table-cell">Notes</TableHead>
+                                    </TableHeaderRow>
+                                </TableHeader>
+                                <TableBody>
                                     {transactions.data.map((tx) => {
                                         const contacts = tx.invoice?.matter?.contacts ?? [];
                                         const clientName = contacts.map((c) => c.full_name || c.name).join(', ') || '—';
                                         return (
-                                            <tr key={tx.id} className="hover:bg-muted/30 transition-colors">
-                                                <td className="px-4 py-3 whitespace-nowrap text-muted-foreground text-sm">
+                                            <TableRow key={tx.id}>
+                                                <TableCell className="whitespace-nowrap text-muted-foreground">
                                                     {formatDate(tx.paid_at)}
-                                                </td>
-                                                <td className="px-4 py-3">
+                                                </TableCell>
+                                                <TableCell>
                                                     <p className="font-medium text-sm">{clientName}</p>
-                                                </td>
-                                                <td className="px-4 py-3 hidden md:table-cell">
+                                                </TableCell>
+                                                <TableCell className="hidden md:table-cell">
                                                     {tx.invoice?.matter ? (
                                                         <Link href={`/matters/${tx.invoice.matter.id}`} className="hover:text-primary transition-colors">
                                                             <p className="font-medium text-sm">{tx.invoice.matter.name}</p>
                                                             <p className="text-xs text-muted-foreground">{tx.invoice.matter.matter_number}</p>
                                                         </Link>
                                                     ) : '—'}
-                                                </td>
-                                                <td className="px-4 py-3 hidden lg:table-cell">
+                                                </TableCell>
+                                                <TableCell className="hidden lg:table-cell">
                                                     {tx.invoice ? (
                                                         <Link href={`/billing/${tx.invoice.id}`} className="text-primary hover:underline text-sm">
                                                             {tx.invoice.invoice_number}
                                                         </Link>
                                                     ) : '—'}
-                                                </td>
-                                                <td className="px-4 py-3 hidden md:table-cell">
+                                                </TableCell>
+                                                <TableCell className="hidden md:table-cell">
                                                     <span className={cn('inline-flex items-center px-2 py-0.5 rounded text-xs font-medium', METHOD_COLOURS[tx.method] ?? 'bg-muted text-muted-foreground')}>
                                                         {METHOD_LABELS[tx.method] ?? tx.method}
                                                     </span>
-                                                </td>
-                                                <td className="px-4 py-3 text-right">
+                                                </TableCell>
+                                                <TableCell className="text-right">
                                                     <span className="font-bold text-success text-sm">{formatCurrency(Number(tx.amount))}</span>
-                                                </td>
-                                                <td className="px-4 py-3 hidden lg:table-cell text-muted-foreground text-xs max-w-xs truncate">
+                                                </TableCell>
+                                                <TableCell className="hidden lg:table-cell text-muted-foreground max-w-xs truncate">
                                                     {tx.notes || '—'}
-                                                </td>
-                                            </tr>
+                                                </TableCell>
+                                            </TableRow>
                                         );
                                     })}
-                                </tbody>
-                                <tfoot>
-                                    <tr className="border-t bg-muted/20 font-semibold">
-                                        <td colSpan={5} className="px-4 py-2 text-right text-xs text-muted-foreground uppercase tracking-wide hidden md:table-cell">Page total</td>
-                                        <td colSpan={3} className="px-4 py-2 text-right text-xs text-muted-foreground uppercase tracking-wide md:hidden">Page total</td>
-                                        <td className="px-4 py-2 text-right text-success font-bold">
+                                </TableBody>
+                                <TableFooter>
+                                    <TableRow className="font-semibold">
+                                        <TableCell colSpan={5} className="text-right text-muted-foreground uppercase tracking-wide hidden md:table-cell">Page total</TableCell>
+                                        <TableCell colSpan={3} className="text-right text-muted-foreground uppercase tracking-wide md:hidden">Page total</TableCell>
+                                        <TableCell className="text-right text-success font-bold">
                                             {formatCurrency(transactions.data.reduce((s, t) => s + Number(t.amount), 0))}
-                                        </td>
-                                        <td className="hidden lg:table-cell" />
-                                    </tr>
-                                </tfoot>
-                            </table>
+                                        </TableCell>
+                                        <TableCell className="hidden lg:table-cell" />
+                                    </TableRow>
+                                </TableFooter>
+                            </Table>
                         </div>
                     )}
 

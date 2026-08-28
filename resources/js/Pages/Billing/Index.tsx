@@ -2,6 +2,7 @@ import { Head, Link, router } from '@inertiajs/react';
 import { useState, useEffect, useRef } from 'react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Card, CardContent } from '@/components/ui/card';
+import { Table, TableHeader, TableHeaderRow, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -228,32 +229,32 @@ export default function BillingIndex({ invoices, stats, filters, filterOptions }
                         </div>
                     ) : (
                         <div className="overflow-x-auto">
-                            <table className="w-full">
-                                <thead><tr className="border-b bg-muted/30"><th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Invoice #</th><th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Matter</th><th className="hidden md:table-cell text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Date</th><th className="hidden lg:table-cell text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Due</th><th className="text-right px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Amount</th><th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Status</th></tr></thead>
-                                <tbody className="divide-y divide-border/60">
+                            <Table>
+                                <TableHeader><TableHeaderRow><TableHead>Invoice #</TableHead><TableHead>Matter</TableHead><TableHead className="hidden md:table-cell">Date</TableHead><TableHead className="hidden lg:table-cell">Due</TableHead><TableHead className="text-right">Amount</TableHead><TableHead>Status</TableHead></TableHeaderRow></TableHeader>
+                                <TableBody>
                                     {invoices.data.map((invoice: any) => {
                                         const paid = Number(invoice.amount_paid ?? 0);
                                         const outstanding = Math.max(0, Number(invoice.total) - paid);
                                         const isOverdue = ['sent', 'partial'].includes(invoice.status) && invoice.due_date && new Date(invoice.due_date) < new Date();
                                         return (
-                                            <tr key={invoice.id} className="group hover:bg-muted/40 cursor-pointer transition-colors" onClick={() => router.visit(`/billing/${invoice.id}`)}>
-                                                <td className="px-4 py-3"><p className="font-medium text-sm">{invoice.invoice_number}</p></td>
-                                                <td className="px-4 py-3"><p className="font-medium text-sm truncate max-w-[180px]">{invoice.matter?.name}</p><p className="text-xs text-muted-foreground truncate">{invoice.matter?.responsible_user?.full_name}</p></td>
-                                                <td className="hidden md:table-cell px-4 py-3 text-muted-foreground text-sm">{formatDate(invoice.created_at)}</td>
-                                                <td className="hidden lg:table-cell px-4 py-3 text-sm">
+                                            <TableRow key={invoice.id} className="group cursor-pointer" onClick={() => router.visit(`/billing/${invoice.id}`)}>
+                                                <TableCell><p className="font-medium text-sm">{invoice.invoice_number}</p></TableCell>
+                                                <TableCell><p className="font-medium text-sm truncate max-w-[180px]">{invoice.matter?.name}</p><p className="text-xs text-muted-foreground truncate">{invoice.matter?.responsible_user?.full_name}</p></TableCell>
+                                                <TableCell className="hidden md:table-cell text-muted-foreground">{formatDate(invoice.created_at)}</TableCell>
+                                                <TableCell className="hidden lg:table-cell">
                                                     <span className={cn(isOverdue && 'text-destructive font-medium')}>{formatDate(invoice.due_date)}</span>
                                                     {isOverdue && <Badge variant="destructive" className="ml-2 text-[10px] rounded-full">Overdue</Badge>}
-                                                </td>
-                                                <td className="px-4 py-3 text-right">
+                                                </TableCell>
+                                                <TableCell className="text-right">
                                                     <p className="font-medium text-sm tabular-nums">{formatCurrency(invoice.total)}</p>
                                                     {invoice.status === 'partial' && <p className="text-xs text-muted-foreground tabular-nums">{formatCurrency(paid)} paid • {formatCurrency(outstanding)} due</p>}
-                                                </td>
-                                                <td className="px-4 py-3"><Badge variant={statusVariant[invoice.status]} className="rounded-full text-xs">{statusLabel[invoice.status]}</Badge></td>
-                                            </tr>
+                                                </TableCell>
+                                                <TableCell><Badge variant={statusVariant[invoice.status]} className="rounded-full text-xs">{statusLabel[invoice.status]}</Badge></TableCell>
+                                            </TableRow>
                                         );
                                     })}
-                                </tbody>
-                            </table>
+                                </TableBody>
+                            </Table>
                         </div>
                     )}
                     {invoices.last_page > 1 && (

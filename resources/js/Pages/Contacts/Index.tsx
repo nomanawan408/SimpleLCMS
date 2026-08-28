@@ -2,6 +2,9 @@ import { Head, Link, router } from '@inertiajs/react';
 import { useState, useEffect, useRef } from 'react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Card, CardContent } from '@/components/ui/card';
+import {
+    Table, TableHeader, TableHeaderRow, TableBody, TableRow, TableHead, TableCell,
+} from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -123,42 +126,39 @@ export default function ContactsIndex({ contacts, filters }: Props) {
                         </div>
                     ) : (
                         <div className="overflow-x-auto">
-                            <table className="w-full text-sm">
-                                <thead>
-                                    <tr className="border-b border-border/60 bg-muted/20">
-                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs font-bold uppercase tracking-widest">Name</th>
-                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs font-bold uppercase tracking-widest hidden md:table-cell">Email</th>
-                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs font-bold uppercase tracking-widest hidden lg:table-cell">Phone</th>
-                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs font-bold uppercase tracking-widest">Type</th>
-                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs font-bold uppercase tracking-widest hidden sm:table-cell">Lead Status</th>
-                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs font-bold uppercase tracking-widest hidden xl:table-cell">Added</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-border/60">
+                            <Table>
+                                <TableHeader>
+                                    <TableHeaderRow>
+                                        <TableHead>Name</TableHead>
+                                        <TableHead className="hidden md:table-cell">Email</TableHead>
+                                        <TableHead className="hidden lg:table-cell">Phone</TableHead>
+                                        <TableHead>Type</TableHead>
+                                        <TableHead className="hidden sm:table-cell">Lead Status</TableHead>
+                                        <TableHead className="hidden xl:table-cell">Added</TableHead>
+                                    </TableHeaderRow>
+                                </TableHeader>
+                                <TableBody>
                                     {contacts.data.map((contact) => (
-                                        <tr
-                                            key={contact.id}
-                                            className="hover:bg-muted/40 cursor-pointer transition-colors"
-                                            onClick={() => router.visit(`/contacts/${contact.id}`)}
+                                        <TableRow key={contact.id} className="cursor-pointer" onClick={() => router.visit(`/contacts/${contact.id}`)}
                                         >
-                                            <td className="px-4 py-3">
+                                            <TableCell>
                                                 <p className="font-medium text-foreground">{contact.full_name || contact.name}</p>
                                                 {contact.type === 'company' && contact.company_number && (
                                                     <p className="text-xs text-muted-foreground mt-0.5">#{contact.company_number}</p>
                                                 )}
-                                            </td>
-                                            <td className="px-4 py-3 hidden md:table-cell text-muted-foreground">
+                                            </TableCell>
+                                            <TableCell className="hidden md:table-cell text-muted-foreground">
                                                 {contact.email ?? '—'}
-                                            </td>
-                                            <td className="px-4 py-3 hidden lg:table-cell text-muted-foreground">
+                                            </TableCell>
+                                            <TableCell className="hidden lg:table-cell text-muted-foreground">
                                                 {contact.phone ?? '—'}
-                                            </td>
-                                            <td className="px-4 py-3">
+                                            </TableCell>
+                                            <TableCell>
                                                 <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize ${typeBadgeStyles[contact.type] ?? 'bg-muted text-muted-foreground border-border'}`}>
                                                     {CONTACT_TYPE_LABELS[contact.type] || contact.type}
                                                 </span>
-                                            </td>
-                                            <td className="px-4 py-3 hidden sm:table-cell">
+                                            </TableCell>
+                                            <TableCell className="hidden sm:table-cell">
                                                 {contact.lead_status ? (
                                                     <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize ${leadBadgeStyles[contact.lead_status] ?? 'bg-muted text-muted-foreground border-border'}`}>
                                                         {LEAD_STATUS_LABELS[contact.lead_status] || contact.lead_status.replace('_', ' ')}
@@ -166,14 +166,14 @@ export default function ContactsIndex({ contacts, filters }: Props) {
                                                 ) : (
                                                     <span className="text-muted-foreground">—</span>
                                                 )}
-                                            </td>
-                                            <td className="px-4 py-3 hidden xl:table-cell text-muted-foreground">
+                                            </TableCell>
+                                            <TableCell className="hidden xl:table-cell text-muted-foreground">
                                                 {formatDate(contact.created_at)}
-                                            </td>
-                                        </tr>
+                                            </TableCell>
+                                        </TableRow>
                                     ))}
-                                </tbody>
-                            </table>
+                                </TableBody>
+                            </Table>
                         </div>
                     )}
 

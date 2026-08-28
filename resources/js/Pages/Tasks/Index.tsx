@@ -2,6 +2,9 @@ import { useState, useEffect, useRef } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Card, CardContent } from '@/components/ui/card';
+import {
+    Table, TableHeader, TableHeaderRow, TableBody, TableRow, TableHead, TableCell,
+} from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -241,21 +244,21 @@ export default function TasksIndex({ tasks, users, matters, filters }: Props) {
                         </div>
                     ) : (
 <div className="overflow-x-auto">
-                            <table className="w-full text-sm">
-                                <thead>
-                                    <tr className="border-b border-border/60 bg-muted/20">
-                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs font-bold uppercase tracking-widest">Title</th>
-                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs font-bold uppercase tracking-widest">Assignee</th>
-                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs font-bold uppercase tracking-widest">Due</th>
-                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs font-bold uppercase tracking-widest">Priority</th>
-                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs font-bold uppercase tracking-widest">Status</th>
-                                        <th className="px-4 py-3" />
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-border/60">
+                            <Table>
+                                <TableHeader>
+                                    <TableHeaderRow>
+                                        <TableHead>Title</TableHead>
+                                        <TableHead>Assignee</TableHead>
+                                        <TableHead>Due</TableHead>
+                                        <TableHead>Priority</TableHead>
+                                        <TableHead>Status</TableHead>
+                                        <TableHead />
+                                    </TableHeaderRow>
+                                </TableHeader>
+                                <TableBody>
                                     {tasks.data.map((task) => (
-                                        <tr key={task.id} className="hover:bg-muted/30">
-                                            <td className="px-4 py-3">
+                                        <TableRow key={task.id}>
+                                            <TableCell>
                                                 <p className="font-medium">{task.title}</p>
                                                 {task.matter && (
                                                     <Link
@@ -265,19 +268,19 @@ export default function TasksIndex({ tasks, users, matters, filters }: Props) {
                                                         {task.matter.matter_number} — {task.matter.name}
                                                     </Link>
                                                 )}
-                                            </td>
-                                            <td className="px-4 py-3 text-muted-foreground">
+                                            </TableCell>
+                                            <TableCell className="text-muted-foreground">
                                                 {(task as any).assignee?.full_name ?? '—'}
-                                            </td>
-                                            <td className="px-4 py-3 text-muted-foreground">
+                                            </TableCell>
+                                            <TableCell className="text-muted-foreground">
                                                 {formatDate(task.due_date)}
-                                            </td>
-<td className="px-4 py-3">
+                                            </TableCell>
+<TableCell>
                                                 <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize ${PRIORITY_BADGE_STYLES[task.priority] ?? 'bg-muted text-muted-foreground border-border'}`}>
                                                     {task.priority}
                                                 </span>
-                                            </td>
-                                            <td className="px-4 py-3">
+                                            </TableCell>
+                                            <TableCell>
                                                 <Select
                                                     value={task.status}
                                                     onValueChange={(v) => handleStatusChange(task.id, v)}
@@ -298,8 +301,8 @@ export default function TasksIndex({ tasks, users, matters, filters }: Props) {
                                                         <SelectItem value="done">Done</SelectItem>
                                                     </SelectContent>
                                                 </Select>
-                                            </td>
-                                            <td className="px-4 py-3">
+                                            </TableCell>
+                                            <TableCell>
                                                 <div className="flex items-center gap-2 justify-end">
                                                     <Button
                                                         variant="ghost"
@@ -319,11 +322,11 @@ export default function TasksIndex({ tasks, users, matters, filters }: Props) {
                                                         <Trash2 className="h-3.5 w-3.5" />
                                                     </Button>
                                                 </div>
-                                            </td>
-                                        </tr>
+                                            </TableCell>
+                                        </TableRow>
                                     ))}
-                                </tbody>
-                            </table>
+                                </TableBody>
+                            </Table>
                         </div>
                     )}
 

@@ -2,6 +2,9 @@ import { Head, useForm, router } from '@inertiajs/react';
 import { useState } from 'react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Card, CardContent } from '@/components/ui/card';
+import {
+    Table, TableHeader, TableHeaderRow, TableBody, TableRow, TableHead, TableCell,
+} from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -159,24 +162,24 @@ export default function UsersIndex({ users, availableRoles }: Props) {
                             </div>
                         ) : (
                             <div className="overflow-x-auto">
-                                <table className="w-full text-base">
-                                    <thead>
-                                        <tr className="border-b bg-muted/30">
-                                            <th className="text-left px-4 py-3 font-medium text-muted-foreground tracking-tight">User</th>
-                                            <th className="text-left px-4 py-3 font-medium text-muted-foreground tracking-tight hidden md:table-cell">Role</th>
-                                            <th className="text-left px-4 py-3 font-medium text-muted-foreground tracking-tight">Status</th>
-                                            <th className="text-left px-4 py-3 font-medium text-muted-foreground tracking-tight hidden lg:table-cell">Last Login</th>
-                                            <th className="text-right px-4 py-3 font-medium text-muted-foreground tracking-tight">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-border/60">
+                                <Table>
+                                    <TableHeader>
+                                        <TableHeaderRow>
+                                            <TableHead>User</TableHead>
+                                            <TableHead className="hidden md:table-cell">Role</TableHead>
+                                            <TableHead>Status</TableHead>
+                                            <TableHead className="hidden lg:table-cell">Last Login</TableHead>
+                                            <TableHead className="text-right">Actions</TableHead>
+                                        </TableHeaderRow>
+                                    </TableHeader>
+                                    <TableBody>
                                         {users.map((user) => (
-                                            <tr key={user.id} className="hover:bg-muted/20 transition-colors">
-                                                <td className="px-4 py-3">
+                                            <TableRow key={user.id}>
+                                                <TableCell>
                                                     <p className="font-medium">{user.full_name}</p>
                                                     <p className="text-xs text-muted-foreground">{user.email}</p>
-                                                </td>
-                                                <td className="px-4 py-3 hidden md:table-cell">
+                                                </TableCell>
+                                                <TableCell className="hidden md:table-cell">
                                                     {user.roles.length > 0 ? (
                                                         <div className="flex flex-wrap gap-1">
                                                             {user.roles.map((role) => (
@@ -190,19 +193,19 @@ export default function UsersIndex({ users, availableRoles }: Props) {
                                                             {user.role}
                                                         </Badge>
                                                     )}
-                                                </td>
-                                                <td className="px-4 py-3">
+                                                </TableCell>
+                                                <TableCell>
                                                     <Badge variant={user.is_active ? 'success' : 'secondary'} className="text-xs">
                                                         {user.is_active ? 'Active' : 'Inactive'}
                                                     </Badge>
                                                     {user.totp_enabled && (
                                                         <Badge variant="info" className="ml-1 text-xs">2FA</Badge>
                                                     )}
-                                                </td>
-                                                <td className="px-4 py-3 hidden lg:table-cell text-xs text-muted-foreground">
+                                                </TableCell>
+                                                <TableCell className="hidden lg:table-cell text-muted-foreground">
                                                     {user.last_login_at ? formatDate(user.last_login_at) : 'Never'}
-                                                </td>
-                                                <td className="px-4 py-3">
+                                                </TableCell>
+                                                <TableCell>
                                                     <div className="flex items-center justify-end gap-1">
                                                         <Button variant="outline" size="sm" className="h-7 w-7 p-0" onClick={() => openEdit(user)} title="Edit user">
                                                             <Pencil className="h-3.5 w-3.5" />
@@ -214,11 +217,11 @@ export default function UsersIndex({ users, availableRoles }: Props) {
                                                             <Trash2 className="h-3.5 w-3.5" />
                                                         </Button>
                                                     </div>
-                                                </td>
-                                            </tr>
+                                                </TableCell>
+                                            </TableRow>
                                         ))}
-                                    </tbody>
-                                </table>
+                                    </TableBody>
+                                </Table>
                             </div>
                         )}
                     </CardContent>

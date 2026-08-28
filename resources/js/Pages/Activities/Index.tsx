@@ -1,6 +1,9 @@
 import { Head, Link } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Card, CardContent } from '@/components/ui/card';
+import {
+    Table, TableHeader, TableHeaderRow, TableBody, TableRow, TableHead, TableCell,
+} from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { formatDate, cn } from '@/lib/utils';
 import type { PaginatedData } from '@/types';
@@ -55,20 +58,20 @@ export default function ActivitiesIndex({ activities }: Props) {
                         <p className="px-6 py-10 text-center text-sm text-muted-foreground">No activity recorded yet.</p>
                     ) : (
                         <div className="overflow-x-auto">
-                            <table className="w-full text-sm">
-                                <thead>
-                                    <tr className="border-b border-border/60 bg-muted/20">
-                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs font-bold uppercase tracking-widest">Date / Time</th>
-                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs font-bold uppercase tracking-widest">User</th>
-                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs font-bold uppercase tracking-widest">Action</th>
-                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs font-bold uppercase tracking-widest">Subject</th>
-                                        <th className="text-left px-4 py-3 font-semibold text-foreground text-xs font-bold uppercase tracking-widest">Details</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-border/60">
+                            <Table>
+                                <TableHeader>
+                                    <TableHeaderRow>
+                                        <TableHead>Date / Time</TableHead>
+                                        <TableHead>User</TableHead>
+                                        <TableHead>Action</TableHead>
+                                        <TableHead>Subject</TableHead>
+                                        <TableHead>Details</TableHead>
+                                    </TableHeaderRow>
+                                </TableHeader>
+                                <TableBody>
                                     {activities.data.map((item) => (
-                                        <tr key={item.id} className="hover:bg-muted/40 transition-colors">
-                                            <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
+                                        <TableRow key={item.id}>
+                                            <TableCell className="text-muted-foreground whitespace-nowrap">
                                                 {formatDate(item.created_at, {
                                                     day: '2-digit',
                                                     month: 'short',
@@ -76,33 +79,33 @@ export default function ActivitiesIndex({ activities }: Props) {
                                                     hour: '2-digit',
                                                     minute: '2-digit',
                                                 })}
-                                            </td>
-                                            <td className="px-4 py-3 font-medium text-foreground">
+                                            </TableCell>
+                                            <TableCell className="font-medium text-foreground">
                                                 {item.causer?.full_name ?? 'System'}
-                                            </td>
-                                            <td className="px-4 py-3">
+                                            </TableCell>
+                                            <TableCell>
                                                 <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize ${ACTION_BADGE_STYLES[item.description] ?? 'bg-muted text-muted-foreground border-border'}`}>
                                                     {item.description}
                                                 </span>
-                                            </td>
-                                            <td className="px-4 py-3 text-muted-foreground">
+                                            </TableCell>
+                                            <TableCell className="text-muted-foreground">
                                                 {subjectLabel(item.subject_type)}
                                                 {item.subject_id && (
                                                     <span className="text-xs opacity-60 ml-1">#{item.subject_id.slice(0, 8)}</span>
                                                 )}
-                                            </td>
-                                            <td className="px-4 py-3 text-muted-foreground text-xs max-w-xs truncate">
+                                            </TableCell>
+                                            <TableCell className="text-muted-foreground max-w-xs truncate">
                                                 {item.log_name !== 'default' && (
                                                     <span className="mr-2 font-medium text-foreground">[{item.log_name}]</span>
                                                 )}
                                                 {item.properties && typeof item.properties === 'object' && Object.keys(item.properties).length > 0
                                                     ? JSON.stringify(item.properties).slice(0, 120)
                                                     : '—'}
-                                            </td>
-                                        </tr>
+                                            </TableCell>
+                                        </TableRow>
                                     ))}
-                                </tbody>
-                            </table>
+                                </TableBody>
+                            </Table>
                         </div>
                     )}
 

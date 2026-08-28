@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Head, router } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableHeader, TableHeaderRow, TableBody, TableFooter, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -259,24 +260,24 @@ export default function ReportsIndex({ financialSummary, timeByUser, mattersByPr
                                 <div className="py-16 text-center"><Briefcase className="h-10 w-10 mx-auto text-muted-foreground/50 mb-3" /><p className="text-sm text-muted-foreground">No invoice data for these filters.</p><Button variant="ghost" size="sm" onClick={clearFilters} className="mt-3">Clear filters</Button></div>
                             ) : (
                                 <div className="overflow-x-auto">
-                                    <table className="w-full">
-                                        <thead><tr className="border-b bg-muted/30 text-muted-foreground"><th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider">Matter</th><th className="text-right px-4 py-3 text-xs font-semibold uppercase tracking-wider">Invoices</th><th className="text-right px-4 py-3 text-xs font-semibold uppercase tracking-wider">Total</th><th className="text-right px-4 py-3 text-xs font-semibold uppercase tracking-wider">Collected</th><th className="text-right px-4 py-3 text-xs font-semibold uppercase tracking-wider">Outstanding</th><th className="hidden lg:table-cell px-4 py-3 w-24"></th></tr></thead>
-                                        <tbody className="divide-y divide-border/60">
+                                    <Table>
+                                        <TableHeader><TableHeaderRow><TableHead>Matter</TableHead><TableHead className="text-right">Invoices</TableHead><TableHead className="text-right">Total</TableHead><TableHead className="text-right">Collected</TableHead><TableHead className="text-right">Outstanding</TableHead><TableHead className="hidden lg:table-cell w-24"></TableHead></TableHeaderRow></TableHeader>
+                                        <TableBody>
                                             {financialSummary.invoices_by_matter.map((row) => {
                                                 const pct = row.total_amount > 0 ? Math.min(100, Math.round(row.collected_amount / row.total_amount * 100)) : 0;
                                                 return (
-                                                    <tr key={row.matter_id} className="hover:bg-muted/30 transition-colors">
-                                                        <td className="px-4 py-3"><span className="font-medium text-sm">{row.matter ? `${row.matter.matter_number} — ${row.matter.name}` : row.matter_id.slice(0,8)}</span></td>
-                                                        <td className="px-4 py-3 text-right text-muted-foreground text-sm">{row.count}</td>
-                                                        <td className="px-4 py-3 text-right font-medium text-sm tabular-nums">{formatCurrency(row.total_amount)}</td>
-                                                        <td className="px-4 py-3 text-right text-success text-sm tabular-nums">{formatCurrency(row.collected_amount)}</td>
-                                                        <td className="px-4 py-3 text-right text-warning text-sm tabular-nums">{formatCurrency(row.outstanding_amount)}</td>
-                                                        <td className="hidden lg:table-cell px-4 py-3"><div className="h-1.5 bg-muted rounded-full overflow-hidden w-20 ml-auto"><div className="h-full bg-success rounded-full" style={{ width: `${pct}%` }} /></div></td>
-                                                    </tr>
+                                                    <TableRow key={row.matter_id}>
+                                                        <TableCell><span className="font-medium text-sm">{row.matter ? `${row.matter.matter_number} — ${row.matter.name}` : row.matter_id.slice(0,8)}</span></TableCell>
+                                                        <TableCell className="text-right text-muted-foreground">{row.count}</TableCell>
+                                                        <TableCell className="text-right font-medium tabular-nums">{formatCurrency(row.total_amount)}</TableCell>
+                                                        <TableCell className="text-right text-success tabular-nums">{formatCurrency(row.collected_amount)}</TableCell>
+                                                        <TableCell className="text-right text-warning tabular-nums">{formatCurrency(row.outstanding_amount)}</TableCell>
+                                                        <TableCell className="hidden lg:table-cell"><div className="h-1.5 bg-muted rounded-full overflow-hidden w-20 ml-auto"><div className="h-full bg-success rounded-full" style={{ width: `${pct}%` }} /></div></TableCell>
+                                                    </TableRow>
                                                 );
                                             })}
-                                        </tbody>
-                                    </table>
+                                        </TableBody>
+                                    </Table>
                                 </div>
                             )}
                         </CardContent>
@@ -295,34 +296,34 @@ export default function ReportsIndex({ financialSummary, timeByUser, mattersByPr
                             <div className="py-16 text-center"><Clock className="h-10 w-10 mx-auto text-muted-foreground/50 mb-3" /><p className="text-sm text-muted-foreground">No time entries for these filters.</p></div>
                         ) : (
                             <div className="overflow-x-auto">
-                                <table className="w-full">
-                                    <thead><tr className="border-b bg-muted/30 text-muted-foreground"><th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider">User</th><th className="text-right px-4 py-3 text-xs font-semibold uppercase tracking-wider">Total</th><th className="text-right px-4 py-3 text-xs font-semibold uppercase tracking-wider">Billable</th><th className="text-right px-4 py-3 text-xs font-semibold uppercase tracking-wider">Utilisation</th><th className="text-right px-4 py-3 text-xs font-semibold uppercase tracking-wider">Total Value</th></tr></thead>
-                                    <tbody className="divide-y divide-border/60">
+                                <Table>
+                                    <TableHeader><TableHeaderRow><TableHead>User</TableHead><TableHead className="text-right">Total</TableHead><TableHead className="text-right">Billable</TableHead><TableHead className="text-right">Utilisation</TableHead><TableHead className="text-right">Total Value</TableHead></TableHeaderRow></TableHeader>
+                                    <TableBody>
                                         {timeByUser.map((row) => {
                                             const pct = row.total_minutes > 0 ? Math.round(row.billable_minutes / row.total_minutes * 100) : 0;
                                             return (
-                                                <tr key={row.user_id} className="hover:bg-muted/30">
-                                                    <td className="px-4 py-3">
+                                                <TableRow key={row.user_id}>
+                                                    <TableCell>
                                                         <div className="flex items-center gap-3">
                                                             <div className="h-8 w-8 rounded-full bg-primary/15 text-primary flex items-center justify-center text-xs font-bold">{row.full_name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase()}</div>
                                                             <span className="font-medium text-sm">{row.full_name}</span>
                                                         </div>
-                                                    </td>
-                                                    <td className="px-4 py-3 text-right text-muted-foreground text-sm tabular-nums">{formatDuration(row.total_minutes)}</td>
-                                                    <td className="px-4 py-3 text-right text-muted-foreground text-sm tabular-nums">{formatDuration(row.billable_minutes)}</td>
-                                                    <td className="px-4 py-3 text-right">
+                                                    </TableCell>
+                                                    <TableCell className="text-right text-muted-foreground tabular-nums">{formatDuration(row.total_minutes)}</TableCell>
+                                                    <TableCell className="text-right text-muted-foreground tabular-nums">{formatDuration(row.billable_minutes)}</TableCell>
+                                                    <TableCell className="text-right">
                                                         <div className="flex items-center justify-end gap-2">
                                                             <div className="h-1.5 w-16 bg-muted rounded-full overflow-hidden hidden sm:block"><div className={cn('h-full rounded-full', pct>=80?'bg-success':pct>=50?'bg-warning':'bg-muted-foreground')} style={{ width: `${pct}%` }} /></div>
                                                             <Badge variant={pct >= 80 ? 'success' : pct >= 50 ? 'warning' : 'secondary'} className="text-xs rounded-full">{pct}%</Badge>
                                                         </div>
-                                                    </td>
-                                                    <td className="px-4 py-3 text-right font-medium text-sm tabular-nums">{formatCurrency(row.total_value)}</td>
-                                                </tr>
+                                                    </TableCell>
+                                                    <TableCell className="text-right font-medium tabular-nums">{formatCurrency(row.total_value)}</TableCell>
+                                                </TableRow>
                                             );
                                         })}
-                                    </tbody>
-                                    <tfoot><tr className="border-t-2 bg-muted/20 font-semibold"><td className="px-4 py-3 text-sm">Total</td><td className="px-4 py-3 text-right text-sm tabular-nums">{formatDuration(totalMins)}</td><td className="px-4 py-3 text-right text-sm tabular-nums">{formatDuration(totalBillableMins)}</td><td className="px-4 py-3 text-right"><Badge variant="secondary" className="rounded-full">{totalMins>0?Math.round(totalBillableMins/totalMins*100):0}% avg</Badge></td><td className="px-4 py-3 text-right text-sm tabular-nums">{formatCurrency(totalTimeValue)}</td></tr></tfoot>
-                                </table>
+                                    </TableBody>
+                                    <TableFooter><TableRow className="border-t-2 font-semibold"><TableCell>Total</TableCell><TableCell className="text-right tabular-nums">{formatDuration(totalMins)}</TableCell><TableCell className="text-right tabular-nums">{formatDuration(totalBillableMins)}</TableCell><TableCell className="text-right"><Badge variant="secondary" className="rounded-full">{totalMins>0?Math.round(totalBillableMins/totalMins*100):0}% avg</Badge></TableCell><TableCell className="text-right tabular-nums">{formatCurrency(totalTimeValue)}</TableCell></TableRow></TableFooter>
+                                </Table>
                             </div>
                         )}
                     </CardContent>

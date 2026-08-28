@@ -2,6 +2,9 @@ import { Head, useForm, Link } from '@inertiajs/react';
 import { useState } from 'react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    Table, TableHeader, TableHeaderRow, TableBody, TableRow, TableHead, TableCell,
+} from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -138,42 +141,42 @@ export default function FirmsIndex({ firms }: Props) {
                         </div>
                     ) : (
                         <div className="overflow-x-auto">
-                            <table className="w-full text-sm">
-                                <thead>
-                                    <tr className="border-b border-border/60">
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">Firm</th>
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">Plan</th>
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">Status</th>
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">Users</th>
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">Matters</th>
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">Created</th>
-                                        <th className="px-4 py-3 text-right font-medium text-muted-foreground">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-border/40">
+                            <Table>
+                                <TableHeader>
+                                    <TableHeaderRow>
+                                        <TableHead>Firm</TableHead>
+                                        <TableHead>Plan</TableHead>
+                                        <TableHead>Status</TableHead>
+                                        <TableHead>Users</TableHead>
+                                        <TableHead>Matters</TableHead>
+                                        <TableHead>Created</TableHead>
+                                        <TableHead className="text-right">Actions</TableHead>
+                                    </TableHeaderRow>
+                                </TableHeader>
+                                <TableBody>
                                     {firms.map((firm) => (
-                                        <tr key={firm.id} className="hover:bg-muted/30 transition-colors">
-                                            <td className="px-4 py-3">
+                                        <TableRow key={firm.id}>
+                                            <TableCell>
                                                 <div>
                                                     <p className="font-medium">{firm.name}</p>
                                                     <p className="text-xs text-muted-foreground">{firm.email ?? '—'}{firm.city ? ` · ${firm.city}` : ''}</p>
                                                 </div>
-                                            </td>
-                                            <td className="px-4 py-3">
+                                            </TableCell>
+                                            <TableCell>
                                                 <Badge variant="outline">{planLabels[firm.plan] ?? firm.plan}</Badge>
-                                            </td>
-                                            <td className="px-4 py-3">
+                                            </TableCell>
+                                            <TableCell>
                                                 <Badge variant={statusVariant[firm.subscription_status] ?? 'default'} className="capitalize">
                                                     {firm.subscription_status}
                                                 </Badge>
                                                 {firm.trial_ends_at && (
                                                     <p className="text-[10px] text-muted-foreground mt-0.5">ends {formatDate(firm.trial_ends_at)}</p>
                                                 )}
-                                            </td>
-                                            <td className="px-4 py-3">{firm.users_count}</td>
-                                            <td className="px-4 py-3">{firm.matters_count}</td>
-                                            <td className="px-4 py-3 text-muted-foreground">{formatDate(firm.created_at)}</td>
-                                            <td className="px-4 py-3">
+                                            </TableCell>
+                                            <TableCell>{firm.users_count}</TableCell>
+                                            <TableCell>{firm.matters_count}</TableCell>
+                                            <TableCell className="text-muted-foreground">{formatDate(firm.created_at)}</TableCell>
+                                            <TableCell>
                                                 <div className="flex items-center justify-end gap-1">
                                                     <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
                                                         <Link href={`/superadmin/firms/${firm.id}`} title="View Details">
@@ -187,11 +190,11 @@ export default function FirmsIndex({ firms }: Props) {
                                                         <Trash2 className="h-3.5 w-3.5" />
                                                     </Button>
                                                 </div>
-                                            </td>
-                                        </tr>
+                                            </TableCell>
+                                        </TableRow>
                                     ))}
-                                </tbody>
-                            </table>
+                                </TableBody>
+                            </Table>
                         </div>
                     )}
                 </CardContent>
