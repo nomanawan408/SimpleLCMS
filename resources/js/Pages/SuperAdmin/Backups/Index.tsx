@@ -1,4 +1,4 @@
-import { Head, router, useForm } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Button } from '@/components/ui/button';
 import {
@@ -57,8 +57,7 @@ const Choice = ({ id, checked, onChange, disabled, label, hint }: {
 );
 
 export default function BackupsIndex({ backups }: Props) {
-    const { post, processing } = useForm();
-
+    const [creating, setCreating] = useState(false);
     const [restoreProcessing, setRestoreProcessing] = useState(false);
 
     const [includeDatabase, setIncludeDatabase] = useState(true);
@@ -70,9 +69,12 @@ export default function BackupsIndex({ backups }: Props) {
             return;
         }
         if (confirm('Create a new backup? This may take several minutes.')) {
+            setCreating(true);
             router.post('/superadmin/backups', {
                 include_database: includeDatabase,
                 include_files: includeFiles,
+            }, {
+                onFinish: () => setCreating(false),
             });
         }
     };
@@ -113,17 +115,11 @@ export default function BackupsIndex({ backups }: Props) {
             <Head title="System Backups" />
 
             <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h1 className="text-2xl font-extrabold tracking-tight">System Backups</h1>
-                        <p className="text-muted-foreground">
-                            Manage application backups and restore from previous snapshots
-                        </p>
-                    </div>
-                    <Button onClick={handleCreateBackup} disabled={processing}>
-                        <HardDrive className="mr-2 h-4 w-4" />
-                        {processing ? 'Creating...' : 'Create Backup'}
-                    </Button>
+                <div>
+                    <h1 className="text-2xl font-extrabold tracking-tight">System Backups</h1>
+                    <p className="text-muted-foreground">
+                        Manage application backups and restore from previous snapshots
+                    </p>
                 </div>
 
                 <div className="grid gap-6 md:grid-cols-2">
@@ -134,21 +130,9 @@ export default function BackupsIndex({ backups }: Props) {
                         </CardHeader>
                         <CardContent>
                             <div className="space-y-4">
-                                <p className="text-sm text-muted-foreground">Backups include:</p>
-                                <ul className="text-sm space-y-1">
-                                    <li className="flex items-center">
-                                        <span className="w-2 h-2 bg-primary rounded-full mr-2"></span>
-                                        Complete database snapshot
-                                    </li>
-                                    <li className="flex items-center">
-                                        <span className="w-2 h-2 bg-primary rounded-full mr-2"></span>
-                                        All document storage files
-                                    </li>
-                                </ul>
-                                <div className="rounded-md bg-yellow-50 border border-yellow-200 p-3 mt-4">
-                                    <div className="flex">
-                                        <AlertCircle className="h-5 w-5 text-yellow-600 mr-2 flex-shrink-0" />
-                                <div className="grid gap-2 sm:grid-cols-2 mb-4">
+                                <p className="text-sm text-muted-foreground">Choose what to include:</p>
+
+                                <div className="grid gap-2 sm:grid-cols-2">
                                     <Choice
                                         id="include-database"
                                         checked={includeDatabase}
@@ -165,14 +149,22 @@ export default function BackupsIndex({ backups }: Props) {
                                     />
                                 </div>
 
+                                <div className="rounded-md bg-warning/10 border border-warning/20 p-3">
+                                    <div className="flex">
+                                        <AlertCircle className="h-5 w-5 text-warning mr-2 flex-shrink-0" />
                                         <div>
-                                            <p className="text-sm font-medium text-yellow-800">Important</p>
-                                            <p className="text-sm text-yellow-700">
+                                            <p className="text-sm font-medium text-warning">Important</p>
+                                            <p className="text-sm text-warning/80">
                                                 Backup process may take several minutes. Do not interrupt.
                                             </p>
                                         </div>
                                     </div>
                                 </div>
+
+                                <Button onClick={handleCreateBackup} disabled={creating} className="w-full">
+                                    <HardDrive className="mr-2 h-4 w-4" />
+                                    {creating ? 'Creating...' : 'Create Backup'}
+                                </Button>
                             </div>
                         </CardContent>
                     </Card>
@@ -247,7 +239,7 @@ export default function BackupsIndex({ backups }: Props) {
                                     </div>
                                 </div>
 
-                                <Button type="submit" disabled={restoreProcessing} variant="destructive">
+                                <Button type="submit" disabled={restoreProcessing} variant="destructive" className="w-full">
                                     <Upload className="mr-2 h-4 w-4" />
                                     {restoreProcessing ? 'Restoring...' : 'Restore System'}
                                 </Button>
