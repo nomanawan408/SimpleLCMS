@@ -120,7 +120,10 @@ class MatterController extends Controller
         if ($viewFinancial) {
             $matter->load([
                 'invoices' => fn ($q) => $q->latest()->take(5)->withSum('payments as amount_paid', 'amount'),
-                'expenses' => fn ($q) => $q->latest()->take(10),
+                // Not take(10): the expenses tab shows a count and a Total
+                // computed from this collection, so a slice made both wrong.
+                'expenses' => fn ($q) => $q->latest(),
+                'expenses.user',
                 'trustEntries' => fn ($q) => $q->latest()->take(10),
             ]);
         }

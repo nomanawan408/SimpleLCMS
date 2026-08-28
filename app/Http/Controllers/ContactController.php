@@ -99,6 +99,7 @@ class ContactController extends Controller
         $contact->load([
             'gdprConsents',
             'matters' => fn ($q) => $q->with('responsibleUser')->orderBy('opened_at', 'desc'),
+            'notes.user:id,full_name',
         ]);
 
         // Load invoices for this contact's matters
@@ -111,6 +112,7 @@ class ContactController extends Controller
         return Inertia::render('Contacts/Show', [
             'contact'  => $contact,
             'invoices' => $invoices,
+            'canEditContact' => $request->user()->can('update', $contact),
         ]);
     }
 

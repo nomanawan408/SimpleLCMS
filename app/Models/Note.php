@@ -17,7 +17,7 @@ class Note extends Model
     protected $keyType = 'string';
     public $incrementing = false;
 
-    protected $fillable = ['firm_id', 'matter_id', 'user_id', 'body', 'type', 'logged_at'];
+    protected $fillable = ['firm_id', 'matter_id', 'contact_id', 'user_id', 'body', 'type', 'logged_at'];
 
     protected function casts(): array
     {
@@ -31,5 +31,7 @@ class Note extends Model
 
     public function firm(): BelongsTo { return $this->belongsTo(Firm::class); }
     public function matter(): BelongsTo { return $this->belongsTo(Matter::class); }
+
+    public function contact(): BelongsTo { return $this->belongsTo(Contact::class); }
     public function user(): BelongsTo { return $this->belongsTo(User::class); }
 }

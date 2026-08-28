@@ -11,6 +11,7 @@ use App\Http\Controllers\AccountController;
 use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\CalendarController;
 use App\Http\Controllers\ContactController;
+use App\Http\Controllers\ContactNoteController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\InvoiceController;
@@ -126,9 +127,14 @@ Route::middleware(['auth', 'verified', 'set.tenant', 'requires.two.factor', 'red
     Route::post('/matters/{matter}/notes', [MatterNoteController::class, 'store'])->name('matters.notes.store');
     Route::post('/matters/{matter}/time-entries', [MatterTimeEntryController::class, 'store'])->name('matters.time-entries.store');
     Route::post('/matters/{matter}/expenses', [MatterExpenseController::class, 'store'])->name('matters.expenses.store');
+    Route::put('/matters/{matter}/expenses/{expense}', [MatterExpenseController::class, 'update'])->name('matters.expenses.update');
+    Route::delete('/matters/{matter}/expenses/{expense}', [MatterExpenseController::class, 'destroy'])->name('matters.expenses.destroy');
 
     // Contacts
     Route::resource('contacts', ContactController::class);
+    Route::post('/contacts/{contact}/notes', [ContactNoteController::class, 'store'])->name('contacts.notes.store');
+    Route::put('/contacts/{contact}/notes/{note}', [ContactNoteController::class, 'update'])->name('contacts.notes.update');
+    Route::delete('/contacts/{contact}/notes/{note}', [ContactNoteController::class, 'destroy'])->name('contacts.notes.destroy');
 
     // Billing
     Route::get('/billing', [InvoiceController::class, 'index'])->name('billing.index');

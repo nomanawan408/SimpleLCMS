@@ -19,6 +19,22 @@ import {
 } from 'lucide-react';
 import type { Matter, Expense, Document, TrustEntry, User } from '@/types';
 
+// Mirrors the enum on expenses.category -- anything else is rejected by the
+// database, so the form offers exactly these.
+const EXPENSE_CATEGORIES: { value: string; label: string }[] = [
+    { value: 'court_fees', label: 'Court fees' },
+    { value: 'counsel_fees', label: "Counsel's fees" },
+    { value: 'travel', label: 'Travel' },
+    { value: 'disbursement', label: 'Disbursement' },
+    { value: 'stamp_duty', label: 'Stamp duty' },
+    { value: 'search_fees', label: 'Search fees' },
+    { value: 'translation', label: 'Translation' },
+    { value: 'other', label: 'Other' },
+];
+
+const expenseCategoryLabel = (value?: string | null) =>
+    EXPENSE_CATEGORIES.find((c) => c.value === value)?.label ?? '—';
+
 interface Props {
     matter: Matter & {
         contacts: any[];
@@ -217,9 +233,11 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
     const [expenseModalOpen, setExpenseModalOpen] = useState(false);
     const [expenseSaving, setExpenseSaving] = useState(false);
     const [expenseError, setExpenseError] = useState<string | null>(null);
+    const [editingExpense, setEditingExpense] = useState<any>(null);
     const [expenseForm, setExpenseForm] = useState({
         date: new Date().toISOString().slice(0, 10),
         amount: '',
+        vat_amount: '',
         billable: true,
         vendor: '',
         category: '',
@@ -268,21 +286,29 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
         window.history.pushState({}, '', url);
     };
 
-    const postJson = async (url: string, body: Record<string, unknown>) => {
+    const sendJson = async (method: string, url: string, body?: Record<string, unknown>) => {
         const token = (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement | null)?.content;
         const res = await fetch(url, {
-            method: 'POST',
+            method,
             headers: {
                 'Content-Type': 'application/json',
                 Accept: 'application/json',
                 ...(token ? { 'X-CSRF-TOKEN': token } : {}),
             },
-            body: JSON.stringify(body),
+            ...(body ? { body: JSON.stringify(body) } : {}),
         });
 
         const payload = await res.json().catch(() => null);
         return { ok: res.ok, payload };
     };
+
+    const postJson = (url: string, body: Record<string, unknown>) => sendJson('POST', url, body);
+    const putJson = (url: string, body: Record<string, unknown>) => sendJson('PUT', url, body);
+    const deleteJson = (url: string) => sendJson('DELETE', url);
+
+    // Reads the first validation message out of a Laravel error payload.
+    const firstError = (payload: any): string | null =>
+        payload?.errors ? Object.values(payload.errors as Record<string, string[]>)?.[0]?.[0] ?? null : null;
 
     const openNoteModal = () => {
         setNoteError(null);
@@ -353,15 +379,17 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
         }
     };
 
-    const openExpenseModal = () => {
+    const openExpenseModal = (expense: any = null) => {
         setExpenseError(null);
+        setEditingExpense(expense);
         setExpenseForm({
-            date: new Date().toISOString().slice(0, 10),
-            amount: '',
-            billable: true,
-            vendor: '',
-            category: '',
-            description: '',
+            date: expense?.date ? String(expense.date).slice(0, 10) : new Date().toISOString().slice(0, 10),
+            amount: expense ? String(expense.amount ?? '') : '',
+            vat_amount: expense && Number(expense.vat_amount) ? String(expense.vat_amount) : '',
+            billable: expense ? Boolean(expense.billable) : true,
+            vendor: expense?.vendor ?? '',
+            category: expense?.category ?? '',
+            description: expense?.description ?? '',
         });
         setExpenseModalOpen(true);
     };
@@ -370,28 +398,48 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
         setExpenseSaving(true);
         setExpenseError(null);
         try {
-            const { ok, payload } = await postJson(`/matters/${matter.id}/expenses`, {
+            const body = {
                 date: expenseForm.date,
                 amount: Number(expenseForm.amount),
+                vat_amount: expenseForm.vat_amount === '' ? 0 : Number(expenseForm.vat_amount),
                 billable: Boolean(expenseForm.billable),
                 vendor: expenseForm.vendor || null,
                 category: expenseForm.category || null,
                 description: expenseForm.description,
-            });
+            };
+
+            const { ok, payload } = editingExpense
+                ? await putJson(`/matters/${matter.id}/expenses/${editingExpense.id}`, body)
+                : await postJson(`/matters/${matter.id}/expenses`, body);
+
             if (!ok) {
-                const validationMsg = payload?.errors
-                    ? Object.values(payload.errors as Record<string, string[]>)?.[0]?.[0]
-                    : null;
-                setExpenseError(validationMsg || payload?.message || 'Unable to add expense.');
+                setExpenseError(firstError(payload) || payload?.message || 'Unable to save expense.');
                 return;
             }
-            setExpenses((prev) => [payload.expense, ...prev]);
+
+            setExpenses((prev) =>
+                editingExpense
+                    ? prev.map((e: any) => (e.id === editingExpense.id ? payload.expense : e))
+                    : [payload.expense, ...prev],
+            );
             setExpenseModalOpen(false);
+            setEditingExpense(null);
         } catch {
-            setExpenseError('Unable to add expense.');
+            setExpenseError('Unable to save expense.');
         } finally {
             setExpenseSaving(false);
         }
+    };
+
+    const deleteExpense = async (expense: any) => {
+        if (!window.confirm('Delete this expense? This cannot be undone.')) return;
+
+        const { ok, payload } = await deleteJson(`/matters/${matter.id}/expenses/${expense.id}`);
+        if (!ok) {
+            window.alert(payload?.message || 'Unable to delete expense.');
+            return;
+        }
+        setExpenses((prev) => prev.filter((e: any) => e.id !== expense.id));
     };
 
     const openTaskModal = () => {
@@ -1415,7 +1463,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                 </p>
                             )}
                         </div>
-                        <Button size="sm" variant="outline" type="button" onClick={openExpenseModal}>
+                        <Button size="sm" variant="outline" type="button" onClick={() => openExpenseModal()}>
                             <Plus className="h-3.5 w-3.5 mr-1" />
                             Add Expense
                         </Button>
@@ -1431,8 +1479,10 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                             <th className="text-left px-4 py-2.5 font-medium hidden md:table-cell">Vendor</th>
                                             <th className="text-left px-4 py-2.5 font-medium hidden lg:table-cell">Category</th>
                                             <th className="text-center px-4 py-2.5 font-medium">Billable</th>
+                                            <th className="text-right px-4 py-2.5 font-medium hidden sm:table-cell">VAT</th>
                                             <th className="text-right px-4 py-2.5 font-medium">Amount</th>
                                             <th className="text-center px-4 py-2.5 font-medium">Status</th>
+                                            <th className="text-right px-4 py-2.5 font-medium"><span className="sr-only">Actions</span></th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-border/60">
@@ -1441,13 +1491,44 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                                 <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap">{formatDate(exp.date)}</td>
                                                 <td className="px-4 py-2.5 max-w-xs"><p className="truncate">{exp.description}</p></td>
                                                 <td className="px-4 py-2.5 text-muted-foreground hidden md:table-cell">{exp.vendor || '—'}</td>
-                                                <td className="px-4 py-2.5 text-muted-foreground hidden lg:table-cell capitalize">{exp.category || '—'}</td>
+                                                <td className="px-4 py-2.5 text-muted-foreground hidden lg:table-cell">{expenseCategoryLabel(exp.category)}</td>
                                                 <td className="px-4 py-2.5 text-center">
                                                     <Badge variant={exp.billable ? 'success' : 'secondary'} className="text-xs">{exp.billable ? 'Yes' : 'No'}</Badge>
+                                                </td>
+                                                <td className="px-4 py-2.5 text-right text-muted-foreground tabular-nums hidden sm:table-cell">
+                                                    {Number(exp.vat_amount) ? formatCurrency(Number(exp.vat_amount)) : '—'}
                                                 </td>
                                                 <td className="px-4 py-2.5 text-right font-semibold tabular-nums">{formatCurrency(Number(exp.amount || 0))}</td>
                                                 <td className="px-4 py-2.5 text-center">
                                                     <Badge variant={exp.billed ? 'default' : 'warning'} className="text-xs">{exp.billed ? 'Billed' : 'Unbilled'}</Badge>
+                                                </td>
+                                                <td className="px-4 py-2.5 text-right whitespace-nowrap">
+                                                    {exp.billed ? (
+                                                        <span className="text-xs text-muted-foreground">Locked</span>
+                                                    ) : (
+                                                        <div className="flex items-center justify-end gap-1">
+                                                            <Button
+                                                                size="icon"
+                                                                variant="ghost"
+                                                                className="h-7 w-7"
+                                                                type="button"
+                                                                aria-label="Edit expense"
+                                                                onClick={() => openExpenseModal(exp)}
+                                                            >
+                                                                <Edit className="h-3.5 w-3.5" />
+                                                            </Button>
+                                                            <Button
+                                                                size="icon"
+                                                                variant="ghost"
+                                                                className="h-7 w-7 text-destructive hover:text-destructive"
+                                                                type="button"
+                                                                aria-label="Delete expense"
+                                                                onClick={() => deleteExpense(exp)}
+                                                            >
+                                                                <Trash2 className="h-3.5 w-3.5" />
+                                                            </Button>
+                                                        </div>
+                                                    )}
                                                 </td>
                                             </tr>
                                         ))}
@@ -1455,9 +1536,13 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                     <tfoot>
                                         <tr className="border-t bg-muted/20 font-semibold">
                                             <td colSpan={5} className="px-4 py-2 text-right text-xs text-muted-foreground uppercase tracking-wide">Total</td>
+                                            <td className="px-4 py-2 text-right text-muted-foreground tabular-nums hidden sm:table-cell">
+                                                {formatCurrency(expenses.reduce((s: number, e: any) => s + Number(e.vat_amount || 0), 0))}
+                                            </td>
                                             <td className="px-4 py-2 text-right text-success tabular-nums">
                                                 {formatCurrency(expenses.reduce((s: number, e: any) => s + Number(e.amount || 0), 0))}
                                             </td>
+                                            <td />
                                             <td />
                                         </tr>
                                     </tfoot>
@@ -1850,8 +1935,10 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
             <Dialog open={expenseModalOpen} onOpenChange={setExpenseModalOpen}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Add expense</DialogTitle>
-                        <DialogDescription>Add an expense to this matter.</DialogDescription>
+                        <DialogTitle>{editingExpense ? 'Edit expense' : 'Add expense'}</DialogTitle>
+                        <DialogDescription>
+                            {editingExpense ? 'Update this expense.' : 'Add an expense to this matter.'}
+                        </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4">
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -1861,7 +1948,19 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                             </div>
                             <div className="space-y-2">
                                 <Label className="text-sm font-medium">Amount *</Label>
-                                <Input type="number" className="h-11" value={expenseForm.amount} onChange={(e) => setExpenseForm((p) => ({ ...p, amount: e.target.value }))} />
+                                <Input type="number" min="0" step="0.01" className="h-11" value={expenseForm.amount} onChange={(e) => setExpenseForm((p) => ({ ...p, amount: e.target.value }))} />
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label>VAT</Label>
+                                <Input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    className="h-11"
+                                    placeholder="0.00"
+                                    value={expenseForm.vat_amount}
+                                    onChange={(e) => setExpenseForm((p) => ({ ...p, vat_amount: e.target.value }))}
+                                />
                             </div>
                         </div>
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -1871,7 +1970,18 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                             </div>
                             <div className="space-y-2">
                                 <Label className="text-sm font-medium">Category</Label>
-                                <Input className="h-11" value={expenseForm.category} onChange={(e) => setExpenseForm((p) => ({ ...p, category: e.target.value }))} />
+                                <Select
+                                    value={expenseForm.category || 'none'}
+                                    onValueChange={(v) => setExpenseForm((p) => ({ ...p, category: v === 'none' ? '' : v }))}
+                                >
+                                    <SelectTrigger className="h-11"><SelectValue placeholder="Select a category" /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="none">No category</SelectItem>
+                                        {EXPENSE_CATEGORIES.map((c) => (
+                                            <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
                         </div>
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -2014,7 +2124,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
             {/* ── Document Viewer Modal ── */}
             {viewerDoc && (
                 <Dialog open={!!viewerDoc} onOpenChange={() => setViewerDoc(null)}>
-                    <DialogContent className="max-w-5xl w-full h-[90vh] flex flex-col p-0 gap-0">
+                    <DialogContent className="max-w-5xl w-full h-[90vh] flex flex-col p-0 gap-0 [&>button]:hidden">
                         <div className="flex items-center justify-between px-5 py-3 border-b shrink-0">
                             <div className="flex items-center gap-2 min-w-0">
                                 <Paperclip className="h-4 w-4 text-muted-foreground shrink-0" />

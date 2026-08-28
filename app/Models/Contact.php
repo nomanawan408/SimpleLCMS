@@ -96,4 +96,9 @@ class Contact extends Model
     {
         return $this->hasMany(GdprConsent::class);
     }
+
+    public function notes(): HasMany
+    {
+        return $this->hasMany(Note::class)->latest('logged_at');
+    }
 }

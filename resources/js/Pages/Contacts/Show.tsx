@@ -4,14 +4,36 @@ import AppLayout from '@/Layouts/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn, formatDate, formatCurrency, CONTACT_TYPE_LABELS, LEAD_STATUS_LABELS } from '@/lib/utils';
-import { ArrowLeft, Mail, Phone, MapPin, Edit, Briefcase, User, Building2, Receipt, CreditCard, Calendar } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, MapPin, Edit, Briefcase, User, Building2, Receipt, CreditCard, Calendar, MessageSquare, Plus, Trash2, PhoneCall, Mails, Users as UsersIcon } from 'lucide-react';
 import type { Contact, Matter, Invoice } from '@/types';
 
-interface Props {
-    contact: Contact & { matters: Matter[] };
-    invoices: (Invoice & { matter?: { id: string; name: string; matter_number: string }; payments?: { id: string; amount: number; method: string; paid_at: string }[] })[];
+interface ContactNote {
+    id: string;
+    body: string;
+    type: 'note' | 'call_log' | 'email_log' | 'meeting_log';
+    logged_at: string;
+    user?: { id: string; full_name: string } | null;
 }
+
+interface Props {
+    contact: Contact & { matters: Matter[]; notes?: ContactNote[] };
+    invoices: (Invoice & { matter?: { id: string; name: string; matter_number: string }; payments?: { id: string; amount: number; method: string; paid_at: string }[] })[];
+    canEditContact?: boolean;
+}
+
+const NOTE_TYPES = [
+    { value: 'note', label: 'Note', icon: MessageSquare },
+    { value: 'call_log', label: 'Call', icon: PhoneCall },
+    { value: 'email_log', label: 'Email', icon: Mails },
+    { value: 'meeting_log', label: 'Meeting', icon: UsersIcon },
+] as const;
+
+const noteMeta = (type: string) => NOTE_TYPES.find((t) => t.value === type) ?? NOTE_TYPES[0];
 
 const typeVariant: Record<string, any> = {
     individual: 'default', company: 'secondary', other_party: 'warning',
@@ -31,7 +53,7 @@ const typeAccent: Record<string, string> = {
     individual: 'bg-foreground/70', company: 'bg-primary/40', other_party: 'bg-warning',
 };
 
-export default function ShowContact({ contact, invoices = [] }: Props) {
+export default function ShowContact({ contact, invoices = [], canEditContact = false }: Props) {
     const getTabFromLocation = () => {
         if (typeof window === 'undefined') return 'dashboard';
         return new URL(window.location.href).searchParams.get('tab') ?? 'dashboard';
@@ -50,6 +72,80 @@ export default function ShowContact({ contact, invoices = [] }: Props) {
         const url = new URL(window.location.href);
         url.searchParams.set('tab', next);
         window.history.pushState({}, '', url);
+    };
+
+    // ── Notes ──────────────────────────────────────────────────────────────
+    const [notes, setNotes] = useState<ContactNote[]>(contact.notes ?? []);
+    const [noteModalOpen, setNoteModalOpen] = useState(false);
+    const [noteSaving, setNoteSaving] = useState(false);
+    const [noteError, setNoteError] = useState<string | null>(null);
+    const [editingNote, setEditingNote] = useState<ContactNote | null>(null);
+    const [noteForm, setNoteForm] = useState<{ body: string; type: string }>({ body: '', type: 'note' });
+
+    const sendJson = async (method: string, url: string, body?: Record<string, unknown>) => {
+        const token = (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement | null)?.content;
+        const res = await fetch(url, {
+            method,
+            headers: {
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+                ...(token ? { 'X-CSRF-TOKEN': token } : {}),
+            },
+            ...(body ? { body: JSON.stringify(body) } : {}),
+        });
+        const payload = await res.json().catch(() => null);
+        return { ok: res.ok, payload };
+    };
+
+    const openNoteModal = (note: ContactNote | null = null) => {
+        setNoteError(null);
+        setEditingNote(note);
+        setNoteForm({ body: note?.body ?? '', type: note?.type ?? 'note' });
+        setNoteModalOpen(true);
+    };
+
+    const saveNote = async () => {
+        if (!noteForm.body.trim()) return;
+
+        setNoteSaving(true);
+        setNoteError(null);
+        try {
+            const body = { body: noteForm.body.trim(), type: noteForm.type };
+            const { ok, payload } = editingNote
+                ? await sendJson('PUT', `/contacts/${contact.id}/notes/${editingNote.id}`, body)
+                : await sendJson('POST', `/contacts/${contact.id}/notes`, body);
+
+            if (!ok) {
+                const validation = payload?.errors
+                    ? Object.values(payload.errors as Record<string, string[]>)?.[0]?.[0]
+                    : null;
+                setNoteError(validation || payload?.message || 'Unable to save the note.');
+                return;
+            }
+
+            setNotes((prev) =>
+                editingNote
+                    ? prev.map((n) => (n.id === editingNote.id ? payload.note : n))
+                    : [payload.note, ...prev],
+            );
+            setNoteModalOpen(false);
+            setEditingNote(null);
+        } catch {
+            setNoteError('Unable to save the note.');
+        } finally {
+            setNoteSaving(false);
+        }
+    };
+
+    const deleteNote = async (note: ContactNote) => {
+        if (!window.confirm('Delete this note? This cannot be undone.')) return;
+
+        const { ok, payload } = await sendJson('DELETE', `/contacts/${contact.id}/notes/${note.id}`);
+        if (!ok) {
+            window.alert(payload?.message || 'Unable to delete the note.');
+            return;
+        }
+        setNotes((prev) => prev.filter((n) => n.id !== note.id));
     };
 
     const allMatters = contact.matters || [];
@@ -180,7 +276,7 @@ export default function ShowContact({ contact, invoices = [] }: Props) {
                         { key: 'documents', label: 'Documents', count: null },
                         { key: 'billing', label: 'Billing', count: null },
                         { key: 'transactions', label: 'Transactions', count: null },
-                        { key: 'notes', label: 'Notes', count: null },
+                        { key: 'notes', label: 'Notes', count: notes.length || null },
                     ].map((t) => (
                         <button
                             key={t.key}
@@ -322,7 +418,7 @@ export default function ShowContact({ contact, invoices = [] }: Props) {
                 </div>
             )}
 
-            {tab !== 'dashboard' && tab !== 'matters' && (
+            {tab !== 'dashboard' && tab !== 'matters' && tab !== 'notes' && (
                 <Card className="surface-card">
                     <CardHeader className="pb-3">
                         <CardTitle className="text-base tracking-tight">{tab.charAt(0).toUpperCase() + tab.slice(1)}</CardTitle>
@@ -406,6 +502,145 @@ export default function ShowContact({ contact, invoices = [] }: Props) {
                     </CardContent>
                 </Card>
             )}
+            {tab === 'notes' && (
+                <Card className="surface-card">
+                    <CardHeader className="flex flex-row items-center justify-between pb-3">
+                        <div>
+                            <CardTitle className="text-base tracking-tight">Notes</CardTitle>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                                Calls, emails and meetings recorded against this contact
+                            </p>
+                        </div>
+                        {canEditContact && (
+                            <Button size="sm" variant="outline" type="button" onClick={() => openNoteModal()}>
+                                <Plus className="h-3.5 w-3.5 mr-1" />
+                                Add note
+                            </Button>
+                        )}
+                    </CardHeader>
+                    <CardContent className={notes.length ? 'space-y-3' : undefined}>
+                        {notes.length === 0 ? (
+                            <div className="text-center py-10 text-sm text-muted-foreground">
+                                <MessageSquare className="h-8 w-8 mx-auto mb-2 text-muted-foreground/30" />
+                                <p>No notes yet.</p>
+                                {canEditContact && (
+                                    <p className="mt-1 text-xs">
+                                        Record a call, an email or a meeting to keep the history in one place.
+                                    </p>
+                                )}
+                            </div>
+                        ) : (
+                            notes.map((note) => {
+                                const meta = noteMeta(note.type);
+                                const Icon = meta.icon;
+
+                                return (
+                                    <div
+                                        key={note.id}
+                                        className="group rounded-md border border-border/40 p-3 hover:bg-muted/20 transition-colors"
+                                    >
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div className="flex items-center gap-2 min-w-0">
+                                                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-muted">
+                                                    <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+                                                </span>
+                                                <div className="min-w-0">
+                                                    <p className="text-sm font-medium truncate">
+                                                        {meta.label}
+                                                        <span className="ml-2 font-normal text-muted-foreground">
+                                                            {note.user?.full_name ?? 'Unknown'}
+                                                        </span>
+                                                    </p>
+                                                    <p className="text-xs text-muted-foreground">{formatDate(note.logged_at)}</p>
+                                                </div>
+                                            </div>
+
+                                            {canEditContact && (
+                                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                                                    <Button
+                                                        size="icon"
+                                                        variant="ghost"
+                                                        className="h-7 w-7"
+                                                        type="button"
+                                                        aria-label="Edit note"
+                                                        onClick={() => openNoteModal(note)}
+                                                    >
+                                                        <Edit className="h-3.5 w-3.5" />
+                                                    </Button>
+                                                    <Button
+                                                        size="icon"
+                                                        variant="ghost"
+                                                        className="h-7 w-7 text-destructive hover:text-destructive"
+                                                        type="button"
+                                                        aria-label="Delete note"
+                                                        onClick={() => deleteNote(note)}
+                                                    >
+                                                        <Trash2 className="h-3.5 w-3.5" />
+                                                    </Button>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <p className="mt-2 text-sm whitespace-pre-wrap break-words">{note.body}</p>
+                                    </div>
+                                );
+                            })
+                        )}
+                    </CardContent>
+                </Card>
+            )}
+
+            <Dialog open={noteModalOpen} onOpenChange={setNoteModalOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>{editingNote ? 'Edit note' : 'Add note'}</DialogTitle>
+                        <DialogDescription>
+                            {editingNote
+                                ? 'Update this note.'
+                                : `Record a call, email or meeting against ${contact.full_name || contact.name}.`}
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-4">
+                        <div className="space-y-1.5">
+                            <Label htmlFor="note-type">Type</Label>
+                            <Select
+                                value={noteForm.type}
+                                onValueChange={(v) => setNoteForm((p) => ({ ...p, type: v }))}
+                            >
+                                <SelectTrigger id="note-type" className="h-11"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    {NOTE_TYPES.map((t) => (
+                                        <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <Label htmlFor="note-body">Note</Label>
+                            <Textarea
+                                id="note-body"
+                                rows={6}
+                                value={noteForm.body}
+                                onChange={(e) => setNoteForm((p) => ({ ...p, body: e.target.value }))}
+                                placeholder="What was discussed?"
+                            />
+                        </div>
+
+                        {noteError && <p className="text-sm text-destructive">{noteError}</p>}
+                    </div>
+
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setNoteModalOpen(false)} disabled={noteSaving}>
+                            Cancel
+                        </Button>
+                        <Button type="button" onClick={saveNote} disabled={noteSaving || !noteForm.body.trim()}>
+                            {noteSaving ? 'Saving…' : 'Save'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </AppLayout>
     );
 }
