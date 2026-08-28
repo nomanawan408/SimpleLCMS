@@ -214,7 +214,7 @@ export default function ShowContact({ contact, invoices = [], documents = [], ca
 
             {/* Navigation — Enterprise */}
             <div className="mb-5 flex items-center justify-between gap-3">
-                <Button asChild variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground -ml-2 rounded-xl">
+ <Button asChild variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground -ml-2 rounded-xl">
                     <Link href="/contacts" className="inline-flex items-center gap-1.5">
                         <ArrowLeft className="h-4 w-4" />
                         Contacts
@@ -224,18 +224,18 @@ export default function ShowContact({ contact, invoices = [], documents = [], ca
                 </Button>
                 <div className="flex items-center gap-2">
                     {canEditContact && (
-                        <Button size="sm" variant="outline" type="button" onClick={() => openNoteModal()} className="rounded-xl border-border/60">
+ <Button size="sm" variant="outline" type="button" onClick={() => openNoteModal()}>
                             <MessageSquare className="h-4 w-4 mr-1" />
                             Add Note
                         </Button>
                     )}
-                    <Button asChild size="sm" variant="outline" className="rounded-xl border-border/60">
+ <Button asChild size="sm" variant="outline">
                         <Link href={`/matters/create?contact_id=${contact.id}`}>
                             <Briefcase className="h-4 w-4 mr-1" />
                             New Matter
                         </Link>
                     </Button>
-                    <Button asChild size="sm" className="rounded-xl bg-primary shadow-sm">
+ <Button asChild size="sm">
                         <Link href={`/contacts/${contact.id}/edit`}>
                             <Edit className="h-4 w-4 mr-1" />
                             Edit Contact
@@ -581,7 +581,7 @@ export default function ShowContact({ contact, invoices = [], documents = [], ca
                                                 </p>
                                             </div>
                                         </div>
-                                        <Button asChild size="sm" variant="ghost" className="rounded-lg shrink-0 ml-4 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+ <Button asChild size="sm" variant="ghost" className="rounded-lg shrink-0 ml-4 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
                                             <a href={`/documents/${doc.id}/download`}>
                                                 <Download className="h-3.5 w-3.5 mr-1" />
                                                 Download
@@ -702,7 +702,7 @@ export default function ShowContact({ contact, invoices = [], documents = [], ca
                             Notes &amp; Activity
                         </CardTitle>
                         {canEditContact && (
-                            <Button size="sm" type="button" onClick={() => openNoteModal()} className="rounded-xl h-8 px-3 bg-foreground text-background hover:bg-foreground/90">
+ <Button size="sm" type="button" onClick={() => openNoteModal()} variant="contrast">
                                 <Plus className="h-3.5 w-3.5 mr-1" />
                                 Add Note
                             </Button>
@@ -736,23 +736,11 @@ export default function ShowContact({ contact, invoices = [], documents = [], ca
                                                     </Badge>
                                                     {canEditContact && (
                                                         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
-                                                            <Button
-                                                                size="icon"
-                                                                variant="ghost"
-                                                                className="h-7 w-7 rounded-lg"
-                                                                type="button"
-                                                                aria-label="Edit note"
-                                                                onClick={() => openNoteModal(note)}
+ <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg" type="button" aria-label="Edit note" onClick={() => openNoteModal(note)}
                                                             >
                                                                 <Edit className="h-3.5 w-3.5" />
                                                             </Button>
-                                                            <Button
-                                                                size="icon"
-                                                                variant="ghost"
-                                                                className="h-7 w-7 rounded-lg text-destructive hover:text-destructive"
-                                                                type="button"
-                                                                aria-label="Delete note"
-                                                                onClick={() => deleteNote(note)}
+ <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg text-destructive hover:text-destructive" type="button" aria-label="Delete note" onClick={() => deleteNote(note)}
                                                             >
                                                                 <Trash2 className="h-3.5 w-3.5" />
                                                             </Button>
@@ -812,10 +800,10 @@ export default function ShowContact({ contact, invoices = [], documents = [], ca
                     </div>
 
                     <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => setNoteModalOpen(false)} disabled={noteSaving} className="rounded-xl">
+ <Button type="button" variant="outline" onClick={() => setNoteModalOpen(false)} disabled={noteSaving} className="rounded-xl">
                             Cancel
                         </Button>
-                        <Button type="button" onClick={saveNote} disabled={noteSaving || !noteForm.body.trim()} className="rounded-xl">
+ <Button type="button" onClick={saveNote} disabled={noteSaving || !noteForm.body.trim()} className="rounded-xl">
                             {noteSaving ? 'Saving…' : 'Save'}
                         </Button>
                     </DialogFooter>

@@ -217,13 +217,7 @@ export default function UsersIndex({ users, firms, filters }: Props) {
                             </p>
                             <div className="flex gap-1">
                                 {users.links.map((link, i) => (
-                                    <Button
-                                        key={i}
-                                        variant={link.active ? 'default' : 'outline'}
-                                        size="sm"
-                                        className="h-8 px-3 text-xs"
-                                        disabled={!link.url}
-                                        onClick={() => link.url && router.get(link.url, {}, { preserveState: true })}
+                                    <Button key={i} variant={link.active ? 'default' : 'outline'} size="sm" className="h-8 px-3 text-xs" disabled={!link.url} onClick={() => link.url && router.get(link.url, {}, { preserveState: true })}
                                     >
                                         {link.label}
                                     </Button>

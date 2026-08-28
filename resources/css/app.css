@@ -22,36 +22,48 @@
         --popover: 0 0% 100%;
         --popover-foreground: 0 0% 7%;
 
-        /* Primary: deep teal #0F766E (passes contrast with white text and on white). */
-        --primary: 175 77% 26%;
+        /* Primary #00856E. Saturation is at 100% rather than the previous 77%,
+           which is what makes the teal read as vivid; lightness stays at 26%
+           because that is the ceiling for 4.5:1 against white text. Anything
+           brighter cannot legally carry white label text. */
+        --primary: 170 100% 26%;
         --primary-foreground: 0 0% 100%;
+        /* One step lighter, for hover on solid surfaces. */
+        --primary-hover: 170 100% 30%;
 
-        /* Secondary: light teal tint from the Legl scale for selected states. */
-        --secondary: 166 45% 92%;
-        --secondary-foreground: 175 77% 20%;
+        /* Secondary: teal tint. More saturated than before so it still reads
+           as brand colour rather than grey. */
+        --secondary: 168 62% 92%;
+        --secondary-foreground: 170 100% 20%;
 
         --muted: 0 0% 94%;
-        --muted-foreground: 0 0% 45%;
+        --muted-foreground: 0 0% 42%;
 
-        /* Accent: bright Legl teal #01B88E for tints and highlights. */
-        --accent: 166 90% 38%;
-        --accent-foreground: 0 0% 100%;
+        /* Accent #02CA9F — the vivid brand teal. Decorative only: chips, dots,
+           indicator bars, icon backgrounds. It is far too light to carry white
+           text (2.4:1), so it is never used as a solid button background. */
+        --accent: 167 98% 40%;
+        --accent-foreground: 170 100% 15%;
+        /* Neutral surface for hover on transparent controls. Kept separate
+           from --accent so ghost buttons do not flash brand teal. */
+        --accent-muted: 0 0% 94%;
 
-        --destructive: 356 98% 43%;
+        --destructive: 357 85% 45%;
         --destructive-foreground: 0 0% 100%;
 
         --border: 0 0% 88%;
         --input: 0 0% 88%;
-        --ring: 175 77% 26%;
+        --ring: 170 100% 30%;
         --radius: 0.75rem;
 
-        --warning: 45 100% 50%;
-        --warning-foreground: 45 80% 10%;
+        /* Amber carries dark text, which is why it can stay this bright. */
+        --warning: 43 100% 48%;
+        --warning-foreground: 40 90% 12%;
 
-        --success: 115 78% 30%;
+        --success: 154 100% 26%;
         --success-foreground: 0 0% 100%;
 
-        --info: 197 100% 45%;
+        --info: 204 95% 36%;
         --info-foreground: 0 0% 100%;
     }
 
@@ -66,34 +78,39 @@
         --popover: 222 44% 11%;
         --popover-foreground: 0 0% 96%;
 
-        /* Primary: bright Legl teal #01B88E on dark; dark text for contrast. */
-        --primary: 166 90% 45%;
+        /* On dark surfaces the relationship inverts: the teal can be bright
+           because it carries dark text, so contrast comes for free. Hues match
+           the light palette so the brand reads as one colour across themes. */
+        --primary: 170 95% 45%;
         --primary-foreground: 222 47% 8%;
+        --primary-hover: 170 95% 52%;
 
-        --secondary: 166 40% 16%;
-        --secondary-foreground: 166 90% 78%;
+        --secondary: 170 40% 16%;
+        --secondary-foreground: 170 90% 78%;
 
         --muted: 222 25% 14%;
         --muted-foreground: 0 0% 65%;
 
-        --accent: 166 90% 50%;
+        --accent: 167 98% 50%;
         --accent-foreground: 222 47% 8%;
+        /* Neutral hover surface for transparent controls, as in light mode. */
+        --accent-muted: 222 25% 18%;
 
-        --destructive: 356 98% 43%;
+        --destructive: 357 85% 55%;
         --destructive-foreground: 0 0% 100%;
 
         --border: 222 30% 20%;
         --input: 222 30% 20%;
-        --ring: 166 90% 45%;
+        --ring: 170 95% 45%;
 
-        --warning: 45 100% 55%;
-        --warning-foreground: 45 80% 8%;
+        --warning: 43 100% 55%;
+        --warning-foreground: 40 90% 8%;
 
-        --success: 115 78% 40%;
-        --success-foreground: 115 78% 8%;
+        --success: 154 90% 42%;
+        --success-foreground: 154 90% 8%;
 
-        --info: 197 100% 55%;
-        --info-foreground: 197 100% 8%;
+        --info: 204 95% 58%;
+        --info-foreground: 204 95% 8%;
     }
 
     * {

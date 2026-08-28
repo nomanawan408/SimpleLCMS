@@ -184,12 +184,7 @@ export default function ContactsIndex({ contacts, filters }: Props) {
                             </p>
                             <div className="flex gap-1">
                                 {contacts.links.map((link, i) => (
-                                    <Button
-                                        key={i}
-                                        variant={link.active ? 'default' : 'outline'}
-                                        size="sm"
-                                        disabled={!link.url}
-                                        onClick={() => link.url && router.visit(link.url)}
+                                    <Button key={i} variant={link.active ? 'default' : 'outline'} size="sm" disabled={!link.url} onClick={() => link.url && router.visit(link.url)}
                                         dangerouslySetInnerHTML={{ __html: link.label }}
                                     />
                                 ))}

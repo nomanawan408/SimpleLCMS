@@ -203,20 +203,13 @@ export default function BackupsIndex({ backups }: Props) {
                                                     {formatDate(backup.created_at_formatted)}
                                                 </TableCell>
                                                 <TableCell className="text-right space-x-2">
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        asChild
-                                                    >
+                                                    <Button variant="outline" size="sm" asChild>
                                                         <a href={`/superadmin/backups/${backup.filename}`}>
                                                             <Download className="h-4 w-4 mr-1" />
                                                             Download
                                                         </a>
                                                     </Button>
-                                                    <Button
-                                                        variant="destructive"
-                                                        size="sm"
-                                                        onClick={() => handleDeleteBackup(backup.filename)}
+                                                    <Button variant="destructive" size="sm" onClick={() => handleDeleteBackup(backup.filename)}
                                                     >
                                                         <Trash2 className="h-4 w-4 mr-1" />
                                                         Delete

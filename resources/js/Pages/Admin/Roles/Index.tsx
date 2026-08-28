@@ -253,12 +253,7 @@ export default function RolesIndex({ roles, groupedPermissions }: Props) {
                         <div className="space-y-3">
                             <div className="flex items-center justify-between">
                                 <Label className="text-sm font-semibold">Permissions</Label>
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-7 text-xs"
-                                    onClick={() => {
+                                <Button type="button" variant="ghost" size="sm" className="h-7 text-xs" onClick={() => {
                                         const allPerms = Object.values(groupedPermissions).flat().map(p => p.name);
                                         const allSelected = allPerms.every(p => data.permissions.includes(p));
                                         setData('permissions', allSelected ? [] : allPerms);

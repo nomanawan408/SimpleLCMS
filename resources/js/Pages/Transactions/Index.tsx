@@ -352,10 +352,7 @@ export default function TransactionsIndex({ transactions, stats, matters, openIn
 
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setRecordOpen(false)}>Cancel</Button>
-                        <Button
-                            disabled={recSaving || !recForm.invoice_id || !recForm.amount || !recForm.paid_at}
-                            onClick={submitRecord}
-                        >
+                        <Button disabled={recSaving || !recForm.invoice_id || !recForm.amount || !recForm.paid_at} onClick={submitRecord}>
                             {recSaving ? 'Saving…' : 'Record Payment'}
                         </Button>
                     </DialogFooter>

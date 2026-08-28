@@ -537,28 +537,18 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
                                     />
                                 </div>
                                 <div className="mt-auto space-y-2.5 pt-1">
-                                    <Button
-                                        className="w-full gap-2 h-11 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white shadow-md shadow-emerald-200 dark:shadow-emerald-900/30 rounded-lg font-semibold transition-all"
-                                        onClick={() => setCheckOutOpen(true)}
+                                    <Button variant="success" size="lg" className="w-full gap-2" onClick={() => setCheckOutOpen(true)}
                                     >
                                         <LogOut className="h-4 w-4" />
                                         Check-out & Save
                                     </Button>
                                     {isPaused ? (
-                                        <Button
-                                            variant="outline"
-                                            className="w-full gap-2 h-10 border-amber-300 text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 rounded-lg font-medium transition-all"
-                                            onClick={handleResume}
-                                        >
+                                        <Button variant="outline" className="w-full gap-2 h-10 border-amber-300 text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 rounded-lg font-medium transition-all" onClick={handleResume}>
                                             <Timer className="h-4 w-4" />
                                             Resume Timer
                                         </Button>
                                     ) : (
-                                        <Button
-                                            variant="outline"
-                                            className="w-full gap-2 h-10 rounded-lg font-medium transition-all"
-                                            onClick={handlePause}
-                                        >
+                                        <Button variant="outline" className="w-full gap-2 h-10 rounded-lg font-medium transition-all" onClick={handlePause}>
                                             <Clock className="h-4 w-4" />
                                             Pause / Break
                                         </Button>
@@ -644,11 +634,7 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
                             </div>
                             <div className="flex flex-col">
                                 <Label className="block text-xs font-semibold text-foreground mb-1.5 tracking-wide opacity-0">.</Label>
-                                <Button
-                                    className="h-11 gap-2 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground shadow-md shadow-primary/20 rounded-lg font-semibold transition-all whitespace-nowrap px-6"
-                                    disabled={checkInLoading || !checkInForm.matter_id}
-                                    onClick={handleCheckIn}
-                                >
+                                <Button size="lg" className="gap-2 whitespace-nowrap" disabled={checkInLoading || !checkInForm.matter_id} onClick={handleCheckIn}>
                                     <LogIn className="h-4 w-4" />
                                     {checkInLoading ? 'Starting...' : 'Start Timer'}
                                 </Button>
@@ -817,7 +803,7 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
                         {/* Actions */}
                         <div className="flex items-center gap-2">
                             {selectedMatterIds.length === 1 && (
-                                <Button size="sm" onClick={openInvoiceModal} className="gap-2 h-9 px-4 bg-gradient-to-r from-success to-success/90 hover:from-success/90 hover:to-success text-success-foreground shadow-md shadow-success/20 rounded-lg font-semibold transition-all">
+                                <Button onClick={openInvoiceModal} variant="success" size="sm" className="gap-2">
                                     <Receipt className="h-4 w-4" />
                                     Create Invoice
                                 </Button>
@@ -1304,7 +1290,7 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
 
                     <DialogFooter className="gap-2 pt-2">
                         <Button variant="outline" className="rounded-lg" onClick={() => setInvoiceModalOpen(false)} disabled={invoiceSaving}>Cancel</Button>
-                        <Button onClick={submitInvoice} disabled={invoiceSaving || !invoiceForm.due_date} className="gap-2 h-10 px-6 bg-gradient-to-r from-success to-success/90 hover:from-success/90 hover:to-success text-success-foreground shadow-md shadow-success/20 rounded-lg font-semibold transition-all">
+                        <Button onClick={submitInvoice} disabled={invoiceSaving || !invoiceForm.due_date} variant="success" className="gap-2">
                             <Receipt className="h-4 w-4" />
                             {invoiceSaving ? 'Creating...' : 'Create Invoice'}
                         </Button>
@@ -1419,11 +1405,7 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
                         <Button variant="outline" onClick={() => setCheckOutOpen(false)} disabled={checkOutLoading}>
                             Back
                         </Button>
-                        <Button
-                            className="bg-success hover:bg-success/90 text-success-foreground gap-2"
-                            onClick={handleCheckOut}
-                            disabled={checkOutLoading}
-                        >
+                        <Button className="bg-success hover:bg-success/90 text-success-foreground gap-2" onClick={handleCheckOut} disabled={checkOutLoading}>
                             <LogOut className="h-4 w-4" />
                             {checkOutLoading ? 'Saving…' : 'Check-out & Save'}
                         </Button>

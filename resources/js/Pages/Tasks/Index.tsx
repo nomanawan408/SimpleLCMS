@@ -304,20 +304,11 @@ export default function TasksIndex({ tasks, users, matters, filters }: Props) {
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex items-center gap-2 justify-end">
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="h-8 w-8"
-                                                        onClick={() => openEdit(task)}
+                                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(task)}
                                                     >
                                                         <Pencil className="h-3.5 w-3.5" />
                                                     </Button>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="h-8 w-8 text-destructive hover:text-destructive"
-                                                        disabled={deleting === task.id}
-                                                        onClick={() => handleDelete(task.id)}
+                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" disabled={deleting === task.id} onClick={() => handleDelete(task.id)}
                                                     >
                                                         <Trash2 className="h-3.5 w-3.5" />
                                                     </Button>

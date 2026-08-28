@@ -154,7 +154,7 @@ export default function ReportsIndex({ financialSummary, timeByUser, mattersByPr
                             )}
                         </div>
                         <div className="flex gap-2 shrink-0">
-                            <Button onClick={applyFilters} className="h-9 rounded-xl px-5 gap-1.5 bg-primary"><Filter className="h-3.5 w-3.5" /> Apply</Button>
+                            <Button onClick={applyFilters} size="sm" className="gap-1.5"><Filter className="h-3.5 w-3.5" /> Apply</Button>
                             <Button variant="ghost" onClick={clearFilters} disabled={!hasActiveFilters} className="h-9 rounded-xl gap-1 disabled:opacity-40"><X className="h-3.5 w-3.5" /> Clear</Button>
                         </div>
                     </div>

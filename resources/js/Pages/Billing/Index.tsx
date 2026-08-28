@@ -121,7 +121,7 @@ export default function BillingIndex({ invoices, stats, filters, filterOptions }
                     <h1 className="text-2xl font-extrabold tracking-tight">Billing</h1>
                     <p className="text-sm text-muted-foreground mt-1">Invoices, payments and outstanding — filter by timeframe, matter and team.</p>
                 </div>
-                <Button asChild className="rounded-xl gap-2 bg-primary"><Link href="/billing/create"><Plus className="h-4 w-4" /> New Invoice</Link></Button>
+                <Button asChild className="gap-2"><Link href="/billing/create"><Plus className="h-4 w-4" /> New Invoice</Link></Button>
             </div>
 
             {/* Stats - transaction style: just colored icons, values stay black */}

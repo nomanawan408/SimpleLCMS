@@ -334,8 +334,7 @@ export default function CreateInvoice({ matters, unbilledTime, unbilledExpenses,
                                                         </div>
                                                         <div className="flex items-center gap-3 shrink-0 ml-3">
                                                             <span className="text-sm font-semibold">{formatCurrency(Number(entry.amount))}</span>
-                                                            <Button type="button" variant={added ? 'secondary' : 'outline'} size="sm" className="h-7 text-xs"
-                                                                onClick={() => !added && addTimeEntry(entry)} disabled={added}>
+                                                            <Button type="button" variant={added ? 'secondary' : 'outline'} size="sm" className="h-7 text-xs" onClick={() => !added && addTimeEntry(entry)} disabled={added}>
                                                                 {added ? '✓ Added' : 'Add'}
                                                             </Button>
                                                         </div>
@@ -375,8 +374,7 @@ export default function CreateInvoice({ matters, unbilledTime, unbilledExpenses,
                                                         </div>
                                                         <div className="flex items-center gap-3 shrink-0 ml-3">
                                                             <span className="text-sm font-semibold">{formatCurrency(Number(expense.amount))}</span>
-                                                            <Button type="button" variant={added ? 'secondary' : 'outline'} size="sm" className="h-7 text-xs"
-                                                                onClick={() => !added && addExpense(expense)} disabled={added}>
+                                                            <Button type="button" variant={added ? 'secondary' : 'outline'} size="sm" className="h-7 text-xs" onClick={() => !added && addExpense(expense)} disabled={added}>
                                                                 {added ? '✓ Added' : 'Add'}
                                                             </Button>
                                                         </div>
@@ -459,8 +457,7 @@ export default function CreateInvoice({ matters, unbilledTime, unbilledExpenses,
                                                     )}
                                                 </div>
                                                 <div className="col-span-1 flex justify-end">
-                                                    <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                                                        onClick={() => removeLineItem(item.id)}>
+                                                    <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => removeLineItem(item.id)}>
                                                         <Trash2 className="h-3.5 w-3.5" />
                                                     </Button>
                                                 </div>
@@ -538,22 +535,11 @@ export default function CreateInvoice({ matters, unbilledTime, unbilledExpenses,
                         <Button type="button" variant="outline" asChild>
                             <Link href="/billing">Cancel</Link>
                         </Button>
-                        <Button
-                            type="submit"
-                            variant="outline"
-                            disabled={processing || data.line_items.length === 0 || !data.matter_id}
-                            onClick={submit('draft')}
-                            className="gap-2"
-                        >
+                        <Button type="submit" variant="outline" disabled={processing || data.line_items.length === 0 || !data.matter_id} onClick={submit('draft')} className="gap-2">
                             <Save className="h-4 w-4" />
                             {processing && data.action === 'draft' ? 'Saving…' : 'Save as Draft'}
                         </Button>
-                        <Button
-                            type="submit"
-                            disabled={processing || data.line_items.length === 0 || !data.matter_id}
-                            onClick={submit('send')}
-                            className="gap-2"
-                        >
+                        <Button type="submit" disabled={processing || data.line_items.length === 0 || !data.matter_id} onClick={submit('send')} className="gap-2">
                             <Send className="h-4 w-4" />
                             {processing && data.action === 'send' ? 'Creating & Sending…' : 'Create & Send to Client'}
                         </Button>

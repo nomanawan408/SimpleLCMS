@@ -595,11 +595,7 @@ export default function CreateMatter({ users, contacts, prefill_contact_id, view
                         <Button type="button" variant="outline" onClick={() => setContactModalOpen(false)} disabled={contactSaving}>
                             Cancel
                         </Button>
-                        <Button
-                            type="button"
-                            onClick={saveNewContact}
-                            disabled={contactSaving || (newContact.type === 'company' ? !newContact.name.trim() : !newContact.first_name.trim() || !newContact.last_name.trim())}
-                        >
+                        <Button type="button" onClick={saveNewContact} disabled={contactSaving || (newContact.type === 'company' ? !newContact.name.trim() : !newContact.first_name.trim() || !newContact.last_name.trim())}>
                             {contactSaving ? 'Saving…' : 'Save contact'}
                         </Button>
                     </DialogFooter>

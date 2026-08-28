@@ -90,7 +90,7 @@ export default function Login({ canResetPassword, status }: Props) {
                     </label>
                 </div>
 
-                <Button type="submit" className="w-full h-10 rounded-md bg-primary text-sm font-medium text-primary-foreground hover:bg-primary/90" disabled={processing}>
+                <Button type="submit" className="w-full" disabled={processing}>
                     {processing ? 'Signing in…' : 'Sign in'}
                 </Button>
 

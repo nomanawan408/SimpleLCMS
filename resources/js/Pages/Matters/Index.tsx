@@ -235,12 +235,7 @@ export default function MattersIndex({ matters, filters }: Props) {
                             </p>
                             <div className="flex gap-1">
                                 {matters.links.map((link, i) => (
-                                    <Button
-                                        key={i}
-                                        variant={link.active ? 'default' : 'outline'}
-                                        size="sm"
-                                        disabled={!link.url}
-                                        onClick={() => link.url && router.visit(link.url)}
+                                    <Button key={i} variant={link.active ? 'default' : 'outline'} size="sm" disabled={!link.url} onClick={() => link.url && router.visit(link.url)}
                                         dangerouslySetInnerHTML={{ __html: link.label }}
                                     />
                                 ))}
@@ -275,11 +270,7 @@ export default function MattersIndex({ matters, filters }: Props) {
                     </div>
                     <DialogFooter className="gap-2">
                         {editingDeadline?.next_deadline && (
-                            <Button
-                                variant="outline"
-                                className="text-destructive hover:text-destructive"
-                                disabled={deadlineSaving}
-                                onClick={() => {
+                            <Button variant="outline" className="text-destructive hover:text-destructive" disabled={deadlineSaving} onClick={() => {
                                     setDeadlineSaving(true);
                                     router.put(`/matters/${editingDeadline.id}/deadline`, {
                                         deadline: null,
@@ -296,9 +287,7 @@ export default function MattersIndex({ matters, filters }: Props) {
                         <Button variant="outline" onClick={() => setEditingDeadline(null)} disabled={deadlineSaving}>
                             Cancel
                         </Button>
-                        <Button
-                            disabled={!deadlineDate || deadlineSaving}
-                            onClick={() => {
+                        <Button disabled={!deadlineDate || deadlineSaving} onClick={() => {
                                 if (!editingDeadline) return;
                                 setDeadlineSaving(true);
                                 router.put(`/matters/${editingDeadline.id}/deadline`, {
@@ -339,11 +328,7 @@ export default function MattersIndex({ matters, filters }: Props) {
                     </div>
                     <DialogFooter className="gap-2">
                         {editingHearing?.hearing_date && (
-                            <Button
-                                variant="outline"
-                                className="text-destructive hover:text-destructive"
-                                disabled={hearingSaving}
-                                onClick={() => {
+                            <Button variant="outline" className="text-destructive hover:text-destructive" disabled={hearingSaving} onClick={() => {
                                     setHearingSaving(true);
                                     router.put(`/matters/${editingHearing.id}/hearing-date`, {
                                         hearing_date: null,
@@ -360,9 +345,7 @@ export default function MattersIndex({ matters, filters }: Props) {
                         <Button variant="outline" onClick={() => setEditingHearing(null)} disabled={hearingSaving}>
                             Cancel
                         </Button>
-                        <Button
-                            disabled={!hearingDate || hearingSaving}
-                            onClick={() => {
+                        <Button disabled={!hearingDate || hearingSaving} onClick={() => {
                                 if (!editingHearing) return;
                                 setHearingSaving(true);
                                 router.put(`/matters/${editingHearing.id}/hearing-date`, {

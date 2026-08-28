@@ -337,7 +337,7 @@ export default function ShowInvoice({ invoice }: Props) {
                     )}
 
                     {canDelete && (
-                        <Button variant="outline" className="text-destructive hover:text-destructive hover:bg-destructive/10 gap-2 ml-auto" onClick={handleDelete}>
+                        <Button variant="outline" className="gap-2 ml-auto" onClick={handleDelete}>
                             <Trash2 className="h-4 w-4" />
                             Delete
                         </Button>
@@ -394,7 +394,7 @@ export default function ShowInvoice({ invoice }: Props) {
 
                             <DialogFooter className="gap-2 pt-2">
                                 <Button type="button" variant="outline" className="rounded-lg" onClick={() => setEmailOpen(false)}>Cancel</Button>
-                                <Button type="submit" disabled={emailForm.processing} className="gap-2 h-10 bg-gradient-to-r from-primary to-primary/90 text-primary-foreground shadow-md shadow-primary/20 rounded-lg font-semibold">
+                                <Button type="submit" disabled={emailForm.processing} className="gap-2">
                                     <Send className="h-4 w-4" />
                                     {emailForm.processing ? 'Sending...' : 'Send Invoice'}
                                 </Button>

@@ -673,17 +673,17 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                     </Link>
                 </Button>
                 <div className="flex items-center gap-2">
-                    <Button size="sm" variant="outline" type="button" onClick={openTimeModal} className="rounded-xl border-border/60">
+                    <Button size="sm" variant="outline" type="button" onClick={openTimeModal}>
                         <Timer className="h-4 w-4 mr-1" />
                         Log Time
                     </Button>
-                    <Button asChild size="sm" variant="outline" className="rounded-xl border-border/60">
+                    <Button asChild size="sm" variant="outline">
                         <Link href={`/billing/create?matter_id=${matter.id}`}>
                             <Receipt className="h-4 w-4 mr-1" />
                             New Invoice
                         </Link>
                     </Button>
-                    <Button asChild size="sm" className="rounded-xl bg-primary shadow-sm">
+                    <Button asChild size="sm">
                         <Link href={`/matters/${matter.id}/edit`}>
                             <Edit className="h-4 w-4 mr-1" />
                             Edit Matter
@@ -848,7 +848,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                     <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-foreground text-background"><MessageSquare className="h-3.5 w-3.5" /></span>
                                     Notes & Activity
                                 </CardTitle>
-                                <Button size="sm" type="button" onClick={openNoteModal} className="rounded-xl h-8 px-3 bg-foreground text-background hover:bg-foreground/90">
+                                <Button size="sm" type="button" onClick={openNoteModal} variant="contrast">
                                     <Plus className="h-3.5 w-3.5 mr-1" />
                                     Add Note
                                 </Button>
@@ -1126,9 +1126,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                             />
                                         </div>
                                         <div className="pt-1 space-y-2">
-                                            <Button
-                                                className="w-full gap-2 h-11 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white shadow-md shadow-emerald-200 dark:shadow-emerald-900/30 rounded-lg font-semibold transition-all"
-                                                onClick={() => setTimerCheckOutOpen(true)}
+                                            <Button variant="success" size="lg" className="w-full gap-2" onClick={() => setTimerCheckOutOpen(true)}
                                             >
                                                 <Clock className="h-4 w-4" />
                                                 Stop & Save
@@ -1143,7 +1141,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                                         <Clock className="h-3.5 w-3.5" /> Pause
                                                     </Button>
                                                 )}
-                                                <Button variant="ghost" size="sm" className="flex-1 gap-1.5 h-9 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 font-medium transition-all" onClick={timerDiscard}>
+                                                <Button variant="ghost" size="sm" className="flex-1 gap-1.5" onClick={timerDiscard}>
                                                     <X className="h-3.5 w-3.5" /> Discard
                                                 </Button>
                                             </div>
@@ -1166,7 +1164,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                             </div>
                                         </div>
                                         {!timerExpanded && (
-                                            <Button size="sm" className="gap-2 h-9 px-5 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground shadow-md shadow-primary/20 rounded-lg font-semibold transition-all" onClick={() => setTimerExpanded(true)}>
+                                            <Button size="sm" className="gap-2" onClick={() => setTimerExpanded(true)}>
                                                 <Timer className="h-4 w-4" /> Start Timer
                                             </Button>
                                         )}
@@ -1243,7 +1241,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                             </button>
                                             <div className="flex gap-2 justify-end pt-1">
                                                 <Button variant="outline" size="sm" className="rounded-lg" onClick={() => setTimerExpanded(false)}>Cancel</Button>
-                                                <Button className="gap-2 h-9 px-5 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-primary-foreground shadow-md shadow-primary/20 rounded-lg font-semibold transition-all" onClick={timerCheckIn} disabled={timerLoading}>
+                                                <Button size="sm" className="gap-2" onClick={timerCheckIn} disabled={timerLoading}>
                                                     <Timer className="h-4 w-4" />
                                                     {timerLoading ? 'Starting...' : 'Start Tracking'}
                                                 </Button>
@@ -1342,11 +1340,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                             </div>
                             <DialogFooter className="gap-2 pt-2">
                                 <Button variant="outline" className="rounded-lg" onClick={() => setTimerCheckOutOpen(false)} disabled={timerLoading}>Back</Button>
-                                <Button
-                                    className="gap-2 h-10 px-6 bg-gradient-to-r from-success to-success/90 hover:from-success/90 hover:to-success text-success-foreground shadow-md shadow-success/20 rounded-lg font-semibold transition-all"
-                                    onClick={timerCheckOut}
-                                    disabled={timerLoading}
-                                >
+                                <Button variant="success" className="gap-2" onClick={timerCheckOut} disabled={timerLoading}>
                                     <Clock className="h-4 w-4" />
                                     {timerLoading ? 'Saving...' : 'Check-out & Save'}
                                 </Button>
@@ -1489,23 +1483,11 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                                         <span className="text-xs text-muted-foreground">Locked</span>
                                                     ) : (
                                                         <div className="flex items-center justify-end gap-1">
-                                                            <Button
-                                                                size="icon"
-                                                                variant="ghost"
-                                                                className="h-7 w-7"
-                                                                type="button"
-                                                                aria-label="Edit expense"
-                                                                onClick={() => openExpenseModal(exp)}
+                                                            <Button size="icon" variant="ghost" className="h-7 w-7" type="button" aria-label="Edit expense" onClick={() => openExpenseModal(exp)}
                                                             >
                                                                 <Edit className="h-3.5 w-3.5" />
                                                             </Button>
-                                                            <Button
-                                                                size="icon"
-                                                                variant="ghost"
-                                                                className="h-7 w-7 text-destructive hover:text-destructive"
-                                                                type="button"
-                                                                aria-label="Delete expense"
-                                                                onClick={() => deleteExpense(exp)}
+                                                            <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" type="button" aria-label="Delete expense" onClick={() => deleteExpense(exp)}
                                                             >
                                                                 <Trash2 className="h-3.5 w-3.5" />
                                                             </Button>

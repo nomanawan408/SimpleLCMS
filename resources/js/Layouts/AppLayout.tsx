@@ -232,13 +232,7 @@ isActive(item) ? 'text-white' : 'text-white/80 group-hover:text-white'
                          <p className="truncate text-sm font-medium text-white">{user.full_name}</p>
                          <p className="truncate text-xs text-white/70">{user.email}</p>
                     </div>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                         className="h-8 w-8 text-white/70 hover:bg-white/10 hover:text-white"
-                        onClick={handleLogout}
-                        title="Sign out"
-                    >
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-white/70 hover:bg-white/10 hover:text-white" onClick={handleLogout} title="Sign out">
                         <LogOut className="h-4 w-4" />
                     </Button>
                     </div>
@@ -269,11 +263,7 @@ isActive(item) ? 'text-white' : 'text-white/80 group-hover:text-white'
                 {/* Topbar */}
                 <header className="flex h-[80px] items-center justify-between border-b border-border/70 bg-card px-5 lg:px-8 shrink-0">
                     <div className="flex items-center gap-4">
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className="lg:hidden h-10 w-10"
-                            onClick={() => setSidebarOpen(true)}
+                        <Button variant="ghost" size="icon" className="lg:hidden h-10 w-10" onClick={() => setSidebarOpen(true)}
                         >
                             <Menu className="h-6 w-6" />
                         </Button>
@@ -283,7 +273,7 @@ isActive(item) ? 'text-white' : 'text-white/80 group-hover:text-white'
                     </div>
 
                     <div className="flex items-center gap-3">
-                        <Button variant="outline" size="sm" className="hidden h-10 gap-2 rounded-full border-0 bg-brand-500 px-4 text-sm font-medium text-white hover:bg-brand-600 md:inline-flex">
+                        <Button variant="outline" size="sm" pill className="hidden gap-2 md:inline-flex">
                             <Search className="h-4 w-4" />
                             Search
                         </Button>
