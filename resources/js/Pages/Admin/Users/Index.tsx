@@ -141,7 +141,7 @@ export default function UsersIndex({ users, availableRoles }: Props) {
             <div className="max-w-4xl mx-auto">
                 <div className="flex items-center justify-between mb-6">
                     <div>
-                        <h1 className="text-[26px] font-extrabold tracking-tight">Users</h1>
+                        <h1 className="text-2xl font-extrabold tracking-tight">Users</h1>
                         <p className="text-sm text-muted-foreground mt-1">{users.length} member{users.length !== 1 ? 's' : ''} in your firm</p>
                     </div>
                     <Button onClick={() => { createForm.reset(); setCreateOpen(true); }}>

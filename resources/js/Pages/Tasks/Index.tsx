@@ -165,7 +165,7 @@ export default function TasksIndex({ tasks, users, matters, filters }: Props) {
             <Head title="Tasks" />
 
             <div className="flex items-center justify-between mb-6">
-                <h1 className="text-[26px] font-extrabold tracking-tight">Tasks</h1>
+                <h1 className="text-2xl font-extrabold tracking-tight">Tasks</h1>
                 <Button onClick={openCreate} className="gap-2">
                     <Plus className="h-4 w-4" />
                     New Task

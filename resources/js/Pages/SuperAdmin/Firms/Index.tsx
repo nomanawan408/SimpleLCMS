@@ -170,7 +170,7 @@ export default function FirmsIndex({ firms }: Props) {
                                                     {firm.subscription_status}
                                                 </Badge>
                                                 {firm.trial_ends_at && (
-                                                    <p className="text-[10px] text-muted-foreground mt-0.5">ends {formatDate(firm.trial_ends_at)}</p>
+                                                    <p className="text-sm text-muted-foreground mt-0.5">ends {formatDate(firm.trial_ends_at)}</p>
                                                 )}
                                             </TableCell>
                                             <TableCell>{firm.users_count}</TableCell>

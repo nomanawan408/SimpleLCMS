@@ -3,10 +3,6 @@
 @tailwind utilities;
 
 @layer base {
-    /* Scale up hardcoded tiny pixel sizes so they read well on larger screens.
-       (These are authored as text-[10px]/text-[11px] across the app.) */
-    .text-\[10px\] { font-size: 0.85rem !important; }
-    .text-\[11px\] { font-size: 0.95rem !important; }
 
     :root {
         /* Legl teal palette: bright brand teal #01B88E, deep accessible teal for text/CTAs. */
@@ -97,13 +93,24 @@
         @apply border-border;
     }
 
+    /* Fluid root size. Every rem-based size in the app -- type, spacing,
+       radii, the table standard -- scales from this one value.
+
+       The previous curve, clamp(14px, 1.1vw, 18px), hit its 18px ceiling at
+       roughly a 1636px viewport, so a 4K wall display rendered at exactly the
+       same size as a laptop while being viewed from much further away. That is
+       what read as "zoomed out".
+
+       This curve is deliberately identical to the old one at laptop widths
+       (18px at 1920px, 16.7px at 1512px) and keeps growing past that:
+       20px at 2560px, 24px at 3840px. */
     html {
-        font-size: clamp(14px, 1.1vw, 18px);
+        font-size: clamp(14px, 12px + 0.3125vw, 24px);
     }
 
     body {
         @apply bg-background text-foreground antialiased;
-        font-family: 'Segoe UI', Arial, sans-serif;
+        font-family: theme('fontFamily.sans');
         font-size: 1rem;
         line-height: 1.6;
         font-feature-settings: 'rlig' 1, 'calt' 1;

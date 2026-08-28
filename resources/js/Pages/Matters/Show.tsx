@@ -2,6 +2,7 @@ import { Head, Link } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { PageTabs } from '@/components/ui/page-tabs';
 import {
     Table, TableHeader, TableHeaderRow, TableBody, TableFooter, TableRow, TableHead, TableCell,
 } from '@/components/ui/table';
@@ -697,11 +698,11 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                 <CardContent className="p-0">
                     <div className="flex items-center gap-2 px-5 pt-3.5 text-xs text-muted-foreground">
                         <span className={cn('h-1.5 w-1.5 rounded-full', statusAccent[matter.status] ?? 'bg-primary')} />
-                        <Badge variant={statusVariant[matter.status] ?? 'default'} className="text-[11px] font-semibold uppercase tracking-widest px-2 py-0 rounded-full">
+                        <Badge variant={statusVariant[matter.status] ?? 'default'} className="text-base font-semibold uppercase tracking-widest px-2 py-0 rounded-full">
                             {MATTER_STATUS_LABELS[matter.status]}
                         </Badge>
                         <span className="text-border">·</span>
-                        <span className="font-mono tabular-nums text-[11px]">{matter.matter_number}</span>
+                        <span className="font-mono tabular-nums text-base">{matter.matter_number}</span>
                         {daysUntil !== null && daysUntil <= 7 && (
                             <>
                                 <span className="text-border">·</span>
@@ -716,7 +717,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                     <div className="px-5 pt-2.5 pb-4">
                         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                             <div className="flex-1 min-w-0">
-                                <h1 className="text-[20px] font-bold tracking-tight leading-tight text-foreground">
+                                <h1 className="text-lg font-bold tracking-tight leading-tight text-foreground">
                                     {matter.name}
                                 </h1>
                                 {matter.description ? (
@@ -750,7 +751,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                 <div className="rounded-xl border border-border/60 bg-muted/[0.18] px-3.5 py-2.5 flex items-center gap-2.5">
                                     <span className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-50 shrink-0"><Gavel className="h-3.5 w-3.5 text-amber-600" /></span>
                                     <div className="min-w-0">
-                                        <p className="text-[11px] font-medium text-muted-foreground leading-none">Practice Area</p>
+                                        <p className="text-base font-medium text-muted-foreground leading-none">Practice Area</p>
                                         <p className="text-sm font-semibold text-foreground truncate">
                                             {matter.practice_area === 'custom' ? ((matter.custom_fields as any)?.custom_practice_area ?? 'Custom') : (PRACTICE_AREA_LABELS[matter.practice_area] ?? matter.practice_area)}
                                         </p>
@@ -763,7 +764,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                         {matter.responsible_user.full_name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
                                     </span>
                                     <div className="min-w-0">
-                                        <p className="text-[11px] font-medium text-muted-foreground leading-none">Solicitor</p>
+                                        <p className="text-base font-medium text-muted-foreground leading-none">Solicitor</p>
                                         <p className="text-sm font-semibold text-foreground truncate">{matter.responsible_user.full_name}</p>
                                     </div>
                                 </div>
@@ -772,7 +773,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                 <div className="rounded-xl border border-border/60 bg-muted/[0.18] px-3.5 py-2.5 flex items-center gap-2.5">
                                     <span className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-50 shrink-0"><Calendar className="h-3.5 w-3.5 text-emerald-600" /></span>
                                     <div>
-                                        <p className="text-[11px] font-medium text-muted-foreground leading-none">Opened</p>
+                                        <p className="text-base font-medium text-muted-foreground leading-none">Opened</p>
                                         <p className="text-sm font-semibold text-foreground">{formatDate(matter.opened_at)}</p>
                                     </div>
                                 </div>
@@ -781,7 +782,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                 <div className="rounded-xl border border-border/60 bg-muted/[0.18] px-3.5 py-2.5 flex items-center gap-2.5">
                                     <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 shrink-0"><FileText className="h-3.5 w-3.5 text-slate-600" /></span>
                                     <div className="min-w-0">
-                                        <p className="text-[11px] font-medium text-muted-foreground leading-none">Reference</p>
+                                        <p className="text-base font-medium text-muted-foreground leading-none">Reference</p>
                                         <p className="font-mono text-sm font-bold text-foreground tabular-nums">{matter.matter_number}</p>
                                     </div>
                                 </div>
@@ -811,7 +812,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                     <div key={s.label} className="rounded-xl border border-border/60 bg-card p-5 flex items-center justify-between shadow-sm">
                         <div>
                             <p className="text-sm font-medium text-muted-foreground">{s.label}</p>
-                            <p className="text-[22px] font-extrabold tracking-tight tabular-nums text-foreground mt-1.5 leading-none">{s.value}</p>
+                            <p className="text-xl font-extrabold tracking-tight tabular-nums text-foreground mt-1.5 leading-none">{s.value}</p>
                         </div>
                         <div className={`flex h-10 w-10 items-center justify-center rounded-full shrink-0 ${s.bg}`}>
                             <s.icon className={`h-5 w-5 ${s.color}`} />
@@ -821,10 +822,10 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
             </div>
             )}
 
-            {/* Tabs — Enterprise segmented */}
-            <div className="mb-6">
-                <div className="flex items-center gap-1 p-1 rounded-2xl bg-muted/40 border border-border/40 w-fit max-w-full overflow-x-auto">
-                    {[
+            <PageTabs
+                value={tab}
+                onChange={setTab}
+                tabs={[
                         { key: 'dashboard', label: 'Overview', icon: FileText, count: null },
                         { key: 'time',      label: 'Time',      icon: Clock, count: timeEntries.length || null },
                         ...(viewFinancial ? [
@@ -834,30 +835,8 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                         ] : []),
                         { key: 'documents', label: 'Documents', icon: Paperclip, count: documents.length || null },
                         { key: 'tasks',     label: 'Tasks',     icon: CheckSquare, count: tasks.filter((t: any) => t.status !== 'done').length || null },
-                    ].map((t) => (
-                        <button
-                            key={t.key}
-                            type="button"
-                            onClick={() => setTab(t.key)}
-                            className={cn(
-                                'flex items-center gap-1.5 px-4 py-2 rounded-xl text-[13px] font-semibold whitespace-nowrap transition-all',
-                                tab === t.key
-                                    ? 'bg-card text-foreground shadow-sm border border-border/60'
-                                    : 'text-muted-foreground hover:text-foreground hover:bg-card/60',
-                            )}
-                        >
-                            <t.icon className="h-3.5 w-3.5" />
-                            {t.label}
-                            {t.count !== null && t.count > 0 && (
-                                <span className={cn(
-                                    'inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-xs font-bold',
-                                    tab === t.key ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground',
-                                )}>{t.count}</span>
-                            )}
-                        </button>
-                    ))}
-                </div>
-            </div>
+                ]}
+            />
 
             {tab === 'dashboard' && (
                 <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -865,7 +844,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                     <div className="lg:col-span-2 space-y-6">
                         <Card className="rounded-2xl border border-border/60 bg-card shadow-sm overflow-hidden">
                             <CardHeader className="flex flex-row items-center justify-between py-4 px-6 border-b border-border/60 bg-muted/[0.12]">
-                                <CardTitle className="text-[14px] font-bold tracking-tight flex items-center gap-2">
+                                <CardTitle className="text-sm font-bold tracking-tight flex items-center gap-2">
                                     <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-foreground text-background"><MessageSquare className="h-3.5 w-3.5" /></span>
                                     Notes & Activity
                                 </CardTitle>
@@ -889,13 +868,13 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                                     <span className="h-7 w-7 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center shrink-0">
                                                         {(note.user?.full_name || 'S')[0].toUpperCase()}
                                                     </span>
-                                                    <span className="text-[14px] font-semibold text-foreground">{note.user?.full_name || 'System'}</span>
+                                                    <span className="text-sm font-semibold text-foreground">{note.user?.full_name || 'System'}</span>
                                                     <span className="text-xs text-muted-foreground">· {formatDate(note.logged_at ?? note.created_at)}</span>
-                                                    <Badge variant="secondary" className="text-[11px] capitalize ml-auto rounded-full font-medium">
+                                                    <Badge variant="secondary" className="text-base capitalize ml-auto rounded-full font-medium">
                                                         {note.type?.replace(/_/g, ' ') || 'Note'}
                                                     </Badge>
                                                 </div>
-                                                <p className="text-[14px] leading-relaxed text-foreground/80 ml-[38px] whitespace-pre-wrap">{note.body}</p>
+                                                <p className="text-sm leading-relaxed text-foreground/80 ml-[38px] whitespace-pre-wrap">{note.body}</p>
                                             </div>
                                         ))}
                                     </div>
@@ -951,18 +930,18 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                         <Card className="rounded-2xl border border-border/60 bg-card shadow-sm overflow-hidden">
                             <CardHeader className="py-4 px-6 border-b border-border/60 bg-muted/[0.12] flex flex-row items-center gap-2">
                                 <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-foreground text-background"><Users className="h-3.5 w-3.5" /></span>
-                                <CardTitle className="text-[14px] font-bold tracking-tight">People</CardTitle>
+                                <CardTitle className="text-sm font-bold tracking-tight">People</CardTitle>
                             </CardHeader>
                             <CardContent className="p-6 space-y-5">
                                 {matter.responsible_user && (
                                     <div>
-                                        <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Handling Solicitor</p>
+                                        <p className="text-base font-bold uppercase tracking-widest text-muted-foreground mb-2">Handling Solicitor</p>
                                         <div className="flex items-center gap-3">
                                             <span className="h-9 w-9 rounded-full bg-primary text-primary-foreground text-sm font-bold flex items-center justify-center shrink-0">
                                                 {matter.responsible_user.full_name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
                                             </span>
                                             <div className="min-w-0">
-                                                <p className="text-[14px] font-semibold text-foreground truncate">{matter.responsible_user.full_name}</p>
+                                                <p className="text-sm font-semibold text-foreground truncate">{matter.responsible_user.full_name}</p>
                                                 <p className="text-xs text-muted-foreground truncate">{matter.responsible_user.email}</p>
                                             </div>
                                         </div>
@@ -972,7 +951,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                     <>
                                         {matter.responsible_user && <Separator className="bg-border/60" />}
                                         <div>
-                                            <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Clients &amp; Parties</p>
+                                            <p className="text-base font-bold uppercase tracking-widest text-muted-foreground mb-3">Clients &amp; Parties</p>
                                             <div className="space-y-3">
                                                 {matter.contacts.map((contact: any) => (
                                                     <Link key={contact.id} href={`/contacts/${contact.id}`}
@@ -981,7 +960,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                                             {(contact.full_name || contact.name)[0].toUpperCase()}
                                                         </span>
                                                         <div className="min-w-0 flex-1">
-                                                            <p className="text-[14px] font-semibold group-hover:text-primary transition-colors truncate">{contact.full_name || contact.name}</p>
+                                                            <p className="text-sm font-semibold group-hover:text-primary transition-colors truncate">{contact.full_name || contact.name}</p>
                                                             <p className="text-xs text-muted-foreground capitalize">
                                                                 {(contact.pivot?.role || 'client').replace(/_/g, ' ')}
                                                             </p>
@@ -999,7 +978,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                         {/* Recent Invoices */}
                         <Card className="rounded-2xl border border-border/60 bg-card shadow-sm overflow-hidden">
                             <CardHeader className="py-4 px-6 border-b border-border/60 bg-muted/[0.12] flex flex-row items-center justify-between">
-                                <CardTitle className="text-[14px] font-bold tracking-tight flex items-center gap-2">
+                                <CardTitle className="text-sm font-bold tracking-tight flex items-center gap-2">
                                     <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-foreground text-background"><Receipt className="h-3.5 w-3.5" /></span>
                                     Recent Invoices
                                 </CardTitle>
@@ -1020,13 +999,13 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                             <Link key={inv.id} href={`/billing/${inv.id}`}
                                                 className="px-6 py-4 flex items-center justify-between hover:bg-muted/20 transition-colors group">
                                                 <div>
-                                                    <p className="text-[14px] font-semibold group-hover:text-primary transition-colors">{inv.invoice_number}</p>
+                                                    <p className="text-sm font-semibold group-hover:text-primary transition-colors">{inv.invoice_number}</p>
                                                     <p className="text-xs text-muted-foreground mt-0.5">{formatDate(inv.created_at)}</p>
                                                 </div>
                                                 <div className="text-right">
-                                                    <p className="text-[14px] font-bold tabular-nums">{formatCurrency(Number(inv.total))}</p>
+                                                    <p className="text-sm font-bold tabular-nums">{formatCurrency(Number(inv.total))}</p>
                                                     <Badge variant={inv.status === 'paid' ? 'success' : inv.status === 'sent' ? 'warning' : 'secondary'}
-                                                        className="text-[11px] capitalize rounded-full mt-1">{inv.status}</Badge>
+                                                        className="text-base capitalize rounded-full mt-1">{inv.status}</Badge>
                                                 </div>
                                             </Link>
                                         ))}
@@ -1124,7 +1103,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                     {/* Right: Fields + actions */}
                                     <div className="flex flex-col gap-3 lg:w-72 w-full">
                                         <div className="space-y-1.5">
-                                            <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">Activity</Label>
+                                            <Label className="text-base font-semibold text-muted-foreground uppercase tracking-widest">Activity</Label>
                                             <Select value={liveActivity} onValueChange={setLiveActivity}>
                                                 <SelectTrigger className="h-10 bg-background/60 backdrop-blur-sm border-border/60 rounded-lg">
                                                     <SelectValue />
@@ -1137,7 +1116,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                             </Select>
                                         </div>
                                         <div className="space-y-1.5">
-                                            <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">Notes</Label>
+                                            <Label className="text-base font-semibold text-muted-foreground uppercase tracking-widest">Notes</Label>
                                             <Textarea
                                                 rows={2}
                                                 className="resize-none text-sm bg-background/60 backdrop-blur-sm border-border/60 rounded-lg"
@@ -1197,7 +1176,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                         <div className="space-y-5 mt-5 pt-5 border-t border-border/40">
                                             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                                 <div className="space-y-2">
-                                                    <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">Activity</Label>
+                                                    <Label className="text-base font-semibold text-muted-foreground uppercase tracking-widest">Activity</Label>
                                                     <Select value={timerForm.activity_type} onValueChange={(v) => setTimerForm((p) => ({ ...p, activity_type: v }))}>
                                                         <SelectTrigger className="h-11 rounded-lg border-border/60"><SelectValue /></SelectTrigger>
                                                         <SelectContent>
@@ -1208,7 +1187,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                                     </Select>
                                                 </div>
                                                 <div className="space-y-2">
-                                                    <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">Rate (£/hr)</Label>
+                                                    <Label className="text-base font-semibold text-muted-foreground uppercase tracking-widest">Rate (£/hr)</Label>
                                                     <div className="relative">
                                                         <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">£</span>
                                                         <Input
@@ -1221,7 +1200,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                                 </div>
                                             </div>
                                             <div className="space-y-2">
-                                                <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">Description</Label>
+                                                <Label className="text-base font-semibold text-muted-foreground uppercase tracking-widest">Description</Label>
                                                 <Textarea
                                                     rows={2}
                                                     className="resize-none rounded-lg border-border/60"
@@ -1320,7 +1299,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                 )}
                                 {/* Rate input */}
                                 <div className="space-y-2">
-                                    <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">Rate (£/hr)</Label>
+                                    <Label className="text-base font-semibold text-muted-foreground uppercase tracking-widest">Rate (£/hr)</Label>
                                     <Input
                                         type="number" min="0" step="0.01" className="h-10 rounded-lg border-border/60"
                                         value={timerForm.rate}

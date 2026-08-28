@@ -424,7 +424,7 @@ export default function CreateInvoice({ matters, unbilledTime, unbilledExpenses,
                                         {data.line_items.map(item => (
                                             <div key={item.id} className="grid grid-cols-12 gap-2 items-center p-2.5 bg-muted/30 rounded-md border border-border/40">
                                                 <div className="col-span-1 flex justify-center">
-                                                    <span className={cn('text-[10px] px-1.5 py-0.5 rounded font-semibold', TYPE_COLOURS[item.type])}>
+                                                    <span className={cn('text-sm px-1.5 py-0.5 rounded font-semibold', TYPE_COLOURS[item.type])}>
                                                         {TYPE_LABELS[item.type]}
                                                     </span>
                                                 </div>

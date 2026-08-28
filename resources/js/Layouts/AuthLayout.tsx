@@ -21,7 +21,7 @@ export default function AuthLayout({ children, title, description, split = false
             <img src="/assets/simplelaw-mark-transparent.svg" alt="Simple Lawyer" className="h-10 w-10 object-contain" />
             <div>
                 <span className="text-2xl font-bold tracking-tight text-foreground">Simple Lawyer</span>
-                <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Management System</p>
+                <p className="text-base uppercase tracking-[0.2em] text-muted-foreground">Management System</p>
             </div>
         </div>
     );

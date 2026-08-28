@@ -120,7 +120,7 @@ export default function TransactionsIndex({ transactions, stats, matters, openIn
             <Head title="Transactions" />
 
             <div className="flex items-center justify-between mb-6">
-                <h1 className="text-[26px] font-extrabold tracking-tight">Transactions</h1>
+                <h1 className="text-2xl font-extrabold tracking-tight">Transactions</h1>
                 <Button onClick={() => setRecordOpen(true)} className="gap-2">
                     <Plus className="h-4 w-4" />
                     Record Payment
@@ -133,7 +133,7 @@ export default function TransactionsIndex({ transactions, stats, matters, openIn
                     <div key={s.label} className="rounded-xl border border-border/60 bg-card p-5 flex items-center justify-between shadow-sm">
                         <div>
                             <p className="text-sm font-medium text-muted-foreground">{s.label}</p>
-                            <p className="text-[22px] font-extrabold tracking-tight tabular-nums mt-1.5 leading-none text-foreground">{s.value}</p>
+                            <p className="text-xl font-extrabold tracking-tight tabular-nums mt-1.5 leading-none text-foreground">{s.value}</p>
                         </div>
                         <div className={cn('flex h-10 w-10 items-center justify-center rounded-full shrink-0', s.iconBg)}>
                             <s.icon className={cn('h-5 w-5', s.iconColor)} />

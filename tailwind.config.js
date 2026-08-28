@@ -110,9 +110,34 @@ export default {
                 md: 'calc(var(--radius) - 2px)',
                 sm: 'calc(var(--radius) - 4px)',
             },
-             fontFamily: {
-                sans: ['Segoe UI', 'Arial', ...defaultTheme.fontFamily.sans],
-                mono: ['Segoe UI', 'Arial', ...defaultTheme.fontFamily.sans],
+            fontFamily: {
+                /* Segoe UI everywhere, including tables and reference codes.
+                   It ships with Windows only and is not licensed for
+                   self-hosting, so the fallbacks matter: -apple-system gives
+                   macOS/iOS San Francisco and Roboto covers Android, both far
+                   closer to Segoe UI than Arial is. */
+                sans: [
+                    'Segoe UI',
+                    'Segoe UI Variable Text',
+                    '-apple-system',
+                    'BlinkMacSystemFont',
+                    'Roboto',
+                    'Helvetica Neue',
+                    'Arial',
+                    ...defaultTheme.fontFamily.sans,
+                ],
+                /* Intentionally the same face: reference numbers stay in Segoe
+                   UI and rely on tabular-nums to line their digits up. */
+                mono: [
+                    'Segoe UI',
+                    'Segoe UI Variable Text',
+                    '-apple-system',
+                    'BlinkMacSystemFont',
+                    'Roboto',
+                    'Helvetica Neue',
+                    'Arial',
+                    ...defaultTheme.fontFamily.sans,
+                ],
             },
             keyframes: {
                 'accordion-down': {

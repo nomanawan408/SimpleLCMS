@@ -49,7 +49,7 @@ export default function ActivitiesIndex({ activities }: Props) {
             <Head title="Activity Log" />
 
             <div className="flex items-center justify-between mb-6">
-                <h1 className="text-[26px] font-extrabold tracking-tight">Activity Log</h1>
+                <h1 className="text-2xl font-extrabold tracking-tight">Activity Log</h1>
             </div>
 
             <Card>

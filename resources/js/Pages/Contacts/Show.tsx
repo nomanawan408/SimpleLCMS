@@ -2,6 +2,7 @@ import { Head, Link } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { PageTabs } from '@/components/ui/page-tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -249,13 +250,13 @@ export default function ShowContact({ contact, invoices = [], documents = [], ca
                 <CardContent className="p-0">
                     <div className="flex flex-wrap items-center gap-2 px-5 pt-3.5 text-xs text-muted-foreground">
                         <span className={cn('h-1.5 w-1.5 rounded-full', contact.lead_status ? leadAccent[contact.lead_status] : typeAccent[contact.type])} />
-                        <Badge variant={typeVariant[contact.type]} className="text-[11px] font-semibold uppercase tracking-widest px-2 py-0 rounded-full">
+                        <Badge variant={typeVariant[contact.type]} className="text-base font-semibold uppercase tracking-widest px-2 py-0 rounded-full">
                             {CONTACT_TYPE_LABELS[contact.type] || contact.type}
                         </Badge>
                         {contact.lead_status && (
                             <>
                                 <span className="text-border">·</span>
-                                <Badge variant={leadVariant[contact.lead_status] ?? 'secondary'} className="text-[11px] font-semibold uppercase tracking-widest px-2 py-0 rounded-full">
+                                <Badge variant={leadVariant[contact.lead_status] ?? 'secondary'} className="text-base font-semibold uppercase tracking-widest px-2 py-0 rounded-full">
                                     {LEAD_STATUS_LABELS[contact.lead_status] || contact.lead_status.replace('_', ' ')}
                                 </Badge>
                             </>
@@ -263,7 +264,7 @@ export default function ShowContact({ contact, invoices = [], documents = [], ca
                         {contact.company_number && (
                             <>
                                 <span className="text-border">·</span>
-                                <span className="font-mono tabular-nums text-[11px]">{contact.company_number}</span>
+                                <span className="font-mono tabular-nums text-base">{contact.company_number}</span>
                             </>
                         )}
                     </div>
@@ -275,7 +276,7 @@ export default function ShowContact({ contact, invoices = [], documents = [], ca
                                     {initials}
                                 </span>
                                 <div className="min-w-0">
-                                    <h1 className="text-[20px] font-bold tracking-tight leading-tight text-foreground truncate">
+                                    <h1 className="text-lg font-bold tracking-tight leading-tight text-foreground truncate">
                                         {contact.full_name || contact.name}
                                     </h1>
                                     {contact.email ? (
@@ -306,7 +307,7 @@ export default function ShowContact({ contact, invoices = [], documents = [], ca
                                 <div className="rounded-xl border border-border/60 bg-muted/[0.18] px-3.5 py-2.5 flex items-center gap-2.5">
                                     <span className="flex h-7 w-7 items-center justify-center rounded-full bg-sky-50 shrink-0"><Phone className="h-3.5 w-3.5 text-sky-600" /></span>
                                     <div className="min-w-0">
-                                        <p className="text-[11px] font-medium text-muted-foreground leading-none">Phone</p>
+                                        <p className="text-base font-medium text-muted-foreground leading-none">Phone</p>
                                         <a href={`tel:${contact.phone}`} className="text-sm font-semibold text-foreground truncate block hover:text-primary transition-colors">
                                             {contact.phone}
                                         </a>
@@ -317,16 +318,16 @@ export default function ShowContact({ contact, invoices = [], documents = [], ca
                                 <div className="rounded-xl border border-border/60 bg-muted/[0.18] px-3.5 py-2.5 flex items-center gap-2.5">
                                     <span className="flex h-7 w-7 items-center justify-center rounded-full bg-rose-50 shrink-0"><MapPin className="h-3.5 w-3.5 text-rose-600" /></span>
                                     <div className="min-w-0">
-                                        <p className="text-[11px] font-medium text-muted-foreground leading-none">Address</p>
+                                        <p className="text-base font-medium text-muted-foreground leading-none">Address</p>
                                         <p className="text-sm font-semibold text-foreground truncate">{addr.line1}</p>
-                                        {addressLines && <p className="text-[11px] text-muted-foreground truncate">{addressLines}</p>}
+                                        {addressLines && <p className="text-base text-muted-foreground truncate">{addressLines}</p>}
                                     </div>
                                 </div>
                             )}
                             <div className="rounded-xl border border-border/60 bg-muted/[0.18] px-3.5 py-2.5 flex items-center gap-2.5">
                                 <span className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-50 shrink-0"><Calendar className="h-3.5 w-3.5 text-emerald-600" /></span>
                                 <div className="min-w-0">
-                                    <p className="text-[11px] font-medium text-muted-foreground leading-none">Added</p>
+                                    <p className="text-base font-medium text-muted-foreground leading-none">Added</p>
                                     <p className="text-sm font-semibold text-foreground">{formatDate(contact.created_at)}</p>
                                 </div>
                             </div>
@@ -334,7 +335,7 @@ export default function ShowContact({ contact, invoices = [], documents = [], ca
                                 <div className="rounded-xl border border-border/60 bg-muted/[0.18] px-3.5 py-2.5 flex items-center gap-2.5">
                                     <span className="flex h-7 w-7 items-center justify-center rounded-full bg-violet-50 shrink-0"><Calendar className="h-3.5 w-3.5 text-violet-600" /></span>
                                     <div className="min-w-0">
-                                        <p className="text-[11px] font-medium text-muted-foreground leading-none">Date of Birth</p>
+                                        <p className="text-base font-medium text-muted-foreground leading-none">Date of Birth</p>
                                         <p className="text-sm font-semibold text-foreground">{formatDate((contact as any).dob)}</p>
                                     </div>
                                 </div>
@@ -343,7 +344,7 @@ export default function ShowContact({ contact, invoices = [], documents = [], ca
                                 <div className="rounded-xl border border-border/60 bg-muted/[0.18] px-3.5 py-2.5 flex items-center gap-2.5">
                                     <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 shrink-0"><Building2 className="h-3.5 w-3.5 text-slate-600" /></span>
                                     <div className="min-w-0">
-                                        <p className="text-[11px] font-medium text-muted-foreground leading-none">Company Number</p>
+                                        <p className="text-base font-medium text-muted-foreground leading-none">Company Number</p>
                                         <p className="font-mono text-sm font-bold text-foreground tabular-nums truncate">{contact.company_number}</p>
                                     </div>
                                 </div>
@@ -374,7 +375,7 @@ export default function ShowContact({ contact, invoices = [], documents = [], ca
                     <div key={s.label} className="rounded-xl border border-border/60 bg-card p-5 flex items-center justify-between shadow-sm">
                         <div>
                             <p className="text-sm font-medium text-muted-foreground">{s.label}</p>
-                            <p className="text-[22px] font-extrabold tracking-tight tabular-nums text-foreground mt-1.5 leading-none">{s.value}</p>
+                            <p className="text-xl font-extrabold tracking-tight tabular-nums text-foreground mt-1.5 leading-none">{s.value}</p>
                         </div>
                         <div className={`flex h-10 w-10 items-center justify-center rounded-full shrink-0 ${s.bg}`}>
                             <s.icon className={`h-5 w-5 ${s.color}`} />
@@ -383,47 +384,25 @@ export default function ShowContact({ contact, invoices = [], documents = [], ca
                 ))}
             </div>
 
-            {/* Tabs — Enterprise segmented */}
-            <div className="mb-6">
-                <div className="flex items-center gap-1 p-1 rounded-2xl bg-muted/40 border border-border/40 w-fit max-w-full overflow-x-auto">
-                    {[
+            <PageTabs
+                value={tab}
+                onChange={setTab}
+                tabs={[
                         { key: 'dashboard', label: 'Overview', icon: FileText, count: null },
                         { key: 'matters', label: 'Matters', icon: Briefcase, count: allMatters.length || null },
                         ...(canViewDocuments ? [{ key: 'documents', label: 'Documents', icon: Paperclip, count: documents.length || null }] : []),
                         { key: 'billing', label: 'Billing', icon: Receipt, count: invoices.length || null },
                         { key: 'transactions', label: 'Transactions', icon: CreditCard, count: payments.length || null },
                         { key: 'notes', label: 'Notes', icon: MessageSquare, count: notes.length || null },
-                    ].map((t) => (
-                        <button
-                            key={t.key}
-                            type="button"
-                            onClick={() => setTab(t.key)}
-                            className={cn(
-                                'flex items-center gap-1.5 px-4 py-2 rounded-xl text-[13px] font-semibold whitespace-nowrap transition-all',
-                                tab === t.key
-                                    ? 'bg-card text-foreground shadow-sm border border-border/60'
-                                    : 'text-muted-foreground hover:text-foreground hover:bg-card/60',
-                            )}
-                        >
-                            <t.icon className="h-3.5 w-3.5" />
-                            {t.label}
-                            {t.count !== null && t.count > 0 && (
-                                <span className={cn(
-                                    'inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-xs font-bold',
-                                    tab === t.key ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground',
-                                )}>{t.count}</span>
-                            )}
-                        </button>
-                    ))}
-                </div>
-            </div>
+                ]}
+            />
 
             {(tab === 'dashboard' || tab === 'matters') && (
                 <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
                     <div className="lg:col-span-2 space-y-6">
                         <Card className="rounded-2xl border border-border/60 bg-card shadow-sm overflow-hidden">
                             <CardHeader className="flex flex-row items-center justify-between py-4 px-6 border-b border-border/60 bg-muted/[0.12]">
-                                <CardTitle className="text-[14px] font-bold tracking-tight flex items-center gap-2">
+                                <CardTitle className="text-sm font-bold tracking-tight flex items-center gap-2">
                                     <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-foreground text-background"><Briefcase className="h-3.5 w-3.5" /></span>
                                     Primary Matters
                                 </CardTitle>
@@ -445,12 +424,12 @@ export default function ShowContact({ contact, invoices = [], documents = [], ca
                                                 className="group flex items-center justify-between px-6 py-4 hover:bg-muted/10 transition-colors"
                                             >
                                                 <div className="min-w-0">
-                                                    <p className="text-[14px] font-semibold text-foreground group-hover:text-primary transition-colors truncate">{matter.name}</p>
+                                                    <p className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">{matter.name}</p>
                                                     <p className="text-xs text-muted-foreground">
                                                         <span className="font-mono tabular-nums">{matter.matter_number}</span> · Opened {formatDate(matter.opened_at)}
                                                     </p>
                                                 </div>
-                                                <Badge variant={matter.status === 'open' ? 'success' : 'secondary'} className="capitalize shrink-0 rounded-full text-[11px] font-medium">
+                                                <Badge variant={matter.status === 'open' ? 'success' : 'secondary'} className="capitalize shrink-0 rounded-full text-base font-medium">
                                                     {matter.status.replace(/_/g, ' ')}
                                                 </Badge>
                                             </Link>
@@ -463,7 +442,7 @@ export default function ShowContact({ contact, invoices = [], documents = [], ca
                         {relatedMatters.length > 0 && (
                             <Card className="rounded-2xl border border-border/60 bg-card shadow-sm overflow-hidden">
                                 <CardHeader className="flex flex-row items-center justify-between py-4 px-6 border-b border-border/60 bg-muted/[0.12]">
-                                    <CardTitle className="text-[14px] font-bold tracking-tight flex items-center gap-2">
+                                    <CardTitle className="text-sm font-bold tracking-tight flex items-center gap-2">
                                         <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-foreground text-background"><Briefcase className="h-3.5 w-3.5" /></span>
                                         Related Matters
                                     </CardTitle>
@@ -478,13 +457,13 @@ export default function ShowContact({ contact, invoices = [], documents = [], ca
                                                 className="group flex items-center justify-between px-6 py-4 hover:bg-muted/10 transition-colors"
                                             >
                                                 <div className="min-w-0">
-                                                    <p className="text-[14px] font-semibold text-foreground group-hover:text-primary transition-colors truncate">{matter.name}</p>
+                                                    <p className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">{matter.name}</p>
                                                     <p className="text-xs text-muted-foreground">
                                                         <span className="font-mono tabular-nums">{matter.matter_number}</span>
                                                         {matter.pivot?.role ? ` · Role: ${matter.pivot.role.replace(/_/g, ' ')}` : ''}
                                                     </p>
                                                 </div>
-                                                <Badge variant={matter.status === 'open' ? 'success' : 'secondary'} className="capitalize shrink-0 rounded-full text-[11px] font-medium">
+                                                <Badge variant={matter.status === 'open' ? 'success' : 'secondary'} className="capitalize shrink-0 rounded-full text-base font-medium">
                                                     {matter.status.replace(/_/g, ' ')}
                                                 </Badge>
                                             </Link>
@@ -499,14 +478,14 @@ export default function ShowContact({ contact, invoices = [], documents = [], ca
                         {contact.type === 'company' && ((contact as any).contact_person_name || (contact as any).contact_person_email || (contact as any).contact_person_phone) && (
                             <Card className="rounded-2xl border border-border/60 bg-card shadow-sm overflow-hidden">
                                 <CardHeader className="py-4 px-6 border-b border-border/60 bg-muted/[0.12]">
-                                    <CardTitle className="text-[14px] font-bold tracking-tight flex items-center gap-2">
+                                    <CardTitle className="text-sm font-bold tracking-tight flex items-center gap-2">
                                         <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-foreground text-background"><User className="h-3.5 w-3.5" /></span>
                                         Contact Person
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent className="p-6 space-y-3">
                                     {(contact as any).contact_person_name && (
-                                        <p className="text-[14px] font-semibold text-foreground">{(contact as any).contact_person_name}</p>
+                                        <p className="text-sm font-semibold text-foreground">{(contact as any).contact_person_name}</p>
                                     )}
                                     {(contact as any).contact_person_email && (
                                         <div className="flex items-center gap-2.5 text-sm">
@@ -530,7 +509,7 @@ export default function ShowContact({ contact, invoices = [], documents = [], ca
 
                         <Card className="rounded-2xl border border-border/60 bg-card shadow-sm overflow-hidden">
                             <CardHeader className="flex flex-row items-center justify-between py-4 px-6 border-b border-border/60 bg-muted/[0.12]">
-                                <CardTitle className="text-[14px] font-bold tracking-tight flex items-center gap-2">
+                                <CardTitle className="text-sm font-bold tracking-tight flex items-center gap-2">
                                     <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-foreground text-background"><MessageSquare className="h-3.5 w-3.5" /></span>
                                     Recent Notes
                                 </CardTitle>
@@ -555,12 +534,12 @@ export default function ShowContact({ contact, invoices = [], documents = [], ca
                                                     <span className="h-7 w-7 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center shrink-0">
                                                         {(note.user?.full_name || 'S')[0].toUpperCase()}
                                                     </span>
-                                                    <span className="text-[13px] font-semibold text-foreground truncate">{note.user?.full_name || 'System'}</span>
-                                                    <Badge variant="secondary" className="text-[11px] capitalize ml-auto rounded-full font-medium">
+                                                    <span className="text-xs font-semibold text-foreground truncate">{note.user?.full_name || 'System'}</span>
+                                                    <Badge variant="secondary" className="text-base capitalize ml-auto rounded-full font-medium">
                                                         {noteMeta(note.type).label}
                                                     </Badge>
                                                 </div>
-                                                <p className="text-[13px] leading-relaxed text-foreground/80 ml-[38px] line-clamp-3 whitespace-pre-wrap">{note.body}</p>
+                                                <p className="text-xs leading-relaxed text-foreground/80 ml-[38px] line-clamp-3 whitespace-pre-wrap">{note.body}</p>
                                             </div>
                                         ))}
                                     </div>
@@ -574,7 +553,7 @@ export default function ShowContact({ contact, invoices = [], documents = [], ca
             {tab === 'documents' && canViewDocuments && (
                 <Card className="rounded-2xl border border-border/60 bg-card shadow-sm overflow-hidden">
                     <CardHeader className="flex flex-row items-center justify-between py-4 px-6 border-b border-border/60 bg-muted/[0.12]">
-                        <CardTitle className="text-[14px] font-bold tracking-tight flex items-center gap-2">
+                        <CardTitle className="text-sm font-bold tracking-tight flex items-center gap-2">
                             <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-foreground text-background"><Paperclip className="h-3.5 w-3.5" /></span>
                             Documents
                         </CardTitle>
@@ -596,7 +575,7 @@ export default function ShowContact({ contact, invoices = [], documents = [], ca
                                                 <FileText className="h-4 w-4 text-muted-foreground" />
                                             </span>
                                             <div className="min-w-0">
-                                                <p className="text-[14px] font-semibold text-foreground truncate">{doc.original_name || doc.name}</p>
+                                                <p className="text-sm font-semibold text-foreground truncate">{doc.original_name || doc.name}</p>
                                                 <p className="text-xs text-muted-foreground truncate">
                                                     {doc.matter?.name ?? 'Matter'} · {formatBytes(doc.size_bytes)} · {formatDate(doc.created_at)}
                                                 </p>
@@ -619,7 +598,7 @@ export default function ShowContact({ contact, invoices = [], documents = [], ca
             {tab === 'billing' && (
                 <Card className="rounded-2xl border border-border/60 bg-card shadow-sm overflow-hidden">
                     <CardHeader className="flex flex-row items-center justify-between py-4 px-6 border-b border-border/60 bg-muted/[0.12]">
-                        <CardTitle className="text-[14px] font-bold tracking-tight flex items-center gap-2">
+                        <CardTitle className="text-sm font-bold tracking-tight flex items-center gap-2">
                             <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-foreground text-background"><Receipt className="h-3.5 w-3.5" /></span>
                             Invoices
                         </CardTitle>
@@ -646,7 +625,7 @@ export default function ShowContact({ contact, invoices = [], documents = [], ca
                                             className="group flex items-center justify-between px-6 py-4 hover:bg-muted/10 transition-colors"
                                         >
                                             <div className="min-w-0">
-                                                <p className="text-[14px] font-semibold text-foreground group-hover:text-primary transition-colors font-mono tabular-nums">
+                                                <p className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors font-mono tabular-nums">
                                                     {invoice.invoice_number}
                                                 </p>
                                                 <p className="text-xs text-muted-foreground truncate">
@@ -654,14 +633,14 @@ export default function ShowContact({ contact, invoices = [], documents = [], ca
                                                 </p>
                                             </div>
                                             <div className="text-right shrink-0 ml-4">
-                                                <p className="text-[14px] font-bold tabular-nums text-foreground">{formatCurrency(Number(invoice.total))}</p>
+                                                <p className="text-sm font-bold tabular-nums text-foreground">{formatCurrency(Number(invoice.total))}</p>
                                                 <Badge
                                                     variant={
                                                         invoice.status === 'paid' ? 'success'
                                                         : invoice.status === 'sent' && outstanding > 0 ? 'warning'
                                                         : 'secondary'
                                                     }
-                                                    className="text-[11px] capitalize rounded-full font-medium mt-0.5"
+                                                    className="text-base capitalize rounded-full font-medium mt-0.5"
                                                 >
                                                     {invoice.status}
                                                 </Badge>
@@ -678,7 +657,7 @@ export default function ShowContact({ contact, invoices = [], documents = [], ca
             {tab === 'transactions' && (
                 <Card className="rounded-2xl border border-border/60 bg-card shadow-sm overflow-hidden">
                     <CardHeader className="flex flex-row items-center justify-between py-4 px-6 border-b border-border/60 bg-muted/[0.12]">
-                        <CardTitle className="text-[14px] font-bold tracking-tight flex items-center gap-2">
+                        <CardTitle className="text-sm font-bold tracking-tight flex items-center gap-2">
                             <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-foreground text-background"><CreditCard className="h-3.5 w-3.5" /></span>
                             Transactions
                         </CardTitle>
@@ -696,7 +675,7 @@ export default function ShowContact({ contact, invoices = [], documents = [], ca
                                 {payments.map((payment: any) => (
                                     <div key={payment.id} className="flex items-center justify-between px-6 py-4">
                                         <div className="min-w-0">
-                                            <p className="text-[14px] font-semibold text-foreground capitalize">
+                                            <p className="text-sm font-semibold text-foreground capitalize">
                                                 {formatDate(payment.paid_at)} · {payment.method.replace(/_/g, ' ')}
                                             </p>
                                             <p className="text-xs text-muted-foreground truncate">
@@ -704,7 +683,7 @@ export default function ShowContact({ contact, invoices = [], documents = [], ca
                                                 {payment.matter_name ? ` · ${payment.matter_name}` : ''}
                                             </p>
                                         </div>
-                                        <span className="text-[14px] font-bold tabular-nums text-success shrink-0 ml-4">
+                                        <span className="text-sm font-bold tabular-nums text-success shrink-0 ml-4">
                                             {formatCurrency(Number(payment.amount))}
                                         </span>
                                     </div>
@@ -718,7 +697,7 @@ export default function ShowContact({ contact, invoices = [], documents = [], ca
             {tab === 'notes' && (
                 <Card className="rounded-2xl border border-border/60 bg-card shadow-sm overflow-hidden">
                     <CardHeader className="flex flex-row items-center justify-between py-4 px-6 border-b border-border/60 bg-muted/[0.12]">
-                        <CardTitle className="text-[14px] font-bold tracking-tight flex items-center gap-2">
+                        <CardTitle className="text-sm font-bold tracking-tight flex items-center gap-2">
                             <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-foreground text-background"><MessageSquare className="h-3.5 w-3.5" /></span>
                             Notes &amp; Activity
                         </CardTitle>
@@ -747,11 +726,11 @@ export default function ShowContact({ contact, invoices = [], documents = [], ca
                                                 <span className="h-7 w-7 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center shrink-0">
                                                     {(note.user?.full_name || 'S')[0].toUpperCase()}
                                                 </span>
-                                                <span className="text-[14px] font-semibold text-foreground">{note.user?.full_name || 'System'}</span>
+                                                <span className="text-sm font-semibold text-foreground">{note.user?.full_name || 'System'}</span>
                                                 <span className="text-xs text-muted-foreground">· {formatDate(note.logged_at)}</span>
 
                                                 <div className="ml-auto flex items-center gap-1.5">
-                                                    <Badge variant="secondary" className="text-[11px] rounded-full font-medium inline-flex items-center gap-1">
+                                                    <Badge variant="secondary" className="text-base rounded-full font-medium inline-flex items-center gap-1">
                                                         <Icon className="h-3 w-3" />
                                                         {noteMeta(note.type).label}
                                                     </Badge>
@@ -781,7 +760,7 @@ export default function ShowContact({ contact, invoices = [], documents = [], ca
                                                     )}
                                                 </div>
                                             </div>
-                                            <p className="text-[14px] leading-relaxed text-foreground/80 ml-[38px] whitespace-pre-wrap break-words">{note.body}</p>
+                                            <p className="text-sm leading-relaxed text-foreground/80 ml-[38px] whitespace-pre-wrap break-words">{note.body}</p>
                                         </div>
                                     );
                                 })}

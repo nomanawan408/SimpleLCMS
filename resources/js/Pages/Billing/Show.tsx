@@ -360,7 +360,7 @@ export default function ShowInvoice({ invoice }: Props) {
                         </DialogHeader>
                         <form onSubmit={handleSendEmail} className="space-y-4 pt-2">
                             <div className="space-y-2">
-                                <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">Recipient Email *</Label>
+                                <Label className="text-base font-semibold text-muted-foreground uppercase tracking-widest">Recipient Email *</Label>
                                 <Input
                                     type="email"
                                     value={emailForm.data.recipient_email}
@@ -371,7 +371,7 @@ export default function ShowInvoice({ invoice }: Props) {
                                 {emailForm.errors.recipient_email && <p className="text-xs text-destructive">{emailForm.errors.recipient_email}</p>}
                             </div>
                             <div className="space-y-2">
-                                <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">Recipient Name</Label>
+                                <Label className="text-base font-semibold text-muted-foreground uppercase tracking-widest">Recipient Name</Label>
                                 <Input
                                     value={emailForm.data.recipient_name}
                                     onChange={(e) => emailForm.setData('recipient_name', e.target.value)}

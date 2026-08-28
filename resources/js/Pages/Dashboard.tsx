@@ -76,7 +76,7 @@ function KpiCard({ kpi }: { kpi: KpiCard }) {
                             <kpi.icon className="h-4 w-4" />
                         </span>
                     </div>
-                    <p className="text-[28px] font-semibold leading-none tracking-[-0.04em] tabular-nums">{kpi.value}</p>
+                    <p className="text-2xl font-semibold leading-none tracking-[-0.04em] tabular-nums">{kpi.value}</p>
                 </CardContent>
             </Card>
         </Link>
@@ -167,7 +167,7 @@ export default function Dashboard({ stats, viewFinancial, recentMatters, upcomin
                                             <p className="truncate text-sm font-medium group-hover:text-primary">{matter.name}</p>
                                             <p className="mt-1 truncate text-xs text-muted-foreground">{matter.matter_number} <span className="px-1">·</span> {matter.responsible_user?.full_name ?? 'Unassigned'}</p>
                                         </div>
-                                        <Badge variant={statusColors[matter.status] ?? 'default'} className="shrink-0 text-[10px]">{MATTER_STATUS_LABELS[matter.status]}</Badge>
+                                        <Badge variant={statusColors[matter.status] ?? 'default'} className="shrink-0 text-sm">{MATTER_STATUS_LABELS[matter.status]}</Badge>
                                     </Link>
                                 ))}
                             </div>
@@ -195,7 +195,7 @@ export default function Dashboard({ stats, viewFinancial, recentMatters, upcomin
                                             <p className="truncate text-sm font-medium">{task.title}</p>
                                             <p className="mt-1 truncate text-xs text-muted-foreground">{task.due_date ? `Due ${formatDate(task.due_date)}` : 'No due date'}{task.assignee && ` · ${task.assignee.full_name}`}</p>
                                         </div>
-                                        <Badge variant={task.priority === 'high' ? 'destructive' : task.priority === 'medium' ? 'warning' : 'secondary'} className="shrink-0 text-[10px] capitalize">{task.priority}</Badge>
+                                        <Badge variant={task.priority === 'high' ? 'destructive' : task.priority === 'medium' ? 'warning' : 'secondary'} className="shrink-0 text-sm capitalize">{task.priority}</Badge>
                                     </div>
                                 ))}
                             </div>

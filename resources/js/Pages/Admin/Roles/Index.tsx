@@ -165,7 +165,7 @@ export default function RolesIndex({ roles, groupedPermissions }: Props) {
                                                 {role.name.replace(/_/g, ' ')}
                                             </h3>
                                             {role.is_builtin && (
-                                                <Badge variant="info" className="text-[10px] px-1.5 py-0 mt-0.5">System</Badge>
+                                                <Badge variant="info" className="text-sm px-1.5 py-0 mt-0.5">System</Badge>
                                             )}
                                         </div>
                                     </div>

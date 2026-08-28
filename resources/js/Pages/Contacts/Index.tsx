@@ -72,7 +72,7 @@ export default function ContactsIndex({ contacts, filters }: Props) {
 
             <div className="flex flex-col gap-3 mb-6">
                 <div className="flex items-center justify-between">
-                    <h1 className="text-[26px] font-extrabold tracking-tight">Contacts</h1>
+                    <h1 className="text-2xl font-extrabold tracking-tight">Contacts</h1>
                     <Button asChild className="gap-2">
                         <Link href="/contacts/create"><Plus className="h-4 w-4" />New Contact</Link>
                     </Button>

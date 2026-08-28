@@ -79,7 +79,7 @@ export default function MattersIndex({ matters, filters }: Props) {
 
             <div className="flex flex-col gap-3 mb-6">
                 <div className="flex items-center justify-between">
-                    <h1 className="text-[26px] font-extrabold tracking-tight">Matters</h1>
+                    <h1 className="text-2xl font-extrabold tracking-tight">Matters</h1>
                     <Button asChild className="gap-2">
                         <Link href="/matters/create"><Plus className="h-4 w-4" />New Matter</Link>
                     </Button>
@@ -415,7 +415,7 @@ export default function MattersIndex({ matters, filters }: Props) {
                                                     task.priority === 'high' ? 'destructive' :
                                                     task.priority === 'low' ? 'secondary' : 'outline'
                                                 }
-                                                className="text-[10px] capitalize"
+                                                className="text-sm capitalize"
                                             >
                                                 {task.priority}
                                             </Badge>

@@ -269,7 +269,7 @@ export default function FirmShow({ firm }: Props) {
                                                 <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                                             </div>
                                             <div className="flex items-center gap-1 shrink-0 ml-2">
-                                                <Badge variant={roleVariant[user.role] ?? 'secondary'} className="text-[10px] capitalize">
+                                                <Badge variant={roleVariant[user.role] ?? 'secondary'} className="text-sm capitalize">
                                                     {user.role}
                                                 </Badge>
                                                 <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setResetConfirm(user)} title="Reset Password">

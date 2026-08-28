@@ -118,7 +118,7 @@ export default function BillingIndex({ invoices, stats, filters, filterOptions }
 
             <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
                 <div>
-                    <h1 className="text-[26px] font-extrabold tracking-tight">Billing</h1>
+                    <h1 className="text-2xl font-extrabold tracking-tight">Billing</h1>
                     <p className="text-sm text-muted-foreground mt-1">Invoices, payments and outstanding — filter by timeframe, matter and team.</p>
                 </div>
                 <Button asChild className="rounded-xl gap-2 bg-primary"><Link href="/billing/create"><Plus className="h-4 w-4" /> New Invoice</Link></Button>
@@ -135,7 +135,7 @@ export default function BillingIndex({ invoices, stats, filters, filterOptions }
                     <div key={s.label} className="rounded-xl border border-border/60 bg-card p-5 flex items-center justify-between shadow-sm">
                         <div>
                             <p className="text-sm font-medium text-muted-foreground">{s.label}</p>
-                            <p className="text-[22px] font-extrabold tracking-tight tabular-nums mt-1.5 leading-none text-foreground">{s.value}</p>
+                            <p className="text-xl font-extrabold tracking-tight tabular-nums mt-1.5 leading-none text-foreground">{s.value}</p>
                             {s.sub && <p className="text-xs text-muted-foreground mt-1">{s.sub}</p>}
                         </div>
                         <div className={cn('flex h-10 w-10 items-center justify-center rounded-full shrink-0', s.iconBg)}>
@@ -150,7 +150,7 @@ export default function BillingIndex({ invoices, stats, filters, filterOptions }
                 <CardContent className="p-4 space-y-4">
                     <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
                         <div className="space-y-2">
-                            <Label className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5"><Calendar className="h-3 w-3" /> Timeframe</Label>
+                            <Label className="text-base font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5"><Calendar className="h-3 w-3" /> Timeframe</Label>
                             <div className="flex flex-wrap gap-1.5">
                                 {TIMEFRAMES.map(t => (
                                     <button key={t.value} onClick={() => handleTimeframe(t.value)} className={cn('rounded-full px-3.5 py-1.5 text-xs font-medium border transition-colors', timeframe === t.value ? 'bg-primary text-primary-foreground border-primary shadow-sm' : 'bg-muted text-muted-foreground border-transparent hover:bg-muted/80 hover:text-foreground')}>{t.label}</button>
@@ -243,7 +243,7 @@ export default function BillingIndex({ invoices, stats, filters, filterOptions }
                                                 <TableCell className="hidden md:table-cell text-muted-foreground">{formatDate(invoice.created_at)}</TableCell>
                                                 <TableCell className="hidden lg:table-cell">
                                                     <span className={cn(isOverdue && 'text-destructive font-medium')}>{formatDate(invoice.due_date)}</span>
-                                                    {isOverdue && <Badge variant="destructive" className="ml-2 text-[10px] rounded-full">Overdue</Badge>}
+                                                    {isOverdue && <Badge variant="destructive" className="ml-2 text-sm rounded-full">Overdue</Badge>}
                                                 </TableCell>
                                                 <TableCell className="text-right">
                                                     <p className="font-medium text-sm tabular-nums">{formatCurrency(invoice.total)}</p>

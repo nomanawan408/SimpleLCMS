@@ -436,7 +436,7 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
                 <div>
-                    <h1 className="text-[26px] font-extrabold tracking-tight">Time Tracking</h1>
+                    <h1 className="text-2xl font-extrabold tracking-tight">Time Tracking</h1>
                     <p className="text-sm text-muted-foreground mt-0.5">Log, review and bill your time entries</p>
                 </div>
                 <Button onClick={() => openCreate()} className="gap-2 shadow-sm">
@@ -675,7 +675,7 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
                     <div key={s.label} className="rounded-xl border border-border/60 bg-card p-5 flex items-center justify-between shadow-sm">
                         <div>
                             <p className="text-sm font-medium text-muted-foreground">{s.label}</p>
-                            <p className="text-[22px] font-extrabold tracking-tight tabular-nums mt-1.5 leading-none text-foreground">{s.value}</p>
+                            <p className="text-xl font-extrabold tracking-tight tabular-nums mt-1.5 leading-none text-foreground">{s.value}</p>
                             {s.sub && <p className="text-xs text-muted-foreground mt-1">{s.sub}</p>}
                         </div>
                         <div className={cn('flex h-10 w-10 items-center justify-center rounded-full shrink-0', s.iconBg)}>
@@ -699,7 +699,7 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
                 <div className="p-3">
                     <div className="flex flex-wrap items-end gap-2.5">
                         <div className="flex-1 min-w-[180px] space-y-1">
-                            <Label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Search</Label>
+                            <Label className="text-base font-medium text-muted-foreground uppercase tracking-wide">Search</Label>
                             <div className="relative">
                                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/60" />
                                 <Input
@@ -711,7 +711,7 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
                             </div>
                         </div>
                         <div className="min-w-[165px] space-y-1">
-                            <Label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Matter</Label>
+                            <Label className="text-base font-medium text-muted-foreground uppercase tracking-wide">Matter</Label>
                             <Select value={filters.matter_id || '_all'} onValueChange={(v) => setFilter('matter_id', v)}>
                                 <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="All matters" /></SelectTrigger>
                                 <SelectContent>
@@ -721,7 +721,7 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
                             </Select>
                         </div>
                         <div className="min-w-[145px] space-y-1">
-                            <Label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Activity</Label>
+                            <Label className="text-base font-medium text-muted-foreground uppercase tracking-wide">Activity</Label>
                             <Select value={filters.activity_type || '_all'} onValueChange={(v) => setFilter('activity_type', v)}>
                                 <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="All activities" /></SelectTrigger>
                                 <SelectContent>
@@ -732,7 +732,7 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
                         </div>
                         {isAdmin && (
                             <div className="min-w-[140px] space-y-1">
-                                <Label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">User</Label>
+                                <Label className="text-base font-medium text-muted-foreground uppercase tracking-wide">User</Label>
                                 <Select value={filters.user_id || '_all'} onValueChange={(v) => setFilter('user_id', v)}>
                                     <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="All users" /></SelectTrigger>
                                     <SelectContent>
@@ -743,7 +743,7 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
                             </div>
                         )}
                         <div className="min-w-[115px] space-y-1">
-                            <Label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Billable</Label>
+                            <Label className="text-base font-medium text-muted-foreground uppercase tracking-wide">Billable</Label>
                             <Select value={filters.billable || '_all'} onValueChange={(v) => setFilter('billable', v)}>
                                 <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
                                 <SelectContent>
@@ -754,7 +754,7 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
                             </Select>
                         </div>
                         <div className="min-w-[110px] space-y-1">
-                            <Label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Status</Label>
+                            <Label className="text-base font-medium text-muted-foreground uppercase tracking-wide">Status</Label>
                             <Select value={filters.billed || '_all'} onValueChange={(v) => setFilter('billed', v)}>
                                 <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
                                 <SelectContent>
@@ -765,11 +765,11 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
                             </Select>
                         </div>
                         <div className="space-y-1">
-                            <Label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">From</Label>
+                            <Label className="text-base font-medium text-muted-foreground uppercase tracking-wide">From</Label>
                             <Input type="date" className="h-8 w-34 text-sm" value={filters.date_from ?? ''} onChange={(e) => setFilter('date_from', e.target.value)} />
                         </div>
                         <div className="space-y-1">
-                            <Label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">To</Label>
+                            <Label className="text-base font-medium text-muted-foreground uppercase tracking-wide">To</Label>
                             <Input type="date" className="h-8 w-34 text-sm" value={filters.date_to ?? ''} onChange={(e) => setFilter('date_to', e.target.value)} />
                         </div>
                     </div>
@@ -801,12 +801,12 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
                         {/* Amount breakdown */}
                         <div className="flex items-center gap-4">
                             <div>
-                                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Net</p>
+                                <p className="text-sm font-semibold text-muted-foreground uppercase tracking-widest">Net</p>
                                 <p className="text-sm font-bold text-foreground tabular-nums">{formatCurrency(selectedTotal)}</p>
                             </div>
                             {firmVatRate > 0 && (
                                 <div>
-                                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">+VAT</p>
+                                    <p className="text-sm font-semibold text-muted-foreground uppercase tracking-widest">+VAT</p>
                                     <p className="text-sm font-bold text-foreground tabular-nums">{formatCurrency(selectedTotal * (1 + firmVatRate / 100))}</p>
                                 </div>
                             )}
@@ -899,7 +899,7 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
                                                     {entry.matter.name}
                                                 </Link>
                                             ) : <span className="text-muted-foreground">—</span>}
-                                            {entry.matter && <p className="text-[11px] text-muted-foreground font-mono mt-0.5">{entry.matter.matter_number}</p>}
+                                            {entry.matter && <p className="text-base text-muted-foreground font-mono mt-0.5">{entry.matter.matter_number}</p>}
                                         </TableCell>
                                         {isAdmin && (
                                             <TableCell className="hidden lg:table-cell">
@@ -909,7 +909,7 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
                                         <TableCell className="hidden md:table-cell">
                                             <span
                                                 title={ACTIVITY_LABELS[entry.activity_type] ?? entry.activity_type}
-                                                className={cn('inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap', ACTIVITY_COLORS[entry.activity_type] ?? ACTIVITY_COLORS.other)}
+                                                className={cn('inline-flex items-center px-2.5 py-1 rounded-full text-base font-semibold whitespace-nowrap', ACTIVITY_COLORS[entry.activity_type] ?? ACTIVITY_COLORS.other)}
                                             >
                                                 {ACTIVITY_SHORT_LABELS[entry.activity_type] ?? entry.activity_type}
                                             </span>
@@ -961,7 +961,7 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
                                                             )} />
                                                         </span>
                                                         <span className={cn(
-                                                            'text-[11px] font-semibold whitespace-nowrap',
+                                                            'text-base font-semibold whitespace-nowrap',
                                                             isBillable ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground',
                                                         )}>
                                                             {isBillable ? 'Billable' : 'Non-bill'}
@@ -972,15 +972,15 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
                                         </TableCell>
                                         <TableCell className="text-center">
                                             {entry.billed ? (
-                                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-base font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
                                                     <CheckCircle2 className="h-3 w-3" />Billed
                                                 </span>
                                             ) : entry.is_locked ? (
-                                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-muted text-muted-foreground">
+                                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-base font-semibold bg-muted text-muted-foreground">
                                                     Locked
                                                 </span>
                                             ) : (
-                                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-base font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
                                                     <AlertCircle className="h-3 w-3" />Unbilled
                                                 </span>
                                             )}
@@ -1244,14 +1244,14 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
                         {/* Entry list */}
                         <div className="rounded-xl border border-border/40 bg-muted/20 overflow-hidden">
                             <div className="px-3.5 py-2 bg-muted/30 border-b border-border/40">
-                                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Selected Entries</p>
+                                <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Selected Entries</p>
                             </div>
                             <div className="divide-y divide-border/30 max-h-44 overflow-y-auto">
                                 {selectedEntries.map((e) => (
                                     <div key={e.id} className="px-3.5 py-2.5 flex items-center justify-between">
                                         <div className="min-w-0 flex-1">
                                             <p className="text-sm font-medium truncate">{e.description || 'Legal services'}</p>
-                                            <p className="text-[11px] text-muted-foreground mt-0.5">
+                                            <p className="text-base text-muted-foreground mt-0.5">
                                                 {formatDate(e.date)} &middot; {formatDuration(e.duration_minutes)} &middot; {formatCurrency(Number(e.rate))}/h
                                             </p>
                                         </div>
@@ -1283,7 +1283,7 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
                         {/* Due date + notes */}
                         <div className="grid grid-cols-1 gap-4">
                             <div className="space-y-2">
-                                <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">Due Date *</Label>
+                                <Label className="text-base font-semibold text-muted-foreground uppercase tracking-widest">Due Date *</Label>
                                 <Input
                                     type="date" className="h-10 rounded-lg border-border/60"
                                     value={invoiceForm.due_date}
@@ -1291,7 +1291,7 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
                                 />
                             </div>
                             <div className="space-y-2">
-                                <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">Invoice Notes</Label>
+                                <Label className="text-base font-semibold text-muted-foreground uppercase tracking-widest">Invoice Notes</Label>
                                 <Textarea
                                     rows={2} className="resize-none rounded-lg border-border/60"
                                     value={invoiceForm.notes}

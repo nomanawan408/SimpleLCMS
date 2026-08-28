@@ -70,7 +70,7 @@ export default function DocumentsIndex({ documents, matters, filters }: Props) {
 
             <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
                 <div>
-                    <h1 className="text-[26px] font-extrabold tracking-tight">Documents</h1>
+                    <h1 className="text-2xl font-extrabold tracking-tight">Documents</h1>
                     <p className="text-sm text-muted-foreground mt-1">All matters share a dedicated folder — uploads from a matter go to its own folder automatically.</p>
                 </div>
                 <Button onClick={() => setUploadModalOpen(true)} className="rounded-xl gap-2 bg-primary shadow-sm">
@@ -124,8 +124,8 @@ export default function DocumentsIndex({ documents, matters, filters }: Props) {
                                     {documents.data.map((doc) => (
                                         <TableRow key={doc.id}>
                                             <TableCell>
-                                                <p className="text-[14px] font-semibold text-foreground">{doc.name}</p>
-                                                <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium mt-1 ${visibilityBadgeStyles[doc.is_client_visible ? 'success' : 'secondary']}`}>
+                                                <p className="text-sm font-semibold text-foreground">{doc.name}</p>
+                                                <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-base font-medium mt-1 ${visibilityBadgeStyles[doc.is_client_visible ? 'success' : 'secondary']}`}>
                                                     {doc.is_client_visible ? 'Client visible' : 'Internal'}
                                                 </span>
                                             </TableCell>

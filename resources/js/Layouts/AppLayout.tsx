@@ -96,7 +96,7 @@ export default function AppLayout({ children, title }: AppLayoutProps) {
                     <img src="/assets/simplelaw-logo-primary.png" alt="Simple Law" className="h-12 w-12 shrink-0 object-contain" />
                     <div className="leading-tight min-w-0">
                         <p className="text-base font-bold text-white tracking-tight whitespace-nowrap">Simple Law</p>
-                        <p className="mt-0.5 text-[10px] uppercase tracking-[0.14em] text-white/60 font-medium whitespace-nowrap">Case Management</p>
+                        <p className="mt-0.5 text-sm uppercase tracking-[0.14em] text-white/60 font-medium whitespace-nowrap">Case Management</p>
                     </div>
                 </Link>
             </div>
@@ -106,7 +106,7 @@ export default function AppLayout({ children, title }: AppLayoutProps) {
             {/* Firm name (for firm users only) */}
             {!isSuperAdmin && user.firm && (
                 <div className="px-4 py-4">
-                     <p className="text-[11px] font-semibold text-white/70 uppercase tracking-[0.15em]">Firm</p>
+                     <p className="text-base font-semibold text-white/70 uppercase tracking-[0.15em]">Firm</p>
                     <p className="mt-1 text-sm font-medium text-white truncate">{user.firm.name}</p>
                 </div>
             )}
@@ -192,7 +192,7 @@ export default function AppLayout({ children, title }: AppLayoutProps) {
                 {!isSuperAdmin && (isFirmAdmin || user.permissions?.includes('manage_users')) && (
                     <>
                         <div className="pt-5 pb-2">
-                             <p className="px-3 text-[11px] font-semibold text-white/70 uppercase tracking-[0.15em]">Admin</p>
+                             <p className="px-3 text-base font-semibold text-white/70 uppercase tracking-[0.15em]">Admin</p>
                         </div>
                         {adminItems.map((item) => (
                             <Link
