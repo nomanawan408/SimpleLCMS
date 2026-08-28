@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -12,8 +12,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatDate, cn } from '@/lib/utils';
-import { Download, Eye, FileText, Paperclip, Plus, Trash2, Upload, X } from 'lucide-react';
+import { Download, Eye, FileText, Paperclip, Trash2, Upload, X } from 'lucide-react';
 import type { Document, PaginatedData } from '@/types';
+import { useUploadQueue } from '@/hooks/useUploadQueue';
+import { UploadQueueList } from '@/components/documents/UploadQueueList';
 
 interface Props {
     documents: PaginatedData<Document & { matter?: { id: string; name: string }; uploadedBy?: { full_name: string } }>;
@@ -38,20 +40,45 @@ export default function DocumentsIndex({ documents, matters, filters }: Props) {
     const fileRef = useRef<HTMLInputElement>(null);
     const [viewerDoc, setViewerDoc] = useState<{ id: string; name: string; mime_type?: string } | null>(null);
 
-    const { data, setData, post, processing, errors, reset } = useForm({
-        file: null as File | null,
-        matter_id: '',
-        is_client_visible: false,
+    const [uploadMatterId, setUploadMatterId] = useState('');
+    const [uploadClientVisible, setUploadClientVisible] = useState(false);
+
+    // One request per file rather than one request carrying all of them --
+    // that is what makes a live progress bar per file possible, and it means
+    // one bad file among many fails on its own instead of taking the batch
+    // down with it. See useUploadQueue for the concurrency/progress logic.
+    const uploadQueue = useUploadQueue({
+        url: '/documents',
+        buildFormData: (file) => {
+            const fd = new FormData();
+            fd.append('file', file);
+            fd.append('matter_id', uploadMatterId);
+            fd.append('is_client_visible', uploadClientVisible ? '1' : '0');
+            return fd;
+        },
+        // The document list is server-paginated Inertia state, so refresh it
+        // once the whole batch has settled rather than after every file.
+        onAllSettled: () => {
+            // reload() always preserves scroll and state -- that is what
+            // distinguishes it from a full visit -- so there is nothing else
+            // to set here beyond which prop to refresh.
+            router.reload({ only: ['documents'] });
+        },
     });
 
-    const handleUpload = () => {
-        post('/documents', {
-            forceFormData: true,
-            onSuccess: () => {
-                setUploadModalOpen(false);
-                reset();
-            },
-        });
+    const openUploadModal = () => {
+        uploadQueue.clearAll();
+        setUploadMatterId('');
+        setUploadClientVisible(false);
+        setUploadModalOpen(true);
+    };
+
+    const handleFilesChosen = (fileList: FileList | null) => {
+        if (!fileList || fileList.length === 0) return;
+        uploadQueue.enqueue(fileList);
+        // Without this, choosing the exact same file(s) again fires no change
+        // event the second time, since the input's value has not changed.
+        if (fileRef.current) fileRef.current.value = '';
     };
 
     const handleDelete = (id: string) => {
@@ -73,7 +100,7 @@ export default function DocumentsIndex({ documents, matters, filters }: Props) {
                     <h1 className="text-2xl font-extrabold tracking-tight">Documents</h1>
                     <p className="text-sm text-muted-foreground mt-1">All matters share a dedicated folder — uploads from a matter go to its own folder automatically.</p>
                 </div>
-                <Button onClick={() => setUploadModalOpen(true)} className="rounded-xl gap-2 bg-primary shadow-sm">
+                <Button onClick={openUploadModal} className="rounded-xl gap-2 bg-primary shadow-sm">
                     <Upload className="h-4 w-4" />
                     Upload
                 </Button>
@@ -199,22 +226,17 @@ export default function DocumentsIndex({ documents, matters, filters }: Props) {
             <Dialog open={uploadModalOpen} onOpenChange={setUploadModalOpen}>
                 <DialogContent className="max-w-md">
                     <DialogHeader>
-                        <DialogTitle>Upload Document</DialogTitle>
-                        <DialogDescription>Upload a file to attach to a matter.</DialogDescription>
+                        <DialogTitle>Upload Documents</DialogTitle>
+                        <DialogDescription>Select a matter, then choose one or more files to upload.</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4">
                         <div className="space-y-2">
-                            <Label>File * <span className="text-muted-foreground font-normal">(max 20 MB)</span></Label>
-                            <Input
-                                ref={fileRef}
-                                type="file"
-                                onChange={(e) => setData('file', e.target.files?.[0] ?? null)}
-                            />
-                            {errors.file && <p className="text-xs text-destructive">{errors.file}</p>}
-                        </div>
-                        <div className="space-y-2">
                             <Label>Matter *</Label>
-                            <Select value={data.matter_id} onValueChange={(v) => setData('matter_id', v)}>
+                            <Select
+                                value={uploadMatterId}
+                                onValueChange={setUploadMatterId}
+                                disabled={uploadQueue.total > 0}
+                            >
                                 <SelectTrigger><SelectValue placeholder="Select a matter…" /></SelectTrigger>
                                 <SelectContent>
                                     {matters.map((m) => (
@@ -222,23 +244,47 @@ export default function DocumentsIndex({ documents, matters, filters }: Props) {
                                     ))}
                                 </SelectContent>
                             </Select>
-                            {errors.matter_id && <p className="text-xs text-destructive">{errors.matter_id}</p>}
                         </div>
-                        <label className="flex items-center gap-2 cursor-pointer">
+                        <label className={cn('flex items-center gap-2', uploadQueue.total > 0 ? 'cursor-not-allowed opacity-60' : 'cursor-pointer')}>
                             <input
                                 type="checkbox"
                                 className="h-4 w-4 rounded border-border accent-primary"
-                                checked={data.is_client_visible}
-                                onChange={(e) => setData('is_client_visible', e.target.checked)}
+                                checked={uploadClientVisible}
+                                disabled={uploadQueue.total > 0}
+                                onChange={(e) => setUploadClientVisible(e.target.checked)}
                             />
                             <span className="text-sm font-medium">Visible to client</span>
                         </label>
+                        <div className="space-y-2">
+                            <Label>
+                                Files * <span className="text-muted-foreground font-normal">(max 20 MB each)</span>
+                            </Label>
+                            <Input
+                                ref={fileRef}
+                                type="file"
+                                multiple
+                                disabled={!uploadMatterId}
+                                onChange={(e) => handleFilesChosen(e.target.files)}
+                            />
+                            {!uploadMatterId && (
+                                <p className="text-xs text-muted-foreground">Choose a matter first.</p>
+                            )}
+                        </div>
+
+                        <UploadQueueList
+                            items={uploadQueue.items}
+                            overallProgress={uploadQueue.overallProgress}
+                            succeeded={uploadQueue.succeeded}
+                            total={uploadQueue.total}
+                            isUploading={uploadQueue.isUploading}
+                            onRetry={uploadQueue.retry}
+                            onRemove={uploadQueue.removeItem}
+                        />
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setUploadModalOpen(false)} disabled={processing}>Cancel</Button>
-                        <Button onClick={handleUpload} disabled={processing || !data.file || !data.matter_id} className="gap-2">
-                            <Upload className="h-4 w-4" />
-                            {processing ? 'Uploading…' : 'Upload'}
+                        <Button variant="outline" onClick={() => setUploadModalOpen(false)} className="gap-2">
+                            <X className="h-4 w-4" />
+                            {uploadQueue.isUploading ? 'Upload in background' : 'Close'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

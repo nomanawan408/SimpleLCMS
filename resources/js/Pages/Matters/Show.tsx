@@ -22,6 +22,8 @@ import {
     Landmark, CalendarClock,
 } from 'lucide-react';
 import type { Matter, Expense, Document, TrustEntry, User } from '@/types';
+import { useUploadQueue } from '@/hooks/useUploadQueue';
+import { UploadQueueList } from '@/components/documents/UploadQueueList';
 
 // Mirrors the enum on expenses.category -- anything else is rejected by the
 // database, so the form offers exactly these.
@@ -261,12 +263,28 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
     });
 
     const [docModalOpen, setDocModalOpen] = useState(false);
-    const [docSaving, setDocSaving] = useState(false);
-    const [docError, setDocError] = useState<string | null>(null);
-    const [docFile, setDocFile] = useState<File | null>(null);
-    const [docFolder, setDocFolder] = useState('');
     const [docClientVisible, setDocClientVisible] = useState(false);
     const docFileRef = useRef<HTMLInputElement>(null);
+
+    // One request per file, so each gets its own live progress bar and a bad
+    // file among several fails on its own rather than blocking the rest.
+    const docUploadQueue = useUploadQueue({
+        url: '/documents',
+        buildFormData: (file) => {
+            const fd = new FormData();
+            fd.append('file', file);
+            fd.append('matter_id', matter.id);
+            fd.append('folder', matter.matter_number || matter.name);
+            fd.append('is_client_visible', docClientVisible ? '1' : '0');
+            return fd;
+        },
+        // This tab's document list is plain client state, so each file can be
+        // appended to it the moment its own upload finishes -- no need to wait
+        // for the whole batch or reload anything.
+        onItemSuccess: (document) => {
+            setDocuments((prev) => [document, ...prev]);
+        },
+    });
 
     const [viewerDoc, setViewerDoc] = useState<{ id: string; name: string; mime_type?: string } | null>(null);
 
@@ -557,49 +575,18 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
     };
 
     const openDocModal = () => {
-        setDocError(null);
-        setDocFile(null);
-        setDocFolder('');
+        docUploadQueue.clearAll();
         setDocClientVisible(false);
         if (docFileRef.current) docFileRef.current.value = '';
         setDocModalOpen(true);
     };
 
-    const saveDoc = async () => {
-        if (!docFile) { setDocError('Please select a file.'); return; }
-        setDocSaving(true);
-        setDocError(null);
-        try {
-            const token = (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement | null)?.content;
-            const fd = new FormData();
-            fd.append('file', docFile);
-            fd.append('matter_id', matter.id);
-            fd.append('folder', matter.matter_number || matter.name);
-            fd.append('is_client_visible', docClientVisible ? '1' : '0');
-
-            const res = await fetch('/documents', {
-                method: 'POST',
-                headers: {
-                    Accept: 'application/json',
-                    ...(token ? { 'X-CSRF-TOKEN': token } : {}),
-                },
-                body: fd,
-            });
-            const payload = await res.json().catch(() => null);
-            if (!res.ok) {
-                const msg = payload?.errors
-                    ? Object.values(payload.errors as Record<string, string[]>)?.[0]?.[0]
-                    : null;
-                setDocError(msg || payload?.message || 'Unable to upload document.');
-                return;
-            }
-            setDocuments((prev) => [payload.document, ...prev]);
-            setDocModalOpen(false);
-        } catch {
-            setDocError('Unable to upload document.');
-        } finally {
-            setDocSaving(false);
-        }
+    const handleDocFilesChosen = (fileList: FileList | null) => {
+        if (!fileList || fileList.length === 0) return;
+        docUploadQueue.enqueue(fileList);
+        // Otherwise choosing the exact same file(s) again fires no change
+        // event, since the input's value has not actually changed.
+        if (docFileRef.current) docFileRef.current.value = '';
     };
 
     const statusVariant: Record<string, 'default' | 'success' | 'warning' | 'destructive' | 'secondary'> = {
@@ -2049,13 +2036,20 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
             <Dialog open={docModalOpen} onOpenChange={setDocModalOpen}>
                 <DialogContent className="rounded-2xl">
                     <DialogHeader>
-                        <DialogTitle>Upload document</DialogTitle>
-                        <DialogDescription>File will be saved to this matter&apos;s folder. No need to choose a folder.</DialogDescription>
+                        <DialogTitle>Upload documents</DialogTitle>
+                        <DialogDescription>Files will be saved to this matter&apos;s folder. No need to choose a folder.</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4">
                         <div className="space-y-2">
-                            <Label className="text-sm font-medium">File * <span className="text-muted-foreground font-normal">(max 20 MB)</span></Label>
-                            <Input ref={docFileRef} type="file" onChange={(e) => setDocFile(e.target.files?.[0] ?? null)} />
+                            <Label className="text-sm font-medium">
+                                Files * <span className="text-muted-foreground font-normal">(max 20 MB each)</span>
+                            </Label>
+                            <Input
+                                ref={docFileRef}
+                                type="file"
+                                multiple
+                                onChange={(e) => handleDocFilesChosen(e.target.files)}
+                            />
                         </div>
                         <div className="rounded-xl bg-muted/20 border border-border/40 px-4 py-3 flex items-center gap-3">
                             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary shrink-0">
@@ -2067,21 +2061,30 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                 <p className="text-xs text-muted-foreground">Auto-created for this matter</p>
                             </div>
                         </div>
-                        <label className="flex items-center gap-2 cursor-pointer">
+                        <label className={cn('flex items-center gap-2', docUploadQueue.total > 0 ? 'cursor-not-allowed opacity-60' : 'cursor-pointer')}>
                             <input
                                 type="checkbox"
                                 className="h-4 w-4 rounded border-border accent-primary"
                                 checked={docClientVisible}
+                                disabled={docUploadQueue.total > 0}
                                 onChange={(e) => setDocClientVisible(e.target.checked)}
                             />
                             <span className="text-sm font-medium">Visible to client</span>
                         </label>
-                        {docError && <p className="text-sm text-destructive">{docError}</p>}
+
+                        <UploadQueueList
+                            items={docUploadQueue.items}
+                            overallProgress={docUploadQueue.overallProgress}
+                            succeeded={docUploadQueue.succeeded}
+                            total={docUploadQueue.total}
+                            isUploading={docUploadQueue.isUploading}
+                            onRetry={docUploadQueue.retry}
+                            onRemove={docUploadQueue.removeItem}
+                        />
                     </div>
                     <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => setDocModalOpen(false)} disabled={docSaving}>Cancel</Button>
-                        <Button type="button" onClick={saveDoc} disabled={docSaving || !docFile}>
-                            {docSaving ? 'Uploading…' : 'Upload'}
+                        <Button type="button" variant="outline" onClick={() => setDocModalOpen(false)}>
+                            {docUploadQueue.isUploading ? 'Upload in background' : 'Close'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
