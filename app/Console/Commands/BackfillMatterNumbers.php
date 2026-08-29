@@ -8,8 +8,8 @@ use Illuminate\Console\Command;
 
 class BackfillMatterNumbers extends Command
 {
-    protected $signature = 'matters:backfill {--start=100 : Starting suffix e.g. 100 for 00100} {--dry-run : Show what would change without saving} {--firm= : Only backfill this firm_id}';
-    protected $description = 'Backfill matter_numbers to be globally sequential per firm, starting at given suffix (default 00100). Keeps date+initials prefix.';
+    protected $signature = 'matters:backfill {--start=1000 : Starting suffix e.g. 1000 for 01000} {--dry-run : Show what would change without saving} {--firm= : Only backfill this firm_id}';
+    protected $description = 'Backfill matter_numbers to be globally sequential per firm, starting at given suffix (default 01000). Keeps date+initials prefix.';
 
     public function handle(): int
     {

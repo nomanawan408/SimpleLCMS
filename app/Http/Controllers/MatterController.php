@@ -299,8 +299,8 @@ class MatterController extends Controller
 
         // Global sequential per firm — suffix must progress across all matters,
         // not reset per date+initials (bug: every new client/day got 00001).
-        // Requirement: sequence starts at 00100. Use MAX suffix so jumping to
-        // 00100 for existing data is respected and soft-deleted numbers are still
+        // Requirement: sequence starts at 01000. Use MAX suffix so jumping to
+        // 01000 for existing data is respected and soft-deleted numbers are still
         // reserved.
         $maxSuffix = Matter::where('firm_id', $firmId)
             ->withTrashed()
@@ -309,7 +309,7 @@ class MatterController extends Controller
             ->filter(fn ($n) => $n > 0)
             ->max();
 
-        $serial = max(100, ($maxSuffix ?? 99) + 1);
+        $serial = max(1000, ($maxSuffix ?? 999) + 1);
 
         $candidate = $prefix . '-' . str_pad($serial, 5, '0', STR_PAD_LEFT);
         while (Matter::where('firm_id', $firmId)->withTrashed()->where('matter_number', $candidate)->exists()) {
