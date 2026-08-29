@@ -2,6 +2,7 @@ import * as React from 'react';
 import { Command as CommandPrimitive } from 'cmdk';
 import { Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 const Command = React.forwardRef<
     React.ElementRef<typeof CommandPrimitive>,
@@ -85,4 +86,47 @@ const CommandItem = React.forwardRef<
 ));
 CommandItem.displayName = CommandPrimitive.Item.displayName;
 
-export { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem };
+interface CommandDialogProps {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    children: React.ReactNode;
+}
+
+/**
+ * The full-screen-overlay variant of Command, used for a command palette
+ * (the header's global search) rather than an inline list. No visible
+ * title/description -- the search input itself is the entry point, and a
+ * screen-reader-only label keeps the dialog accessible without adding a
+ * redundant heading on top of it.
+ */
+function CommandDialog({ open, onOpenChange, children }: CommandDialogProps) {
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="max-w-xl gap-0 overflow-hidden p-0 shadow-2xl [&>button]:hidden">
+                {/* Radix requires a real DialogTitle for screen readers; the
+                    search input is the actual entry point, so the heading
+                    itself stays visually hidden. */}
+                <DialogHeader className="sr-only">
+                    <DialogTitle>Search</DialogTitle>
+                    <DialogDescription>Search matters, contacts, documents, invoices and tasks.</DialogDescription>
+                </DialogHeader>
+                {/* shouldFilter=false: cmdk otherwise filters every item
+                    itself, matching each CommandItem's `value` against the
+                    typed text using its own fuzzy scorer. A command palette
+                    doing server-side search must disable that -- results are
+                    already the matches, and here `value` is a `category-id`
+                    key rather than the item's title, so cmdk's own filter
+                    would find no match and hide everything regardless of
+                    what was actually returned. */}
+                <Command
+                    shouldFilter={false}
+                    className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium"
+                >
+                    {children}
+                </Command>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+export { Command, CommandDialog, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem };

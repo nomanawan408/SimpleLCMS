@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, router, usePage } from '@inertiajs/react';
 import {
     LayoutDashboard, Briefcase, Users, FileText, Clock, Receipt,
@@ -8,6 +8,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { GlobalSearch } from '@/components/GlobalSearch';
 import { cn, initials } from '@/lib/utils';
 import type { PageProps } from '@/types';
 
@@ -61,8 +62,23 @@ export default function AppLayout({ children, title }: AppLayoutProps) {
     const { auth, flash } = usePage<PageProps>().props;
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({});
+    const [searchOpen, setSearchOpen] = useState(false);
     const { url } = usePage();
     const user = auth.user!;
+
+    // Cmd+K on Mac, Ctrl+K elsewhere -- the standard shortcut for "open
+    // search" (Linear, GitHub, Notion, Stripe all use it), available from
+    // anywhere in the app, not just when the button itself is focused.
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+                e.preventDefault();
+                setSearchOpen((prev) => !prev);
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, []);
 
     const isSuperAdmin = user.roles?.includes('super_admin') ?? false;
     const isFirmAdmin = user.roles?.includes('firm_admin') ?? false;
@@ -273,9 +289,18 @@ isActive(item) ? 'text-white' : 'text-white/80 group-hover:text-white'
                     </div>
 
                     <div className="flex items-center gap-3">
-                        <Button variant="outline" size="sm" pill className="hidden gap-2 md:inline-flex">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            pill
+                            className="hidden gap-2 md:inline-flex"
+                            onClick={() => setSearchOpen(true)}
+                        >
                             <Search className="h-4 w-4" />
                             Search
+                            <kbd className="ml-1 rounded border border-border/60 bg-muted px-1.5 py-0.5 text-[0.65rem] font-medium text-muted-foreground">
+                                {typeof navigator !== 'undefined' && navigator.platform?.toUpperCase().includes('MAC') ? '⌘K' : 'Ctrl K'}
+                            </kbd>
                         </Button>
                         <Button variant="ghost" size="icon" className="h-9 w-9 relative text-muted-foreground">
                             <Bell className="h-5 w-5" />
@@ -320,6 +345,8 @@ isActive(item) ? 'text-white' : 'text-white/80 group-hover:text-white'
                     </div>
                 </main>
             </div>
+
+            <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />
         </div>
     );
 }

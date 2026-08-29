@@ -20,6 +20,7 @@ use App\Http\Controllers\MatterController;
 use App\Http\Controllers\MatterNoteController;
 use App\Http\Controllers\MatterTimeEntryController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\SearchController;
 use App\Http\Controllers\FirmSetupController;
 use App\Http\Controllers\SuperAdmin\DashboardController as SuperAdminDashboardController;
 use App\Http\Controllers\SuperAdmin\FirmController as SuperAdminFirmController;
@@ -193,6 +194,9 @@ Route::middleware(['auth', 'verified', 'set.tenant', 'requires.two.factor', 'red
 
     // Reports
     Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
+
+    // Global search (the header's command palette)
+    Route::get('/search', [SearchController::class, 'index'])->name('search');
 
     // Admin
     Route::middleware('can:admin-panel')->prefix('admin')->name('admin.')->group(function () {
