@@ -289,4 +289,5 @@ export interface PageProps {
         defaults: Record<string, unknown>;
         routes: Record<string, unknown>;
     };
+    unreadNotificationsCount: number;
 }

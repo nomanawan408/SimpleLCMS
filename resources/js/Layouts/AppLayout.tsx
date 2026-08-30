@@ -2,13 +2,14 @@ import { useEffect, useState } from 'react';
 import { Link, router, usePage } from '@inertiajs/react';
 import {
     LayoutDashboard, Briefcase, Users, FileText, Clock, Receipt,
-    Calendar, CheckSquare, LogOut, Menu, Bell, Search, Radio, ChevronDown,
+    Calendar, CheckSquare, LogOut, Menu, Search, Radio, ChevronDown,
     Building2, Shield, Activity, BarChart2, Landmark, CreditCard, Database,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { GlobalSearch } from '@/components/GlobalSearch';
+import { NotificationBell } from '@/components/NotificationBell';
 import { cn, initials } from '@/lib/utils';
 import type { PageProps } from '@/types';
 
@@ -302,9 +303,7 @@ isActive(item) ? 'text-white' : 'text-white/80 group-hover:text-white'
                                 {typeof navigator !== 'undefined' && navigator.platform?.toUpperCase().includes('MAC') ? '⌘K' : 'Ctrl K'}
                             </kbd>
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-9 w-9 relative text-muted-foreground">
-                            <Bell className="h-5 w-5" />
-                        </Button>
+                        <NotificationBell />
                         <div className="flex items-center gap-2 rounded-md border border-border/60 bg-background px-2.5 py-2 text-sm">
                             <Avatar className="h-9 w-9">
                                 <AvatarImage src={user.avatar_url ?? undefined} />

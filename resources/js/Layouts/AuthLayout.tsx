@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { usePage } from '@inertiajs/react';
 import type { PageProps } from '@/types';
 
@@ -15,6 +16,13 @@ interface AuthLayoutProps {
 
 export default function AuthLayout({ children, title, description, split = false, brandHeadline, brandSubheadline }: AuthLayoutProps) {
     const { flash } = usePage<PageProps>().props;
+    const slides = ['/assets/legal1.jpg', '/assets/legal2.jpg', '/assets/legal3.jpg'];
+    const [slide, setSlide] = useState(0);
+    useEffect(() => {
+        if (!split) return;
+        const id = setInterval(() => setSlide((s) => (s + 1) % slides.length), 4000);
+        return () => clearInterval(id);
+    }, [split]);
 
     const logo = (
         <div className="flex items-center gap-3">
@@ -54,39 +62,67 @@ export default function AuthLayout({ children, title, description, split = false
     if (split) {
         return (
             <div className="relative flex min-h-screen overflow-hidden bg-background">
-                {/* Left branding panel */}
-                <div className="relative hidden w-1/2 flex-col items-center justify-center overflow-hidden bg-gradient-to-br from-brand-900 via-brand-700 to-brand-500 p-12 text-white lg:flex">
-                    <div className="pointer-events-none absolute inset-0">
-                        <div className="absolute -top-24 -left-24 h-[420px] w-[420px] rounded-full bg-white/[0.08] blur-3xl" />
-                        <div className="absolute -bottom-32 -right-24 h-[420px] w-[420px] rounded-full bg-white/[0.06] blur-3xl" />
-                        <div className="absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.06)_1px,transparent_1px)] [background-size:24px_24px]" />
+                {/* Left branding panel — solicitor / law office slideshow - images prominent */}
+                <div className="relative hidden w-1/2 flex-col overflow-hidden bg-slate-900 lg:flex">
+                    {/* Slideshow — legal1/2/3.jpg - fully visible */}
+                    <div className="absolute inset-0">
+                        {slides.map((src, i) => (
+                            <img
+                                key={src}
+                                src={src}
+                                alt={`Legal ${i + 1}`}
+                                className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${i === slide ? 'opacity-100' : 'opacity-0'}`}
+                            />
+                        ))}
+                    </div>
+                    {/* Light gradient only at bottom for text legibility - image stays bright */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-black/20" />
+
+                    {/* Top bar with logo — kept in original colors */}
+                    <div className="relative z-10 flex w-full px-8 pt-8">
+                        <div className="flex items-center gap-3 rounded-xl bg-white/90 px-4 py-2 shadow-lg backdrop-blur ring-1 ring-black/5">
+                            <img src="/assets/simplelaw-mark-transparent.svg" alt="Simple Lawyer" className="h-8 w-8 object-contain" />
+                            <span className="text-lg font-bold tracking-tight text-slate-900">Simple Lawyer</span>
+                        </div>
                     </div>
 
-                    <div className="relative z-10 mx-auto max-w-md text-center">
-                        <div className="mb-8 flex justify-center">
-                            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25 backdrop-blur-sm">
-                                <span className="text-lg font-bold text-white">LD</span>
+                    {/* Bottom glass card - text prominent but image still visible behind */}
+                    <div className="relative z-10 mt-auto p-8">
+                        <div className="rounded-2xl bg-white/10 p-6 backdrop-blur-md ring-1 ring-white/20">
+                            <h2 className="text-2xl font-bold tracking-tight text-white drop-shadow">
+                                {brandHeadline ?? 'Trusted by Solicitors & Law Firms'}
+                            </h2>
+                            <p className="mt-2 text-sm leading-relaxed text-white/90">
+                                {brandSubheadline ?? 'Your practice, organised — cases, clients, billing and time tracking in one secure place.'}
+                            </p>
+                            <div className="mt-5 grid grid-cols-3 gap-3 text-center">
+                                <div className="rounded-xl bg-white/10 py-3 backdrop-blur">
+                                    <p className="text-xl font-bold text-white">500+</p>
+                                    <p className="text-xs text-white/70">Firms</p>
+                                </div>
+                                <div className="rounded-xl bg-white/10 py-3 backdrop-blur">
+                                    <p className="text-xl font-bold text-white">24/7</p>
+                                    <p className="text-xs text-white/70">Support</p>
+                                </div>
+                                <div className="rounded-xl bg-white/10 py-3 backdrop-blur">
+                                    <p className="text-xl font-bold text-white">SOC 2</p>
+                                    <p className="text-xs text-white/70">Secure</p>
+                                </div>
                             </div>
                         </div>
-                        <h2 className="text-3xl font-bold tracking-tight">
-                            {brandHeadline ?? 'Manage your practice with confidence'}
-                        </h2>
-                        <p className="mt-4 text-sm text-white/80">
-                            {brandSubheadline ?? 'Streamline cases, contacts, billing, and time tracking in one place.'}
-                        </p>
-
-                        <div className="mt-10 grid grid-cols-3 gap-4 text-center">
-                            <div>
-                                <p className="text-2xl font-bold">500+</p>
-                                <p className="text-xs text-white/70">Firms</p>
-                            </div>
-                            <div>
-                                <p className="text-2xl font-bold">24/7</p>
-                                <p className="text-xs text-white/70">Support</p>
-                            </div>
-                            <div>
-                                <p className="text-2xl font-bold">SOC 2</p>
-                                <p className="text-xs text-white/70">Secure</p>
+                        {/* Slideshow dots + caption */}
+                        <div className="mt-4 flex items-center justify-between">
+                            <p className="text-xs text-white/60">Images {slide + 1} / {slides.length} · Professional legal environment</p>
+                            <div className="flex gap-1.5">
+                                {slides.map((_, i) => (
+                                    <button
+                                        key={i}
+                                        onClick={() => setSlide(i)}
+                                        aria-label={`Go to slide ${i + 1}`}
+                                        className={`h-1.5 rounded-full transition-all ${i === slide ? 'w-6 bg-white' : 'w-2 bg-white/50 hover:bg-white/80'}`}
+                                    />
+                                ))}
                             </div>
                         </div>
                     </div>

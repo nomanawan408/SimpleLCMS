@@ -19,6 +19,39 @@ export function formatDate(date: string | null | undefined, opts?: Intl.DateTime
     }).format(new Date(date));
 }
 
+/** "3 hours ago", "2 days ago" -- for notifications and activity feeds, where the exact timestamp matters less than roughly how stale it is. */
+export function formatRelativeTime(date: string | null | undefined): string {
+    if (!date) return '—';
+
+    const seconds = Math.max(0, (Date.now() - new Date(date).getTime()) / 1000);
+
+    const steps: [number, string][] = [
+        [60, 'second'],
+        [60, 'minute'],
+        [24, 'hour'],
+        [7, 'day'],
+        [4.345, 'week'],
+        [12, 'month'],
+        [Infinity, 'year'],
+    ];
+
+    let value = seconds;
+    let unit = 'second';
+    for (const [divisor, label] of steps) {
+        if (value < divisor) {
+            unit = label;
+            break;
+        }
+        value /= divisor;
+        unit = label;
+    }
+
+    const rounded = Math.floor(value);
+    if (unit === 'second' && rounded < 10) return 'just now';
+
+    return `${rounded} ${unit}${rounded === 1 ? '' : 's'} ago`;
+}
+
 export function formatDuration(minutes: number): string {
     const h = Math.floor(minutes / 60);
     const m = minutes % 60;

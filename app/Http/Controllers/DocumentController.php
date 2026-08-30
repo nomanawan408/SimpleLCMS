@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Document;
 use App\Models\Matter;
+use App\Models\User;
+use App\Notifications\DocumentUploadedNotification;
 use App\Support\DocumentMediaType;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -95,6 +97,13 @@ class DocumentController extends Controller
         ]);
 
         activity()->causedBy($request->user())->performedOn($document)->log('uploaded');
+
+        // Tell the matter's own solicitor, unless they are the one who just
+        // uploaded it -- you do not need telling about your own upload.
+        if ($matter->responsible_user_id && $matter->responsible_user_id !== $request->user()->id) {
+            $responsibleUser = User::where('id', $matter->responsible_user_id)->where('firm_id', $firmId)->first();
+            $responsibleUser?->notify(new DocumentUploadedNotification($document, $request->user()));
+        }
 
         $document->load(['matter', 'uploadedBy']);
 

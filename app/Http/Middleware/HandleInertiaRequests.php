@@ -45,6 +45,11 @@ class HandleInertiaRequests extends Middleware
                 'error'   => session('error'),
                 'warning' => session('warning'),
             ],
+            // A cheap single COUNT so the bell's badge is correct on every
+            // page load without an extra request. The bell itself still
+            // polls the /notifications/recent endpoint separately to catch
+            // anything that arrives while a page is sitting open.
+            'unreadNotificationsCount' => $user ? $user->unreadNotifications()->count() : 0,
             'ziggy' => fn () => [
                 ...(new Ziggy)->toArray(),
                 'location' => $request->url(),

@@ -20,6 +20,7 @@ use App\Http\Controllers\MatterController;
 use App\Http\Controllers\MatterNoteController;
 use App\Http\Controllers\MatterTimeEntryController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\FirmSetupController;
 use App\Http\Controllers\SuperAdmin\DashboardController as SuperAdminDashboardController;
@@ -197,6 +198,12 @@ Route::middleware(['auth', 'verified', 'set.tenant', 'requires.two.factor', 'red
 
     // Global search (the header's command palette)
     Route::get('/search', [SearchController::class, 'index'])->name('search');
+
+    // Notifications (the header's bell)
+    Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::get('/notifications/recent', [NotificationController::class, 'recent'])->name('notifications.recent');
+    Route::post('/notifications/{notification}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
+    Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.read-all');
 
     // Admin
     Route::middleware('can:admin-panel')->prefix('admin')->name('admin.')->group(function () {

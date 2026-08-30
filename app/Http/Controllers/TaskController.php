@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Matter;
 use App\Models\Task;
 use App\Models\User;
+use App\Notifications\TaskAssignedNotification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -87,6 +88,8 @@ class TaskController extends Controller
 
         activity()->causedBy($request->user())->performedOn($task)->log('created');
 
+        $this->notifyNewAssignee($task, $task->assignee_id, $request->user());
+
         if ($request->expectsJson()) {
             return response()->json(['task' => $task->load(['matter', 'assignee'])]);
         }
@@ -120,9 +123,15 @@ class TaskController extends Controller
             $validated['completed_at'] = null;
         }
 
+        $previousAssigneeId = $task->assignee_id;
+
         $task->update($validated);
 
         activity()->causedBy($request->user())->performedOn($task)->log('updated');
+
+        if (array_key_exists('assignee_id', $validated) && $validated['assignee_id'] !== $previousAssigneeId) {
+            $this->notifyNewAssignee($task, $validated['assignee_id'], $request->user());
+        }
 
         if ($request->expectsJson()) {
             return response()->json(['task' => $task->load(['matter', 'assignee'])]);
@@ -148,5 +157,20 @@ class TaskController extends Controller
         }
 
         return back()->with('success', 'Task deleted.');
+    }
+
+    /**
+     * Notifies whoever a task was just assigned to -- never the person doing
+     * the assigning, since you do not need telling you just did something.
+     */
+    private function notifyNewAssignee(Task $task, ?string $assigneeId, User $actor): void
+    {
+        if (! $assigneeId || $assigneeId === $actor->id) {
+            return;
+        }
+
+        $assignee = User::where('id', $assigneeId)->where('firm_id', $actor->firm_id)->first();
+
+        $assignee?->notify(new TaskAssignedNotification($task, $actor));
     }
 }

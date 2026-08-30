@@ -199,7 +199,7 @@ export default function Dashboard({ stats, viewFinancial, recentMatters, upcomin
                             <div className="divide-y divide-border/60">
                                 {upcomingTasks.map((task) => (
                                     <div key={task.id} className="flex items-center gap-3 px-5 py-4">
-                                        <span className={`h-2 w-2 shrink-0 rounded-full ${task.priority === 'high' ? 'bg-primary' : task.priority === 'medium' ? 'bg-warning' : 'bg-accent'}`} />
+                                        <span className={`h-2 w-2 shrink-0 rounded-full ${task.priority === 'high' ? 'bg-destructive' : task.priority === 'medium' ? 'bg-warning' : 'bg-muted-foreground/40'}`} />
                                         <div className="min-w-0 flex-1">
                                             <p className="truncate text-sm font-medium">{task.title}</p>
                                             <p className="mt-1 truncate text-xs text-muted-foreground">{task.due_date ? `Due ${formatDate(task.due_date)}` : 'No due date'}{task.assignee && ` · ${task.assignee.full_name}`}</p>

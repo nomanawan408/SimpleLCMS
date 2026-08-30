@@ -151,8 +151,8 @@ export default function DocumentsIndex({ documents, matters, filters }: Props) {
                                     {documents.data.map((doc) => (
                                         <TableRow key={doc.id}>
                                             <TableCell>
-                                                <p className="text-sm font-semibold text-foreground">{doc.name}</p>
-                                                <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-base font-medium mt-1 ${visibilityBadgeStyles[doc.is_client_visible ? 'success' : 'secondary']}`}>
+                                                <p className="text-sm font-medium text-foreground truncate max-w-[280px]">{doc.name}</p>
+                                                <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium mt-1 ${visibilityBadgeStyles[doc.is_client_visible ? 'success' : 'secondary']}`}>
                                                     {doc.is_client_visible ? 'Client visible' : 'Internal'}
                                                 </span>
                                             </TableCell>
