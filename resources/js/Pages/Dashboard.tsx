@@ -70,7 +70,7 @@ function KpiCard({ kpi }: { kpi: KpiCard }) {
         primary: 'bg-white text-brand-500',
         ink: 'bg-white text-brand-900',
         violet: 'bg-white text-accent',
-        warning: 'bg-brand-500 text-white',
+        warning: 'bg-destructive text-white',
     }[kpi.tone];
 
     return (
@@ -81,9 +81,19 @@ function KpiCard({ kpi }: { kpi: KpiCard }) {
                         <p className={`text-xs font-semibold tracking-tight ${kpi.tone === 'warning' ? 'text-muted-foreground' : 'text-white'}`}>
                             {kpi.label}
                         </p>
-                        <span className={`rounded-xl p-2 ${iconStyles}`}>
-                            <kpi.icon className="h-4 w-4" />
-                        </span>
+                        {kpi.tone === 'warning' ? (
+                            <span className="flex h-9 w-9 items-center justify-center shrink-0 rounded-xl bg-white">
+                                <svg viewBox="0 0 24 24" className="h-7 w-7 shrink-0" aria-hidden="true">
+                                    <path d="M12 3.5 L21.2 20.5 H2.8 Z" fill="white" stroke="#DC2626" strokeWidth="1.8" strokeLinejoin="round" />
+                                    <path d="M12 8.5 v6" stroke="black" strokeWidth="2.2" strokeLinecap="round" />
+                                    <circle cx="12" cy="17.2" r="1.4" fill="black" />
+                                </svg>
+                            </span>
+                        ) : (
+                            <span className={`rounded-xl p-2 ${iconStyles}`}>
+                                <kpi.icon className="h-4 w-4" />
+                            </span>
+                        )}
                     </div>
                     <p className="text-2xl font-semibold leading-none tracking-[-0.04em] tabular-nums">{kpi.value}</p>
                 </CardContent>
@@ -103,7 +113,15 @@ function SectionHeading({ title, href, action }: { title: string; href: string; 
     );
 }
 
+function getGreeting(): string {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good morning';
+    if (hour < 18) return 'Good afternoon';
+    return 'Good evening';
+}
+
 export default function Dashboard({ stats, viewFinancial, recentMatters, upcomingTasks }: Props) {
+    const greeting = getGreeting();
     const kpis: KpiCard[] = [
         { label: 'Hours Today', value: `${stats.hours_today}h`, href: '/time', icon: Clock, tone: 'primary' },
         { label: 'Open Matters', value: String(stats.open_matters), href: '/matters', icon: Briefcase, tone: 'primary' },
@@ -118,7 +136,7 @@ export default function Dashboard({ stats, viewFinancial, recentMatters, upcomin
             <div className="mb-6 flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
                 <div>
                     <p className="mb-1 text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">Workspace overview</p>
-                    <h2 className="text-2xl font-semibold tracking-[-0.04em] text-foreground">Good morning</h2>
+                    <h2 className="text-2xl font-semibold tracking-[-0.04em] text-foreground">{greeting}</h2>
                 </div>
                 <Button asChild className="h-10 rounded-xl px-4 shadow-none">
                     <Link href="/matters/create"><Plus className="mr-2 h-4 w-4" />New matter</Link>

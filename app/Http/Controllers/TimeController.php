@@ -103,6 +103,27 @@ class TimeController extends Controller
             }
         }
 
+        // Reverse backfill: session lost (cookie cleared, device switch,
+        // server restart) but DB row still exists → restore session so the
+        // checkout button is correctly active and elapsed keeps counting.
+        if (!$activeTimer) {
+            $dbSession = TimeSession::where('user_id', $user->id)->first();
+            if ($dbSession) {
+                $activeTimer = [
+                    'matter_id'            => $dbSession->matter_id,
+                    'matter_name'          => $dbSession->matter_name,
+                    'matter_number'        => $dbSession->matter_number,
+                    'started_at'           => $dbSession->started_at->toIso8601String(),
+                    'activity_type'        => $dbSession->activity_type,
+                    'description'          => $dbSession->description ?? '',
+                    'paused_at'            => $dbSession->paused_at?->toIso8601String(),
+                    'total_paused_seconds' => (int) $dbSession->total_paused_seconds,
+                    'rate'                 => (float) $dbSession->rate,
+                ];
+                session([$timerKey => $activeTimer]);
+            }
+        }
+
         return Inertia::render('Time/Index', [
             'entries'     => $entries,
             'stats'       => $stats,
@@ -228,7 +249,12 @@ class TimeController extends Controller
         $user = $request->user();
         $key  = 'active_timer_' . $user->id;
 
-        if (session($key)) {
+        // Authoritative check: either PHP session OR durable DB row means "already checked in"
+        if (session($key) || TimeSession::where('user_id', $user->id)->exists()) {
+            // If DB exists but session was lost, restore session so client can checkout
+            if (!session($key)) {
+                $this->restoreSessionFromDb($user);
+            }
             return response()->json(['error' => 'Already checked in. Check out first.'], 409);
         }
 
@@ -287,6 +313,13 @@ class TimeController extends Controller
         $user = $request->user();
         $key  = 'active_timer_' . $user->id;
         $sess = session($key);
+
+        // Session affinity fix: if PHP session is gone but DB row remains
+        // (cookie cleared, device switch, server restart, forgotten overnight),
+        // hydrate the session from the DB so checkout still works.
+        if (!$sess) {
+            $sess = $this->restoreSessionFromDb($user);
+        }
 
         if (!$sess) {
             if ($request->expectsJson()) {
@@ -355,11 +388,12 @@ class TimeController extends Controller
 
     public function discardSession(Request $request): JsonResponse
     {
-        $key = 'active_timer_' . $request->user()->id;
-        $sess = session($key);
+        $key  = 'active_timer_' . $request->user()->id;
+        $sess = session($key) ?? $this->restoreSessionFromDb($request->user());
+        $dbExists = TimeSession::where('user_id', $request->user()->id)->exists();
 
-        if ($sess) {
-            activity()->causedBy($request->user())->log('session_discarded:' . ($sess['matter_name'] ?? 'unknown'));
+        if ($sess || $dbExists) {
+            activity()->causedBy($request->user())->log('session_discarded:' . ($sess['matter_name'] ?? $sess['matter_number'] ?? 'unknown'));
             session()->forget($key);
             TimeSession::where('user_id', $request->user()->id)->delete();
         }
@@ -371,6 +405,10 @@ class TimeController extends Controller
     {
         $key  = 'active_timer_' . $request->user()->id;
         $sess = session($key);
+
+        if (!$sess) {
+            $sess = $this->restoreSessionFromDb($request->user());
+        }
 
         if (!$sess) {
             return response()->json(['error' => 'No active session.'], 404);
@@ -395,6 +433,10 @@ class TimeController extends Controller
     {
         $key  = 'active_timer_' . $request->user()->id;
         $sess = session($key);
+
+        if (!$sess) {
+            $sess = $this->restoreSessionFromDb($request->user());
+        }
 
         if (!$sess) {
             return response()->json(['error' => 'No active session.'], 404);
@@ -464,6 +506,10 @@ class TimeController extends Controller
     {
         $key   = 'active_timer_' . $request->user()->id;
         $timer = session($key);
+
+        if (!$timer) {
+            $timer = $this->restoreSessionFromDb($request->user());
+        }
 
         if (!$timer) {
             return response()->json(['error' => 'No active timer.'], 404);
@@ -645,5 +691,34 @@ class TimeController extends Controller
 
         return redirect()->route('billing.show', $invoiceId)
             ->with('success', 'Invoice created. Time entries marked as billed.');
+    }
+
+    /**
+     * Restore an active timer from the durable DB row when the ephemeral
+     * PHP session has been lost (cookie cleared, device switch, server
+     * restart, session expiry). This is the root fix for "checkout button
+     * inactive while timer keeps counting" on production.
+     *
+     * @return array|null Restored session array or null if no DB row
+     */
+    private function restoreSessionFromDb(\App\Models\User $user): ?array
+    {
+        $db = TimeSession::where('user_id', $user->id)->first();
+        if (!$db) return null;
+
+        $key = 'active_timer_' . $user->id;
+        $sess = [
+            'matter_id'            => $db->matter_id,
+            'matter_name'          => $db->matter_name,
+            'matter_number'        => $db->matter_number,
+            'started_at'           => $db->started_at->toIso8601String(),
+            'activity_type'        => $db->activity_type,
+            'description'          => $db->description ?? '',
+            'paused_at'            => $db->paused_at?->toIso8601String(),
+            'total_paused_seconds' => (int) $db->total_paused_seconds,
+            'rate'                 => (float) $db->rate,
+        ];
+        session([$key => $sess]);
+        return $sess;
     }
 }

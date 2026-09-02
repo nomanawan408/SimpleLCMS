@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Head, router } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -43,55 +43,41 @@ export default function ReportsIndex({ financialSummary, timeByUser, mattersByPr
     const [practiceArea, setPracticeArea] = useState(filters.practice_area ?? 'all');
     const [status, setStatus] = useState(filters.status ?? 'all');
 
-    const applyFilters = () => {
-        const params: Record<string, string | undefined> = {
-            tab,
-            timeframe: timeframe !== 'all' ? timeframe : undefined,
-            date_from: timeframe === 'custom' && dateFrom ? dateFrom : undefined,
-            date_to: timeframe === 'custom' && dateTo ? dateTo : undefined,
-            matter_id: matterId !== 'all' ? matterId : undefined,
-            user_id: userId !== 'all' ? userId : undefined,
-            practice_area: practiceArea !== 'all' ? practiceArea : undefined,
-            status: status !== 'all' ? status : undefined,
-        };
-        router.get('/reports', params as any, { preserveState: true, replace: true });
+    const isFirstRun = useRef(true);
+
+    const buildParams = (overrides: Partial<{ tab: string; timeframe: string; dateFrom: string; dateTo: string; matterId: string; userId: string; practiceArea: string; status: string }> = {}) => {
+        const _tab = overrides.tab ?? tab;
+        const _timeframe = overrides.timeframe ?? timeframe;
+        const _dateFrom = overrides.dateFrom ?? dateFrom;
+        const _dateTo = overrides.dateTo ?? dateTo;
+        const _matterId = overrides.matterId ?? matterId;
+        const _userId = overrides.userId ?? userId;
+        const _practiceArea = overrides.practiceArea ?? practiceArea;
+        const _status = overrides.status ?? status;
+        return {
+            tab: _tab,
+            timeframe: _timeframe !== 'all' ? _timeframe : undefined,
+            date_from: _timeframe === 'custom' && _dateFrom ? _dateFrom : undefined,
+            date_to: _timeframe === 'custom' && _dateTo ? _dateTo : undefined,
+            matter_id: _matterId !== 'all' ? _matterId : undefined,
+            user_id: _userId !== 'all' ? _userId : undefined,
+            practice_area: _practiceArea !== 'all' ? _practiceArea : undefined,
+            status: _status !== 'all' ? _status : undefined,
+        } as Record<string, string | undefined>;
     };
 
+    // Instant dynamic filtering — any filter change pushes new query without clicking Apply
     useEffect(() => {
-        // Auto-apply when tab changes
-        const params: Record<string, string | undefined> = {
-            tab,
-            timeframe: timeframe !== 'all' ? timeframe : undefined,
-            date_from: timeframe === 'custom' && dateFrom ? dateFrom : undefined,
-            date_to: timeframe === 'custom' && dateTo ? dateTo : undefined,
-            matter_id: matterId !== 'all' ? matterId : undefined,
-            user_id: userId !== 'all' ? userId : undefined,
-            practice_area: practiceArea !== 'all' ? practiceArea : undefined,
-            status: status !== 'all' ? status : undefined,
-        };
-        // Only auto-apply tab switch without other filters changing? Keep explicit Apply for filters; but tab switch should keep filters
-        // We handle via manual apply; tapping tab triggers history
-        // eslint-disable-next-line
-    }, [tab]);
+        if (isFirstRun.current) { isFirstRun.current = false; return; }
+        router.get('/reports', buildParams() as any, { preserveState: true, replace: true });
+    }, [tab, timeframe, dateFrom, dateTo, matterId, userId, practiceArea, status]);
 
     const handleTabSwitch = (newTab: string) => {
         setTab(newTab);
-        const params: Record<string, string | undefined> = {
-            tab: newTab,
-            timeframe: timeframe !== 'all' ? timeframe : undefined,
-            date_from: timeframe === 'custom' && dateFrom ? dateFrom : undefined,
-            date_to: timeframe === 'custom' && dateTo ? dateTo : undefined,
-            matter_id: matterId !== 'all' ? matterId : undefined,
-            user_id: userId !== 'all' ? userId : undefined,
-            practice_area: practiceArea !== 'all' ? practiceArea : undefined,
-            status: status !== 'all' ? status : undefined,
-        };
-        router.get('/reports', params as any, { preserveState: true, replace: true });
     };
 
     const clearFilters = () => {
         setTimeframe('all'); setDateFrom(''); setDateTo(''); setMatterId('all'); setUserId('all'); setPracticeArea('all'); setStatus('all');
-        router.get('/reports', { tab } as any, { preserveState: true, replace: true });
     };
 
     const hasActiveFilters = timeframe !== 'all' || matterId !== 'all' || userId !== 'all' || practiceArea !== 'all' || status !== 'all';
@@ -154,7 +140,6 @@ export default function ReportsIndex({ financialSummary, timeByUser, mattersByPr
                             )}
                         </div>
                         <div className="flex gap-2 shrink-0">
-                            <Button onClick={applyFilters} size="sm" className="gap-1.5"><Filter className="h-3.5 w-3.5" /> Apply</Button>
                             <Button variant="ghost" onClick={clearFilters} disabled={!hasActiveFilters} className="h-9 rounded-xl gap-1 disabled:opacity-40"><X className="h-3.5 w-3.5" /> Clear</Button>
                         </div>
                     </div>

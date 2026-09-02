@@ -259,7 +259,7 @@ isActive(item) ? 'text-white' : 'text-white/80 group-hover:text-white'
     );
 
     return (
-        <div className="flex h-screen overflow-hidden bg-background">
+        <div className="flex h-screen h-[100dvh] overflow-hidden bg-background">
             {/* Desktop sidebar - ink surface with a warm accent at the base */}
             <aside className="hidden shrink-0 overflow-hidden lg:flex lg:w-64 lg:flex-col" style={{background: '#0F172A', borderRight: '1px solid #1E293B'}}>
                 <SidebarContent />
@@ -276,16 +276,16 @@ isActive(item) ? 'text-white' : 'text-white/80 group-hover:text-white'
             )}
 
             {/* Main content */}
-            <div className="flex flex-1 flex-col overflow-hidden">
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
                 {/* Topbar */}
-                <header className="flex h-[80px] items-center justify-between border-b border-border/70 bg-card px-5 lg:px-8 shrink-0">
+                <header className="flex h-[64px] lg:h-[72px] items-center justify-between border-b border-border/70 bg-card px-5 lg:px-8 shrink-0">
                     <div className="flex items-center gap-4">
                         <Button variant="ghost" size="icon" className="lg:hidden h-10 w-10" onClick={() => setSidebarOpen(true)}
                         >
                             <Menu className="h-6 w-6" />
                         </Button>
                         {title && (
-                            <h1 className="text-3xl font-semibold tracking-[-0.04em] text-foreground">{title}</h1>
+                            <h1 className="text-xl lg:text-2xl font-bold tracking-tight text-foreground leading-tight truncate max-w-[42rem]" title={title}>{title}</h1>
                         )}
                     </div>
 
@@ -299,9 +299,6 @@ isActive(item) ? 'text-white' : 'text-white/80 group-hover:text-white'
                         >
                             <Search className="h-4 w-4" />
                             Search
-                            <kbd className="ml-1 rounded border border-border/60 bg-muted px-1.5 py-0.5 text-[0.65rem] font-medium text-muted-foreground">
-                                {typeof navigator !== 'undefined' && navigator.platform?.toUpperCase().includes('MAC') ? '⌘K' : 'Ctrl K'}
-                            </kbd>
                         </Button>
                         <NotificationBell />
                         <div className="flex items-center gap-2 rounded-md border border-border/60 bg-background px-2.5 py-2 text-sm">
@@ -338,7 +335,7 @@ isActive(item) ? 'text-white' : 'text-white/80 group-hover:text-white'
                 )}
 
                 {/* Page content */}
-                <main className="flex-1 overflow-y-auto bg-background p-5 lg:p-10">
+                <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-background p-5 lg:p-10">
                     <div className="mx-auto w-full max-w-7xl">
                         {children}
                     </div>

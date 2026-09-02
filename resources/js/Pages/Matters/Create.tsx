@@ -515,7 +515,7 @@ export default function CreateMatter({ users, contacts, prefill_contact_id, view
                                     <Link href="/matters">Cancel</Link>
                                 </Button>
                                 <Button type="submit" disabled={processing}>
-                                    {processing ? 'Opening…' : 'Open matter'}
+                                    {processing ? 'Creating…' : 'Create matter'}
                                 </Button>
                             </div>
                         </form>

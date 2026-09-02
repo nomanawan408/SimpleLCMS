@@ -93,9 +93,9 @@ export const MATTER_PRIORITY_LABELS: Record<string, string> = {
 };
 
 export const MATTER_PRIORITY_STYLES: Record<string, string> = {
-    low: 'bg-muted text-muted-foreground border-border',
-    medium: 'bg-info/10 text-info border-info/20',
-    high: 'bg-destructive/10 text-destructive border-destructive/20',
+    low: 'bg-zinc-100 text-zinc-600 border-zinc-200',
+    medium: 'bg-sky-50 text-sky-700 border-sky-200',
+    high: 'bg-red-50 text-red-700 border-red-200',
 };
 
 export const PRACTICE_AREA_LABELS: Record<string, string> = {

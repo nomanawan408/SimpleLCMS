@@ -132,13 +132,33 @@ class MatterController extends Controller
             ]);
         }
 
+        $timerKey = 'active_timer_' . $request->user()->id;
+        $activeTimer = session($timerKey);
+        if (!$activeTimer) {
+            $dbSession = \App\Models\TimeSession::where('user_id', $request->user()->id)->first();
+            if ($dbSession) {
+                $activeTimer = [
+                    'matter_id'            => $dbSession->matter_id,
+                    'matter_name'          => $dbSession->matter_name,
+                    'matter_number'        => $dbSession->matter_number,
+                    'started_at'           => $dbSession->started_at->toIso8601String(),
+                    'activity_type'        => $dbSession->activity_type,
+                    'description'          => $dbSession->description ?? '',
+                    'paused_at'            => $dbSession->paused_at?->toIso8601String(),
+                    'total_paused_seconds' => (int) $dbSession->total_paused_seconds,
+                    'rate'                 => (float) $dbSession->rate,
+                ];
+                session([$timerKey => $activeTimer]);
+            }
+        }
+
         return Inertia::render('Matters/Show', [
             'matter' => $matter,
             'users'  => User::where('firm_id', $matter->firm_id)
                 ->where('is_active', true)
                 ->get(['id', 'full_name']),
             'viewFinancial' => $viewFinancial,
-            'activeTimer' => session('active_timer_' . $request->user()->id),
+            'activeTimer' => $activeTimer,
         ]);
     }
 

@@ -608,23 +608,42 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
         archived:            'secondary',
     };
 
+    const statusBadgeStyles: Record<string, string> = {
+        open: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+        in_progress: 'bg-sky-50 text-sky-700 border-sky-200',
+        actively_progressing: 'bg-sky-50 text-sky-700 border-sky-200',
+        being_worked: 'bg-sky-50 text-sky-700 border-sky-200',
+        in_review: 'bg-amber-50 text-amber-800 border-amber-200',
+        reviewing: 'bg-amber-50 text-amber-800 border-amber-200',
+        pending_court_date: 'bg-amber-50 text-amber-800 border-amber-200',
+        awaiting_client: 'bg-violet-50 text-violet-700 border-violet-200',
+        awaiting_opponent: 'bg-violet-50 text-violet-700 border-violet-200',
+        awaiting_response: 'bg-violet-50 text-violet-700 border-violet-200',
+        awaiting_third_party: 'bg-violet-50 text-violet-700 border-violet-200',
+        awaiting_respondent_solicitors: 'bg-violet-50 text-violet-700 border-violet-200',
+        awaiting_claimant_solicitors: 'bg-violet-50 text-violet-700 border-violet-200',
+        on_hold: 'bg-zinc-100 text-zinc-600 border-zinc-200',
+        closed: 'bg-zinc-100 text-zinc-700 border-zinc-200',
+        archived: 'bg-zinc-100 text-zinc-600 border-zinc-200',
+    };
+
     const statusAccent: Record<string, string> = {
-        open:                'bg-success',
-        in_progress:         'bg-info',
-        in_review:           'bg-warning',
-        actively_progressing:'bg-info',
-        reviewing:           'bg-warning',
-        being_worked:        'bg-info',
-        pending_court_date:  'bg-warning',
-        awaiting_client:     'bg-warning',
-        awaiting_opponent:   'bg-primary/40',
-        awaiting_response:            'bg-warning',
-        awaiting_third_party:         'bg-warning',
-        awaiting_respondent_solicitors: 'bg-warning',
-        awaiting_claimant_solicitors: 'bg-warning',
-        on_hold:             'bg-muted-foreground/40',
-        closed:              'bg-foreground/70',
-        archived:            'bg-muted-foreground/40',
+        open:                'bg-emerald-500',
+        in_progress:         'bg-sky-500',
+        in_review:           'bg-amber-500',
+        actively_progressing:'bg-sky-500',
+        reviewing:           'bg-amber-500',
+        being_worked:        'bg-sky-500',
+        pending_court_date:  'bg-amber-500',
+        awaiting_client:     'bg-violet-500',
+        awaiting_opponent:   'bg-violet-500',
+        awaiting_response:            'bg-violet-500',
+        awaiting_third_party:         'bg-violet-500',
+        awaiting_respondent_solicitors: 'bg-violet-500',
+        awaiting_claimant_solicitors: 'bg-violet-500',
+        on_hold:             'bg-zinc-400',
+        closed:              'bg-zinc-500',
+        archived:            'bg-zinc-400',
     };
 
     const feeSummary = (() => {
@@ -699,42 +718,41 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
 
             {/* Matter Header Card — Compact Enterprise */}
             <Card className="rounded-2xl border border-border/60 bg-card shadow-sm overflow-hidden mb-4">
-                <div className={cn('h-[3px] w-full', statusAccent[matter.status] ?? 'bg-primary')} />
+                <div className={cn('h-1 w-full', statusAccent[matter.status] ?? 'bg-primary')} />
                 <CardContent className="p-0">
-                    <div className="flex items-center gap-2 px-5 pt-3.5 text-xs text-muted-foreground">
-                        <span className={cn('h-1.5 w-1.5 rounded-full', statusAccent[matter.status] ?? 'bg-primary')} />
-                        <Badge variant={statusVariant[matter.status] ?? 'default'} className="text-xs font-semibold uppercase tracking-widest px-2 py-0 rounded-full">
+                    {/* Marked header area — high-visibility status row + title */}
+                    <div className="flex flex-wrap items-center gap-2 px-5 pt-4">
+                        <span className={cn('inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-wider leading-none shadow-sm', statusBadgeStyles[matter.status] ?? 'bg-muted text-muted-foreground border-border')}>
+                            <span className="h-1.5 w-1.5 rounded-full bg-current shrink-0" aria-hidden />
                             {MATTER_STATUS_LABELS[matter.status] ?? matter.status.replace(/_/g, ' ')}
-                        </Badge>
-                        <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium ${MATTER_PRIORITY_STYLES[(matter as any).priority ?? 'medium']}`}>
-                            <Flag className="h-3 w-3" />
+                        </span>
+                        <span className={cn('inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold leading-none shadow-sm', MATTER_PRIORITY_STYLES[(matter as any).priority ?? 'medium'])}>
+                            <Flag className="h-3 w-3 shrink-0" />
                             {MATTER_PRIORITY_LABELS[(matter as any).priority ?? 'medium']}
                         </span>
-                        <span className="text-border">·</span>
-                        <span className="font-mono tabular-nums text-base">{matter.matter_number}</span>
-                        {daysUntil !== null && daysUntil <= 7 && (
-                            <>
-                                <span className="text-border">·</span>
-                                <span className={cn('inline-flex items-center gap-1 text-xs font-medium', daysUntil < 0 ? 'text-destructive' : 'text-amber-600')}>
-                                    <AlertTriangle className="h-3 w-3" />
-                                    {daysUntil < 0 ? `Overdue ${Math.abs(daysUntil)}d` : daysUntil === 0 ? 'Due today' : `Due in ${daysUntil}d`}
-                                </span>
-                            </>
+                        <span className="inline-flex items-center rounded-full border border-border bg-muted/50 px-2.5 py-1 font-mono text-xs font-semibold tabular-nums tracking-wide text-foreground">
+                            {matter.matter_number}
+                        </span>
+                        {daysUntil !== null && daysUntil <= 14 && (
+                            <span className={cn('inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold leading-none shadow-sm', daysUntil < 0 ? 'bg-red-50 text-red-700 border-red-200' : daysUntil === 0 ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-amber-50 text-amber-700 border-amber-200')}>
+                                <AlertTriangle className="h-3 w-3 shrink-0" />
+                                {daysUntil < 0 ? `Overdue ${Math.abs(daysUntil)}d` : daysUntil === 0 ? 'Due today' : `Due in ${daysUntil}d`}
+                            </span>
                         )}
                     </div>
 
-                    <div className="px-5 pt-2.5 pb-4">
+                    <div className="px-5 pt-3 pb-4">
                         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                             <div className="flex-1 min-w-0">
-                                <h1 className="text-lg font-bold tracking-tight leading-tight text-foreground">
+                                <h1 className="text-xl font-extrabold tracking-tight leading-tight text-foreground">
                                     {matter.name}
                                 </h1>
                                 {matter.description ? (
-                                    <p className="mt-1 max-w-2xl text-sm leading-relaxed text-muted-foreground line-clamp-1">
+                                    <p className="mt-1.5 max-w-2xl text-sm font-medium leading-relaxed text-foreground/70">
                                         {matter.description}
                                     </p>
                                 ) : (
-                                    <p className="mt-1 text-sm text-muted-foreground/50 italic">No description</p>
+                                    <p className="mt-1.5 text-sm text-muted-foreground/50 italic">No description</p>
                                 )}
                             </div>
 
@@ -755,18 +773,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                             </div>
                         )}
 
-                        <div className="mt-4 grid grid-cols-2 lg:grid-cols-5 gap-3">
-                            {matter.practice_area && (
-                                <div className="rounded-xl border border-border/60 bg-muted/[0.18] px-3.5 py-2.5 flex items-center gap-2.5">
-                                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-50 shrink-0"><Gavel className="h-3.5 w-3.5 text-amber-600" /></span>
-                                    <div className="min-w-0">
-                                        <p className="text-xs font-medium text-muted-foreground leading-none">Practice Area</p>
-                                        <p className="text-base font-semibold text-foreground truncate">
-                                            {matter.practice_area === 'custom' ? ((matter.custom_fields as any)?.custom_practice_area ?? 'Custom') : (PRACTICE_AREA_LABELS[matter.practice_area] ?? matter.practice_area)}
-                                        </p>
-                                    </div>
-                                </div>
-                            )}
+                        <div className="mt-4 grid grid-cols-2 lg:grid-cols-4 gap-3">
                             {matter.responsible_user && (
                                 <div className="rounded-xl border border-border/60 bg-muted/[0.18] px-3.5 py-2.5 flex items-center gap-2.5">
                                     <span className="flex h-8 w-8 items-center justify-center rounded-full bg-foreground text-background text-xs font-bold shrink-0">
@@ -815,29 +822,6 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                 </CardContent>
             </Card>
 
-            {/* Financial Summary Strip — Colored Icons */}
-            {viewFinancial && (
-            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5 mb-6">
-                {[
-                    { label: 'Unbilled Time', value: formatCurrency(matter.unbilled_time_value || 0), icon: Clock, bg: 'bg-amber-50', color: 'text-amber-600' },
-                    { label: 'Total Invoiced', value: formatCurrency(totalInvoiced), icon: Receipt, bg: 'bg-blue-50', color: 'text-blue-600' },
-                    { label: 'Total Paid', value: formatCurrency(totalPaid), icon: Wallet, bg: 'bg-emerald-50', color: 'text-emerald-600' },
-                    { label: 'Outstanding', value: formatCurrency(totalOutstanding), icon: TrendingUp, bg: 'bg-orange-50', color: 'text-orange-600' },
-                    { label: 'Trust Balance', value: formatCurrency(trustBalance), icon: Landmark, bg: 'bg-violet-50', color: 'text-violet-600' },
-                ].map((s) => (
-                    <div key={s.label} className="rounded-xl border border-border/60 bg-card p-5 flex items-center justify-between shadow-sm">
-                        <div>
-                            <p className="text-sm font-medium text-muted-foreground">{s.label}</p>
-                            <p className="text-xl font-extrabold tracking-tight tabular-nums text-foreground mt-1.5 leading-none">{s.value}</p>
-                        </div>
-                        <div className={`flex h-10 w-10 items-center justify-center rounded-full shrink-0 ${s.bg}`}>
-                            <s.icon className={`h-5 w-5 ${s.color}`} />
-                        </div>
-                    </div>
-                ))}
-            </div>
-            )}
-
             <PageTabs
                 value={tab}
                 onChange={setTab}
@@ -855,8 +839,42 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
             />
 
             {tab === 'dashboard' && (
-                <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-                    {/* Left: Notes + Activity */}
+                <div className="space-y-6">
+                    {/* Overview: Financial summary moved from top (client request) */}
+                    {viewFinancial && (
+                    <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5">
+                        {[
+                            { label: 'Unbilled Time', value: formatCurrency(matter.unbilled_time_value || 0), icon: Clock, bg: 'bg-amber-50', color: 'text-amber-600' },
+                            { label: 'Total Invoiced', value: formatCurrency(totalInvoiced), icon: Receipt, bg: 'bg-blue-50', color: 'text-blue-600' },
+                            { label: 'Total Paid', value: formatCurrency(totalPaid), icon: Wallet, bg: 'bg-emerald-50', color: 'text-emerald-600' },
+                            { label: 'Outstanding', value: formatCurrency(totalOutstanding), icon: TrendingUp, bg: 'bg-orange-50', color: 'text-orange-600' },
+                            { label: 'Trust Balance', value: formatCurrency(trustBalance), icon: Landmark, bg: 'bg-violet-50', color: 'text-violet-600' },
+                        ].map((s) => (
+                            <div key={s.label} className="rounded-xl border border-border/60 bg-card p-5 flex items-center justify-between shadow-sm">
+                                <div>
+                                    <p className="text-sm font-medium text-muted-foreground">{s.label}</p>
+                                    <p className="text-xl font-extrabold tracking-tight tabular-nums text-foreground mt-1.5 leading-none">{s.value}</p>
+                                </div>
+                                <div className={`flex h-10 w-10 items-center justify-center rounded-full shrink-0 ${s.bg}`}>
+                                    <s.icon className={`h-5 w-5 ${s.color}`} />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                    )}
+                    {matter.practice_area && (
+                        <div className="rounded-xl border border-border/60 bg-muted/[0.18] px-4 py-3 flex items-center gap-3 w-fit">
+                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-50 shrink-0"><Gavel className="h-3.5 w-3.5 text-amber-600" /></span>
+                            <div>
+                                <p className="text-xs font-medium text-muted-foreground leading-none">Practice Area</p>
+                                <p className="text-sm font-semibold text-foreground">
+                                    {matter.practice_area === 'custom' ? ((matter.custom_fields as any)?.custom_practice_area ?? 'Custom') : (PRACTICE_AREA_LABELS[matter.practice_area] ?? matter.practice_area)}
+                                </p>
+                            </div>
+                        </div>
+                    )}
+                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                        {/* Left: Notes + Activity */}
                     <div className="lg:col-span-2 space-y-6">
                         <Card className="rounded-2xl border border-border/60 bg-card shadow-sm overflow-hidden">
                             <CardHeader className="flex flex-row items-center justify-between py-4 px-6 border-b border-border/60 bg-muted/[0.12]">
@@ -1031,6 +1049,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                         </Card>
                     </div>
                 </div>
+            </div>
             )}
 
             {tab === 'time' && (
