@@ -26,10 +26,10 @@ interface PageTabsProps {
  */
 export function PageTabs({ tabs, value, onChange, className }: PageTabsProps) {
     return (
-        <div className={cn('mb-5', className)}>
+        <div className={cn('mb-3', className)}>
             <div
                 role="tablist"
-                className="flex items-center gap-1.5 p-1.5 rounded-2xl bg-muted/40 border border-border/40 shadow-sm w-fit max-w-full overflow-x-auto"
+                className="flex items-center gap-1 p-1 rounded-xl bg-muted/30 border border-border/30 w-fit max-w-full overflow-x-auto"
             >
                 {tabs.map((tab) => {
                     const active = value === tab.key;
@@ -43,20 +43,20 @@ export function PageTabs({ tabs, value, onChange, className }: PageTabsProps) {
                             aria-selected={active}
                             onClick={() => onChange(tab.key)}
                             className={cn(
-                                'flex items-center gap-2.5 px-6 py-3 rounded-xl text-base font-bold whitespace-nowrap transition-all',
+                                'flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-all border',
                                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1',
                                 active
-                                    ? 'bg-card text-foreground shadow-md border border-border/70'
-                                    : 'text-muted-foreground hover:text-foreground hover:bg-card/70',
+                                    ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                                    : 'bg-card text-foreground border-transparent hover:text-primary hover:bg-primary/[0.06] hover:border-primary/20',
                             )}
                         >
-                            {Icon && <Icon className="h-5 w-5 shrink-0" />}
+                            {Icon && <Icon className={cn('h-4 w-4 shrink-0', active ? 'text-primary-foreground' : 'text-muted-foreground')} />}
                             {tab.label}
                             {tab.count != null && tab.count > 0 && (
                                 <span
                                     className={cn(
-                                        'inline-flex items-center justify-center min-w-[1.6em] h-6 px-2 rounded-full text-sm font-bold tabular-nums',
-                                        active ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground',
+                                        'inline-flex items-center justify-center min-w-[1.4em] h-5 px-1.5 rounded-full text-xs font-bold tabular-nums',
+                                        active ? 'bg-white text-primary' : 'bg-muted text-muted-foreground',
                                     )}
                                 >
                                     {tab.count}

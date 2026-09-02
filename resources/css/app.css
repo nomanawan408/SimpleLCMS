@@ -12,7 +12,11 @@
 @layer base {
 
     :root {
-        /* Legl teal palette: bright brand teal #01B88E, deep accessible teal for text/CTAs. */
+        /* SIMPLE-CM palette — from colorscheme.jpeg:
+           #0097b2 Dark turquoise, #545454 Dark grey, #ff5757 Coral Red,
+           #02b88e Vivid turquoise, #014034 Dark turquoise.
+           Combo: Deep #014034 (primary/ink) + Vivid #02b88e (accent) + Coral #ff5757 (destructive).
+           Sidebar kept navy #0F172A per user request. */
         --background: 0 0% 97%;
         --foreground: 0 0% 7%;
 
@@ -22,48 +26,35 @@
         --popover: 0 0% 100%;
         --popover-foreground: 0 0% 7%;
 
-        /* Primary #00856E. Saturation is at 100% rather than the previous 77%,
-           which is what makes the teal read as vivid; lightness stays at 26%
-           because that is the ceiling for 4.5:1 against white text. Anything
-           brighter cannot legally carry white label text. */
-        --primary: 170 100% 26%;
+        --primary: 169 97% 13%; /* #014034 */
         --primary-foreground: 0 0% 100%;
-        /* One step lighter, for hover on solid surfaces. */
-        --primary-hover: 170 100% 30%;
+        --primary-hover: 169 97% 18%;
 
-        /* Secondary: teal tint. More saturated than before so it still reads
-           as brand colour rather than grey. */
-        --secondary: 168 62% 92%;
-        --secondary-foreground: 170 100% 20%;
+        --secondary: 189 75% 92%; /* tint of #0097b2 */
+        --secondary-foreground: 189 100% 22%;
 
-        --muted: 0 0% 94%;
-        --muted-foreground: 0 0% 42%;
+        --muted: 0 0% 95%;
+        --muted-foreground: 0 0% 33%; /* #545454 */
 
-        /* Accent #02CA9F — the vivid brand teal. Decorative only: chips, dots,
-           indicator bars, icon backgrounds. It is far too light to carry white
-           text (2.4:1), so it is never used as a solid button background. */
-        --accent: 167 98% 40%;
-        --accent-foreground: 170 100% 15%;
-        /* Neutral surface for hover on transparent controls. Kept separate
-           from --accent so ghost buttons do not flash brand teal. */
+        --accent: 166 98% 36%; /* #02b88e */
+        --accent-foreground: 169 97% 13%;
         --accent-muted: 0 0% 94%;
 
-        --destructive: 357 85% 45%;
+        --destructive: 0 100% 67%; /* #ff5757 Coral Red */
         --destructive-foreground: 0 0% 100%;
 
         --border: 0 0% 88%;
         --input: 0 0% 88%;
-        --ring: 170 100% 30%;
+        --ring: 166 98% 36%;
         --radius: 0.75rem;
 
-        /* Amber carries dark text, which is why it can stay this bright. */
         --warning: 43 100% 48%;
         --warning-foreground: 40 90% 12%;
 
-        --success: 154 100% 26%;
+        --success: 166 98% 28%;
         --success-foreground: 0 0% 100%;
 
-        --info: 204 95% 36%;
+        --info: 189 100% 35%; /* #0097b2 */
         --info-foreground: 0 0% 100%;
     }
 

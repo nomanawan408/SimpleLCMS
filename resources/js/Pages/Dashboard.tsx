@@ -59,30 +59,32 @@ const statusColors: Record<string, 'default' | 'success' | 'warning' | 'destruct
 };
 
 function KpiCard({ kpi }: { kpi: KpiCard }) {
+    // Average shade between Vivid #02b88e and Dark #014034 → #017c61
+    const avgCard = 'bg-[#017c61] text-white';
     const toneStyles = {
-        primary: 'bg-brand-500 text-primary-foreground',
-        ink: 'bg-brand-900 text-white',
-        violet: 'bg-accent text-white',
-        warning: 'bg-white text-foreground',
+        primary: avgCard,
+        ink: avgCard,
+        violet: avgCard,
+        warning: avgCard,
     }[kpi.tone];
 
     const iconStyles = {
-        primary: 'bg-white text-brand-500',
-        ink: 'bg-white text-brand-900',
-        violet: 'bg-white text-accent',
-        warning: 'bg-destructive text-white',
+        primary: 'bg-white text-[#017c61]',
+        ink: 'bg-white text-[#017c61]',
+        violet: 'bg-white text-[#017c61]',
+        warning: 'bg-white text-[#017c61]',
     }[kpi.tone];
 
     return (
         <Link href={kpi.href} className="group block">
-            <Card className={`h-full rounded-[18px] border-0 shadow-none transition-transform group-hover:-translate-y-0.5 ${toneStyles}`}>
+            <Card className={`h-full rounded-[12px] border border-transparent shadow-none transition-all duration-200 group-hover:-translate-y-0.5 group-hover:border-white/80 group-hover:shadow-lg group-hover:ring-2 group-hover:ring-white/20 ${toneStyles}`}>
                 <CardContent className="flex min-h-[124px] flex-col justify-between p-5">
                     <div className="flex items-start justify-between gap-3">
-                        <p className={`text-xs font-semibold tracking-tight ${kpi.tone === 'warning' ? 'text-muted-foreground' : 'text-white'}`}>
+                        <p className="text-xs font-semibold tracking-tight text-white">
                             {kpi.label}
                         </p>
                         {kpi.tone === 'warning' ? (
-                            <span className="flex h-9 w-9 items-center justify-center shrink-0 rounded-xl bg-white">
+                            <span className="flex h-9 w-9 items-center justify-center shrink-0 rounded-[10px] bg-white">
                                 <svg viewBox="0 0 24 24" className="h-7 w-7 shrink-0" aria-hidden="true">
                                     <path d="M12 3.5 L21.2 20.5 H2.8 Z" fill="white" stroke="#DC2626" strokeWidth="1.8" strokeLinejoin="round" />
                                     <path d="M12 8.5 v6" stroke="black" strokeWidth="2.2" strokeLinecap="round" />
@@ -90,7 +92,7 @@ function KpiCard({ kpi }: { kpi: KpiCard }) {
                                 </svg>
                             </span>
                         ) : (
-                            <span className={`rounded-xl p-2 ${iconStyles}`}>
+                            <span className={`rounded-[10px] p-2 ${iconStyles}`}>
                                 <kpi.icon className="h-4 w-4" />
                             </span>
                         )}

@@ -20,20 +20,20 @@ export default {
                 ring: 'hsl(var(--ring))',
                 background: 'hsl(var(--background))',
                 foreground: 'hsl(var(--foreground))',
-                /* Legl teal palette: #01B88E brand primary. */
+                /* SIMPLE-CM palette: Vivid #02b88e, Dark #014034, Mid #0097b2, Grey #545454, Coral #ff5757 */
                 brand: {
-                    50:  '#E6FBF6',
+                    50:  '#E6FBF7',
                     100: '#C7F5EA',
                     200: '#8FEBD8',
                     300: '#54DCC2',
-                    400: '#1FC9AC',
-                    500: '#01B88E',
-                    600: '#019A76',
-                    700: '#017A5E',
+                    400: '#02b88e',
+                    500: '#02b88e',
+                    600: '#0097b2',
+                    700: '#007a91',
                     800: '#015C47',
                     900: '#014034',
-                    950: '#00241D',
-                    DEFAULT: '#01B88E',
+                    950: '#00211c',
+                    DEFAULT: '#02b88e',
                 },
                 /* Warm magenta accent that pairs with the "Dark Blue" scale. */
                 magenta: {
