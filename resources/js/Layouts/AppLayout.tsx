@@ -261,7 +261,7 @@ isActive(item) ? 'text-white' : 'text-white/80 group-hover:text-white'
     return (
         <div className="flex h-screen h-[100dvh] overflow-hidden bg-background">
             {/* Desktop sidebar - ink surface with a warm accent at the base */}
-            <aside className="hidden shrink-0 overflow-hidden lg:flex lg:w-64 lg:flex-col" style={{background: '#0F172A', borderRight: '1px solid #1E293B'}}>
+            <aside className="hidden shrink-0 overflow-hidden lg:flex lg:w-60 lg:flex-col" style={{background: '#0F172A', borderRight: '1px solid #1E293B'}}>
                 <SidebarContent />
             </aside>
 
@@ -269,7 +269,7 @@ isActive(item) ? 'text-white' : 'text-white/80 group-hover:text-white'
             {sidebarOpen && (
                 <div className="fixed inset-0 z-50 lg:hidden">
                     <div className="fixed inset-0 bg-foreground/20 backdrop-blur-[2px]" onClick={() => setSidebarOpen(false)} />
-                    <aside className="fixed inset-y-0 left-0 flex w-64 flex-col overflow-hidden shadow-2xl" style={{background: '#0F172A', borderRight: '1px solid #1E293B'}}>
+                    <aside className="fixed inset-y-0 left-0 flex w-60 flex-col overflow-hidden shadow-2xl" style={{background: '#0F172A', borderRight: '1px solid #1E293B'}}>
                         <SidebarContent />
                     </aside>
                 </div>
