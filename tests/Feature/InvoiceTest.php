@@ -45,11 +45,14 @@ class InvoiceTest extends TestCase
             ],
         ])->assertRedirect();
 
+        // Invoice number is auto-generated server-side (InvoiceController::store ignores client-supplied value and calls getNextInvoiceNumber)
         $this->assertDatabaseHas('invoices', [
-            'firm_id'        => $firm->id,
-            'invoice_number' => 'INV-TEST-001',
-            'subtotal'       => 500.00,
+            'firm_id'  => $firm->id,
+            'subtotal' => 500.00,
         ]);
+        $invoice = Invoice::where('firm_id', $firm->id)->first();
+        $this->assertNotNull($invoice);
+        $this->assertMatchesRegularExpression('/^INV-\d{4}-\d{4}$/', $invoice->invoice_number);
     }
 
     public function test_create_invoice_from_time_entries_marks_as_billed(): void
