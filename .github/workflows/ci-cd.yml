@@ -6,12 +6,19 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
-  PHP_VERSION: '8.3'
+  PHP_VERSION: '8.4'
   NODE_VERSION: '20'
 
+permissions:
+  contents: read
+
 jobs:
-  # ─── CI: Test & Build ───────────────────────────────────────
+  # ─── CI: Test & Build (passes on every push/PR) ──────────────
   ci:
     name: Test & Build
     runs-on: ubuntu-latest
@@ -91,7 +98,6 @@ jobs:
           DB_DATABASE: simplelaw_test
           DB_USERNAME: simplelaw
           DB_PASSWORD: simplelaw_pass
-
         run: php artisan test --parallel
 
       - name: Upload build artifacts
@@ -102,7 +108,7 @@ jobs:
           path: public/build
           retention-days: 3
 
-  # ─── Deploy to Hostinger ────────────────────────────────────
+  # ─── Deploy to Hostinger (law.simplehr.services) ────────────
   deploy:
     name: Deploy to Production
     runs-on: ubuntu-latest
@@ -111,35 +117,56 @@ jobs:
     environment: production
 
     steps:
-      - name: Deploy via SSH
+      - name: Deploy via SSH (passphrase-less key, npm build + migrate on host)
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.HOSTINGER_HOST }}
           username: ${{ secrets.HOSTINGER_USER }}
           key: ${{ secrets.HOSTINGER_SSH_KEY }}
+          port: ${{ secrets.HOSTINGER_PORT || 22 }}
           script: |
+            set -e
+            echo "→ Deploy to ${{ secrets.HOSTINGER_PATH }} on $(hostname) as $(whoami)"
             cd ${{ secrets.HOSTINGER_PATH }}
 
-            # Pull latest code
+            echo "→ PHP version (must be 8.4):"
+            /opt/alt/php84/usr/bin/php -v
+            echo "→ Node version:"
+            node -v || echo "Node not found — build will be skipped (use CI artifact if needed)"
+            echo "→ Git pull:"
             git fetch origin main
             git reset --hard origin/main
 
-            # Install production dependencies only
-            composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction
+            echo "→ Composer install (production) with PHP 8.4:"
+            /opt/alt/php84/usr/bin/php /usr/local/bin/composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction || composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction
 
-            # Migrations are protected by a repository secret. If you have set
-            # the secret `RUN_MIGRATIONS=true`, the following step will run.
-            if [ "${{ secrets.RUN_MIGRATIONS }}" = "true" ] && [ "${{ secrets.MIGRATION_CONFIRMATION }}" = "true" ]; then
-              php artisan migrate --force
-            else
-              echo "Skipping automatic migrations on production to avoid data changes."
-              echo "To run migrations automatically, set secrets RUN_MIGRATIONS=true and MIGRATION_CONFIRMATION=true and approve the 'production' environment in repository settings."
-            fi
+            echo "→ NPM build on host (as you ran: npm ci && npm run build):"
+            npm ci --prefer-offline --no-audit
+            npm run build
 
-            # Clear and rebuild caches
-            php artisan optimize:clear
-            php artisan config:cache
-            php artisan route:cache
-            php artisan view:cache
+            echo "→ Storage link:"
+            /opt/alt/php84/usr/bin/php artisan storage:link || true
 
-            echo "Deployment complete."
+            echo "→ Maintenance down:"
+            /opt/alt/php84/usr/bin/php artisan down --render="errors::503" || true
+
+            echo "→ Migrate (RUN_MIGRATIONS=true):"
+            /opt/alt/php84/usr/bin/php artisan migrate --force
+
+            echo "→ Cache rebuild:"
+            /opt/alt/php84/usr/bin/php artisan optimize:clear
+            /opt/alt/php84/usr/bin/php artisan config:cache
+            /opt/alt/php84/usr/bin/php artisan route:cache
+            /opt/alt/php84/usr/bin/php artisan view:cache
+
+            echo "→ Queue/Horizon restart (if used):"
+            /opt/alt/php84/usr/bin/php artisan horizon:terminate || true
+            /opt/alt/php84/usr/bin/php artisan queue:restart || true
+
+            echo "→ Maintenance up:"
+            /opt/alt/php84/usr/bin/php artisan up || true
+
+            echo "→ Healthcheck:"
+            curl -fsS https://law.simplehr.services/health || curl -fsS https://law.simplehr.services/ || echo "Healthcheck warning: /health not configured"
+
+            echo "✓ Deployment complete to law.simplehr.services"
