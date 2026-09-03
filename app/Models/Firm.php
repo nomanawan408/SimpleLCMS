@@ -30,6 +30,10 @@ class Firm extends Model
     /** The setup token is a credential; never serialise it with the model. */
     protected $hidden = ['setup_token'];
 
+    protected $attributes = [
+        'settings' => '{}',
+    ];
+
     protected function casts(): array
     {
         return [

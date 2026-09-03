@@ -160,7 +160,7 @@ export default function MattersIndex({ matters, filters }: Props) {
                             </Button>
                         </div>
                     ) : (
-                        <div className="overflow-x-auto">
+                        <div className="overflow-x-auto table-scrollbar rounded-b-2xl pb-2">
                             <Table>
                                 <TableHeader>
                                     <TableHeaderRow>

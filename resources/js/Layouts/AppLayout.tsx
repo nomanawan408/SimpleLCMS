@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, router, usePage } from '@inertiajs/react';
 import {
-    LayoutDashboard, Briefcase, Users, FileText, Clock, Receipt,
+    LayoutDashboard, Briefcase, Users, FileText, Clock, Receipt, PoundSterling,
     Calendar, CheckSquare, LogOut, Menu, Search, Radio, ChevronDown,
     Building2, Shield, Activity, BarChart2, Landmark, CreditCard, Database,
 } from 'lucide-react';
@@ -32,7 +32,7 @@ const navItems: NavItem[] = [
         children: [
             { label: 'Active', href: '/time/sessions', icon: Radio, routeName: 'time.sessions', permission: 'manage_time_entries' },
         ] },
-    { label: 'Billing',      href: '/billing',      icon: Receipt,     routeName: 'billing.index',    permission: 'view_invoices' },
+    { label: 'Billing',      href: '/billing',      icon: PoundSterling, routeName: 'billing.index',    permission: 'view_invoices' },
     { label: 'Transactions', href: '/transactions', icon: CreditCard,  routeName: 'transactions.index', permission: 'view_invoices' },
     { label: 'Calendar',     href: '/calendar',     icon: Calendar,    routeName: 'calendar.index',   permission: 'view_calendar' },
     { label: 'Tasks',      href: '/tasks',        icon: CheckSquare,     routeName: 'tasks.index',     permission: 'view_tasks' },

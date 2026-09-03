@@ -16,7 +16,7 @@ return new class extends Migration
             $table->string('vat_number')->nullable();
             $table->string('sra_number')->nullable();
             $table->string('logo_path')->nullable();
-            $table->json('settings')->default('{}');
+            $table->json('settings')->nullable();
             $table->enum('subscription_status', ['trial', 'active', 'past_due', 'cancelled'])->default('trial');
             $table->timestamp('trial_ends_at')->nullable();
             $table->string('address_line1')->nullable();
