@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatDate, cn } from '@/lib/utils';
-import { Download, Eye, FileText, Paperclip, Trash2, Upload, X } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Download, Eye, FileText, Folder, FolderOpen, Paperclip, Trash2, Upload, X } from 'lucide-react';
 import type { Document, PaginatedData } from '@/types';
 import { useUploadQueue } from '@/hooks/useUploadQueue';
 import { UploadQueueList } from '@/components/documents/UploadQueueList';
@@ -39,9 +39,12 @@ export default function DocumentsIndex({ documents, matters, filters }: Props) {
     const [uploadModalOpen, setUploadModalOpen] = useState(false);
     const fileRef = useRef<HTMLInputElement>(null);
     const [viewerDoc, setViewerDoc] = useState<{ id: string; name: string; mime_type?: string } | null>(null);
+    const [activeFolder, setActiveFolder] = useState<string | null>(null);
 
     const [uploadMatterId, setUploadMatterId] = useState('');
     const [uploadClientVisible, setUploadClientVisible] = useState(false);
+    const [uploadFolder, setUploadFolder] = useState('');
+    const existingFolders = [...new Set(documents.data.map((d: any) => { let f=(d as any).folder; if (f==='General' || f==='GENERAL' || f==='GENERAL CASE DOCUMENTS') f=(d as any).matter?.name || f; return f; }).filter(Boolean))] as string[];
 
     // One request per file rather than one request carrying all of them --
     // that is what makes a live progress bar per file possible, and it means
@@ -53,6 +56,17 @@ export default function DocumentsIndex({ documents, matters, filters }: Props) {
             const fd = new FormData();
             fd.append('file', file);
             fd.append('matter_id', uploadMatterId);
+            const baseFromMatter = matters.find((m) => m.id === uploadMatterId)?.name?.trim() || '';
+            let rawFolder = (uploadFolder || activeFolder || baseFromMatter).trim();
+            if (!rawFolder) rawFolder = baseFromMatter;
+            if (uploadMatterId && baseFromMatter) {
+                const isDefault = rawFolder === baseFromMatter || rawFolder.startsWith(baseFromMatter + '/');
+                if (!isDefault && rawFolder) {
+                    rawFolder = `${baseFromMatter}/${rawFolder}`;
+                }
+            }
+            if (!rawFolder) rawFolder = baseFromMatter || 'General';
+            fd.append('folder', rawFolder);
             fd.append('is_client_visible', uploadClientVisible ? '1' : '0');
             return fd;
         },
@@ -70,6 +84,7 @@ export default function DocumentsIndex({ documents, matters, filters }: Props) {
         uploadQueue.clearAll();
         setUploadMatterId('');
         setUploadClientVisible(false);
+        setUploadFolder(activeFolder || '');
         setUploadModalOpen(true);
     };
 
@@ -135,58 +150,93 @@ export default function DocumentsIndex({ documents, matters, filters }: Props) {
                             <p className="text-xs text-muted-foreground mt-1">Upload the first file — it will be saved to the matter&apos;s own folder.</p>
                         </div>
                     ) : (
-                        <div className="overflow-x-auto">
-                            <Table>
-                                <TableHeader>
-                                    <TableHeaderRow>
-                                        <TableHead>Name</TableHead>
-                                        <TableHead>Matter</TableHead>
-                                        <TableHead>Uploaded by</TableHead>
-                                        <TableHead>Date</TableHead>
-                                        <TableHead className="text-right">Size</TableHead>
-                                        <TableHead />
-                                    </TableHeaderRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {documents.data.map((doc) => (
-                                        <TableRow key={doc.id}>
-                                            <TableCell>
-                                                <p className="text-sm font-medium text-foreground truncate max-w-[280px]">{doc.name}</p>
-                                                <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium mt-1 ${visibilityBadgeStyles[doc.is_client_visible ? 'success' : 'secondary']}`}>
-                                                    {doc.is_client_visible ? 'Client visible' : 'Internal'}
-                                                </span>
-                                            </TableCell>
-                                            <TableCell className="text-muted-foreground">
-                                                {doc.matter ? (
-                                                    <Link href={`/matters/${doc.matter.id}`} className="hover:text-primary transition-colors font-medium">
-                                                        {doc.matter.name}
-                                                    </Link>
-                                                ) : '—'}
-                                            </TableCell>
-                                            <TableCell className="text-muted-foreground">{(doc as any).uploadedBy?.full_name ?? '—'}</TableCell>
-                                            <TableCell className="text-muted-foreground">{formatDate(doc.created_at)}</TableCell>
-                                            <TableCell className="text-right tabular-nums text-muted-foreground">{formatBytes(doc.size_bytes)}</TableCell>
-                                            <TableCell>
-                                                <div className="flex items-center gap-1 justify-end">
-                                                    <Button variant="ghost" size="icon" className="h-8 w-8" title="View" onClick={() => setViewerDoc(doc as any)}>
-                                                        <Eye className="h-3.5 w-3.5" />
-                                                    </Button>
-                                                    <Button variant="ghost" size="icon" className="h-8 w-8" title="Download" asChild>
-                                                        <a href={`/documents/${doc.id}/download`} download>
-                                                            <Download className="h-3.5 w-3.5" />
-                                                        </a>
-                                                    </Button>
-                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDelete(doc.id)}
-                                                    >
-                                                        <Trash2 className="h-3.5 w-3.5" />
-                                                    </Button>
+                        (() => {
+                            const groups = Object.entries(
+                                documents.data.reduce((acc: Record<string, any[]>, doc: any) => {
+                                    let folder = (doc as any).folder || (doc as any).matter?.name || '';
+                                    if (folder === 'General' || folder === 'GENERAL' || folder === 'GENERAL CASE DOCUMENTS') folder = (doc as any).matter?.name || folder;
+                                    if (!folder) return acc;
+                                    (acc[folder] = acc[folder] || []).push(doc);
+                                    return acc;
+                                }, {} as Record<string, any[]>)
+                            );
+                            if (activeFolder) {
+                                const docs = groups.find(([f]) => f === activeFolder)?.[1] as any[] | undefined;
+                                if (!docs) {
+                                    return (
+                                        <div className="p-6 text-center text-sm text-muted-foreground">
+                                            Folder not found. <button className="text-primary hover:underline" onClick={() => setActiveFolder(null)}>Back to folders</button>
+                                        </div>
+                                    );
+                                }
+                                return (
+                                    <div>
+                                        <div className="flex items-center gap-2 px-5 py-3 border-b border-border/60 bg-muted/20 sticky top-0 z-10">
+                                            <Button variant="ghost" size="sm" onClick={() => setActiveFolder(null)} className="gap-1.5 h-8 rounded-full">
+                                                <ArrowLeft className="h-4 w-4" /> Back to folders
+                                            </Button>
+                                            <span className="text-muted-foreground">/</span>
+                                            <FolderOpen className="h-4 w-4 text-[#f59e0b]" />
+                                            <span className="text-sm font-semibold truncate">{activeFolder}</span>
+                                            <span className="text-xs bg-card border border-border/60 rounded-full px-2 py-0.5 tabular-nums">{docs.length} file{docs.length !== 1 ? 's' : ''}</span>
+                                        </div>
+                                        <div className="divide-y divide-border/40">
+                                            {docs.map((doc) => (
+                                                <div key={doc.id} className="px-5 py-3.5 flex items-center gap-3 hover:bg-muted/20 transition-colors">
+                                                    <Paperclip className="h-4 w-4 text-muted-foreground shrink-0" />
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-sm font-medium truncate">{doc.name}</p>
+                                                        <p className="text-xs text-muted-foreground truncate">
+                                                            {doc.matter ? (
+                                                                <Link href={`/matters/${doc.matter.id}`} className="hover:text-primary font-medium" onClick={(e) => e.stopPropagation()}>
+                                                                    {doc.matter.name}
+                                                                </Link>
+                                                            ) : (
+                                                                '—'
+                                                            )}
+                                                            {' · '}
+                                                            {(doc as any).uploadedBy?.full_name ?? '—'} · {formatDate(doc.created_at)} · {formatBytes((doc as any).size_bytes ?? (doc as any).size)}
+                                                        </p>
+                                                    </div>
+                                                    <span className={`hidden sm:inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium shrink-0 ${visibilityBadgeStyles[doc.is_client_visible ? 'success' : 'secondary']}`}>
+                                                        {doc.is_client_visible ? 'Client' : 'Internal'}
+                                                    </span>
+                                                    <div className="flex items-center gap-1 shrink-0">
+                                                        <Button variant="ghost" size="icon" className="h-7 w-7" title="View" onClick={() => setViewerDoc(doc as any)}>
+                                                            <Eye className="h-3.5 w-3.5" />
+                                                        </Button>
+                                                        <Button variant="ghost" size="icon" className="h-7 w-7" title="Download" asChild>
+                                                            <a href={`/documents/${doc.id}/download`} download>
+                                                                <Download className="h-3.5 w-3.5" />
+                                                            </a>
+                                                        </Button>
+                                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => handleDelete(doc.id)}>
+                                                            <Trash2 className="h-3.5 w-3.5" />
+                                                        </Button>
+                                                    </div>
                                                 </div>
-                                            </TableCell>
-                                        </TableRow>
+                                            ))}
+                                        </div>
+                                    </div>
+                                );
+                            }
+                            return (
+                                <div className="p-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                                    {groups.map(([folder, docs]) => (
+                                        <button
+                                            key={folder}
+                                            type="button"
+                                            onClick={() => setActiveFolder(folder)}
+                                            className="group flex flex-col items-center gap-2 rounded-xl border border-border/60 bg-card hover:bg-muted/40 hover:border-[#f59e0b]/40 hover:shadow-sm p-5 text-center transition-all"
+                                        >
+                                            <Folder className="h-12 w-12 text-[#f59e0b] group-hover:text-[#d97706] transition-colors" />
+                                            <span className="text-sm font-semibold leading-tight line-clamp-2 break-words w-full">{folder}</span>
+                                            <span className="text-xs text-muted-foreground tabular-nums">{(docs as any[]).length} file{(docs as any[]).length !== 1 ? 's' : ''}</span>
+                                        </button>
                                     ))}
-                                </TableBody>
-                            </Table>
-                        </div>
+                                </div>
+                            );
+                        })()
                     )}
 
                     {documents.last_page > 1 && (
@@ -224,26 +274,43 @@ export default function DocumentsIndex({ documents, matters, filters }: Props) {
 
             {/* Upload Modal */}
             <Dialog open={uploadModalOpen} onOpenChange={setUploadModalOpen}>
-                <DialogContent className="max-w-md">
+                <DialogContent className="max-w-lg w-[95vw] sm:w-full">
                     <DialogHeader>
                         <DialogTitle>Upload Documents</DialogTitle>
                         <DialogDescription>Select a matter, then choose one or more files to upload.</DialogDescription>
                     </DialogHeader>
-                    <div className="space-y-4">
-                        <div className="space-y-2">
+                    <div className="space-y-4 min-w-0">
+                        <div className="space-y-2 min-w-0">
                             <Label>Matter *</Label>
                             <Select
                                 value={uploadMatterId}
                                 onValueChange={setUploadMatterId}
                                 disabled={uploadQueue.total > 0}
                             >
-                                <SelectTrigger><SelectValue placeholder="Select a matter…" /></SelectTrigger>
-                                <SelectContent>
+                                <SelectTrigger className="w-full min-w-0 [&>span]:truncate"><SelectValue placeholder="Select a matter…" /></SelectTrigger>
+                                <SelectContent className="max-w-[90vw] sm:max-w-lg">
                                     {matters.map((m) => (
-                                        <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                                        <SelectItem key={m.id} value={m.id} className="whitespace-normal break-words line-clamp-2" title={m.name}>{m.name}</SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
+                        </div>
+                        <div className="space-y-2 min-w-0">
+                            <Label>Folder</Label>
+                            <div className="rounded-lg bg-muted/30 border border-border/40 px-3 py-2.5 flex items-start gap-2 text-sm min-w-0">
+                                <Folder className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                                <span className="min-w-0 flex-1 break-words line-clamp-2" title={uploadMatterId ? (matters.find((m) => m.id === uploadMatterId)?.name || 'General') : 'Select a matter first'}>Default: <span className="font-mono font-medium break-all">{uploadMatterId ? (matters.find((m) => m.id === uploadMatterId)?.name || 'General') : 'Select a matter first'}</span></span>
+                            </div>
+                            <Input className="truncate" placeholder="Create subfolder (optional) — e.g. Correspondence" value={uploadFolder} onChange={(e) => setUploadFolder(e.target.value)} disabled={!uploadMatterId || uploadQueue.total > 0} />
+                            {(() => {
+                                if (!uploadMatterId) return <p className="text-xs text-muted-foreground">Choose a matter to see default folder.</p>;
+                                if (!uploadFolder.trim()) return <p className="text-xs text-muted-foreground">Leave empty to use default. New names become subfolders inside the matter.</p>;
+                                const base = matters.find((m) => m.id === uploadMatterId)?.name?.trim() || uploadFolder.split('/')[0];
+                                const raw = uploadFolder.trim();
+                                const isDefault = raw === base || raw === 'General' || raw === 'GENERAL' || raw === 'GENERAL CASE DOCUMENTS' || raw.startsWith(base + '/');
+                                const display = isDefault ? raw || base : `${base}/${raw}`;
+                                return isDefault ? <p className="text-xs text-muted-foreground break-all whitespace-normal line-clamp-2" title={display}>Will save inside <span className="font-mono break-all">{display}</span>.</p> : <p className="text-xs text-primary font-medium break-all whitespace-normal line-clamp-2" title={display}>Will be created as: <span className="font-mono break-all">{display}</span></p>;
+                            })()}
                         </div>
                         <label className={cn('flex items-center gap-2', uploadQueue.total > 0 ? 'cursor-not-allowed opacity-60' : 'cursor-pointer')}>
                             <input

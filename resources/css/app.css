@@ -26,9 +26,9 @@
         --popover: 0 0% 100%;
         --popover-foreground: 0 0% 7%;
 
-        --primary: 169 97% 13%; /* #014034 */
+        --primary: 169 97% 20%; /* #016452 — lighter than #014034 (13%) */
         --primary-foreground: 0 0% 100%;
-        --primary-hover: 169 97% 18%;
+        --primary-hover: 169 97% 26%;
 
         --secondary: 189 75% 92%; /* tint of #0097b2 */
         --secondary-foreground: 189 100% 22%;

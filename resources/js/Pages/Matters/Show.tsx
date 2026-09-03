@@ -17,9 +17,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { cn, formatCurrency, formatDate, MATTER_STATUS_LABELS, MATTER_PRIORITY_LABELS, MATTER_PRIORITY_STYLES, PRACTICE_AREA_LABELS } from '@/lib/utils';
 import {
     ArrowLeft, Clock, Receipt, Wallet, FileText, CheckSquare, Users, Edit, Plus, Download,
-    Gavel, Calendar, TrendingUp, AlertTriangle, ChevronRight, MessageSquare, Timer,
+    Gavel, Calendar, TrendingUp, AlertTriangle, ChevronRight, ChevronDown, MessageSquare, Timer,
     Paperclip, ExternalLink, DollarSign, PoundSterling, Eye, X, Pencil, Trash2,
-    Landmark, CalendarClock, Flag,
+    Landmark, CalendarClock, Flag, Folder, FolderOpen,
 } from 'lucide-react';
 import type { Matter, Expense, Document, TrustEntry, User } from '@/types';
 import { useUploadQueue } from '@/hooks/useUploadQueue';
@@ -75,6 +75,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
     const [expenses, setExpenses] = useState<any[]>(matter.expenses ?? []);
     const [tasks, setTasks] = useState<any[]>(matter.tasks ?? []);
     const [documents, setDocuments] = useState<any[]>(matter.documents ?? []);
+    const [activeDocFolder, setActiveDocFolder] = useState<string | null>(null);
 
     // ── Live Timer State ──
     const [timerSession, setTimerSession] = useState(serverTimer && serverTimer.matter_id === matter.id ? serverTimer : null);
@@ -264,6 +265,9 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
 
     const [docModalOpen, setDocModalOpen] = useState(false);
     const [docClientVisible, setDocClientVisible] = useState(false);
+    const [docFolder, setDocFolder] = useState(matter.matter_number || matter.name);
+    const _baseFolder = (matter.matter_number || matter.name).trim();
+    const docExistingFolders = [...new Set([_baseFolder, ...documents.map((d: any) => { let f=d.folder; if (f==='General' || f==='GENERAL' || f==='GENERAL CASE DOCUMENTS') f=_baseFolder; return f; }).filter(Boolean) as string[]].filter(Boolean))] as string[];
     const docFileRef = useRef<HTMLInputElement>(null);
 
     // One request per file, so each gets its own live progress bar and a bad
@@ -274,7 +278,14 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
             const fd = new FormData();
             fd.append('file', file);
             fd.append('matter_id', matter.id);
-            fd.append('folder', matter.matter_number || matter.name);
+            const baseFolder = (matter.matter_number || matter.name).trim();
+            let rawFolder = (docFolder || baseFolder).trim();
+            const isDefault = rawFolder === baseFolder || rawFolder.startsWith(baseFolder + '/');
+            if (!isDefault && rawFolder) {
+                rawFolder = `${baseFolder}/${rawFolder}`;
+            }
+            if (!rawFolder) rawFolder = baseFolder;
+            fd.append('folder', rawFolder);
             fd.append('is_client_visible', docClientVisible ? '1' : '0');
             return fd;
         },
@@ -498,6 +509,25 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
         } catch {}
     };
 
+    const deleteDocument = async (doc: any) => {
+        if (!window.confirm(`Delete document "${doc.name}"? This cannot be undone.`)) return;
+        try {
+            const token = (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement | null)?.content;
+            const res = await fetch(`/documents/${doc.id}`, {
+                method: 'DELETE',
+                headers: { Accept: 'application/json', ...(token ? { 'X-CSRF-TOKEN': token } : {}) },
+            });
+            if (res.ok) {
+                setDocuments((prev) => prev.filter((d: any) => d.id !== doc.id));
+            } else {
+                const payload = await res.json().catch(() => null);
+                window.alert(payload?.message || 'Unable to delete document.');
+            }
+        } catch {
+            window.alert('Unable to delete document.');
+        }
+    };
+
     const saveTask = async () => {
         setTaskSaving(true);
         setTaskError(null);
@@ -577,6 +607,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
     const openDocModal = () => {
         docUploadQueue.clearAll();
         setDocClientVisible(false);
+        setDocFolder(activeDocFolder || matter.matter_number || matter.name || 'General');
         if (docFileRef.current) docFileRef.current.value = '';
         setDocModalOpen(true);
     };
@@ -757,7 +788,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                         </div>
                         {viewFinancial && matter.fee_arrangement && (
                             <div className="shrink-0 flex items-center gap-1.5 rounded-full border border-border/60 bg-muted/30 px-2.5 py-1.5 self-start">
-                                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#014034] text-white"><PoundSterling className="h-3 w-3" /></span>
+                                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#016452] text-white"><PoundSterling className="h-3 w-3" /></span>
                                 <span className="text-xs font-semibold text-foreground capitalize">{matter.fee_arrangement.replace(/_/g, ' ')}</span>
                                 {feeSummary && <span className="text-xs font-medium text-muted-foreground">· {feeSummary}</span>}
                             </div>
@@ -776,7 +807,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                             )}
                             {(matter.court || matter.court_reference) && (
                                 <div className="flex items-center gap-2 rounded-full border border-border/60 bg-muted/20 px-3 py-1 text-xs">
-                                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#014034]/10 shrink-0"><Landmark className="h-3 w-3 text-[#014034]" /></span>
+                                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#016452]/10 shrink-0"><Landmark className="h-3 w-3 text-[#016452]" /></span>
                                     <span className="font-medium text-foreground">{matter.court || '—'}</span>
                                     {matter.court_reference && <span className="text-muted-foreground font-mono text-xs">Ref: {matter.court_reference}</span>}
                                 </div>
@@ -1413,47 +1444,86 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                     </CardHeader>
                     <CardContent className="p-0">
                         {documents.length ? (
-                            <>
-                                {Object.entries(
+                            (() => {
+                                const groups = Object.entries(
                                     documents.reduce((acc: Record<string, any[]>, doc: any) => {
-                                        const folder = doc.folder || 'General';
+                                        let folder = doc.folder || _baseFolder;
+                                        if (folder === 'General' || folder === 'GENERAL' || folder === 'GENERAL CASE DOCUMENTS') folder = _baseFolder;
                                         (acc[folder] = acc[folder] || []).push(doc);
                                         return acc;
-                                    }, {})
-                                ).map(([folder, docs]) => (
-                                    <div key={folder}>
-                                        <div className="px-5 py-2 bg-muted/30 border-b border-t border-border/60 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                                            {folder}
-                                        </div>
-                                        {(docs as any[]).map((doc: any) => (
-                                            <div key={doc.id} className="px-5 py-3.5 flex items-center gap-3 hover:bg-muted/20 transition-colors border-b border-border/40 last:border-0">
-                                                <Paperclip className="h-4 w-4 text-muted-foreground shrink-0" />
-                                                <div className="flex-1 min-w-0">
-                                                    <p className="text-sm font-medium truncate">{doc.name}</p>
-                                                    <p className="text-xs text-muted-foreground">
-                                                        {doc.uploadedBy?.full_name ? `${doc.uploadedBy.full_name} · ` : ''}
-                                                        {doc.created_at ? formatDate(doc.created_at) : ''}
-                                                        {doc.size ? ` · ${Math.round(doc.size / 1024)} KB` : ''}
-                                                    </p>
-                                                </div>
-                                                <div className="flex items-center gap-2 shrink-0">
-                                                    <Badge variant={doc.is_client_visible ? 'success' : 'secondary'} className="text-xs hidden sm:inline-flex">
-                                                        {doc.is_client_visible ? 'Client' : 'Internal'}
-                                                    </Badge>
-                                                    <Button variant="ghost" size="icon" className="h-7 w-7" title="View document" onClick={() => setViewerDoc(doc)}>
-                                                        <Eye className="h-3.5 w-3.5" />
-                                                    </Button>
-                                                    <Button variant="ghost" size="icon" className="h-7 w-7" title="Download document" asChild>
-                                                        <a href={`/documents/${doc.id}/download`} download>
-                                                            <Download className="h-3.5 w-3.5" />
-                                                        </a>
-                                                    </Button>
-                                                </div>
+                                    }, {} as Record<string, any[]>)
+                                );
+                                if (activeDocFolder) {
+                                    const docs = groups.find(([f]) => f === activeDocFolder)?.[1] as any[] | undefined;
+                                    if (!docs) {
+                                        return (
+                                            <div className="p-6 text-center text-sm text-muted-foreground">
+                                                Folder not found. <button className="text-primary hover:underline" onClick={() => setActiveDocFolder(null)}>Back to folders</button>
                                             </div>
+                                        );
+                                    }
+                                    return (
+                                        <div>
+                                            <div className="flex items-center gap-2 px-5 py-3 border-b border-border/60 bg-muted/20">
+                                                <Button variant="ghost" size="sm" onClick={() => setActiveDocFolder(null)} className="gap-1.5 h-8 rounded-full">
+                                                    <ArrowLeft className="h-4 w-4" /> Back to folders
+                                                </Button>
+                                                <span className="text-muted-foreground">/</span>
+                                                <FolderOpen className="h-4 w-4 text-[#f59e0b]" />
+                                                <span className="text-sm font-semibold truncate">{activeDocFolder}</span>
+                                                <span className="text-xs bg-card border border-border/60 rounded-full px-2 py-0.5 tabular-nums">{docs.length} file{docs.length !== 1 ? 's' : ''}</span>
+                                            </div>
+                                            <div className="divide-y divide-border/40">
+                                                {docs.map((doc: any) => (
+                                                    <div key={doc.id} className="px-5 py-3.5 flex items-center gap-3 hover:bg-muted/20 transition-colors">
+                                                        <Paperclip className="h-4 w-4 text-muted-foreground shrink-0" />
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="text-sm font-medium truncate">{doc.name}</p>
+                                                            <p className="text-xs text-muted-foreground">
+                                                                {doc.uploadedBy?.full_name ? `${doc.uploadedBy.full_name} · ` : ''}
+                                                                {doc.created_at ? formatDate(doc.created_at) : ''}
+                                                                {doc.size ? ` · ${Math.round(doc.size / 1024)} KB` : ''}
+                                                            </p>
+                                                        </div>
+                                                        <div className="flex items-center gap-2 shrink-0">
+                                                            <Badge variant={doc.is_client_visible ? 'success' : 'secondary'} className="text-xs hidden sm:inline-flex">
+                                                                {doc.is_client_visible ? 'Client' : 'Internal'}
+                                                            </Badge>
+                                                            <Button variant="ghost" size="icon" className="h-7 w-7" title="View document" onClick={() => setViewerDoc(doc)}>
+                                                                <Eye className="h-3.5 w-3.5" />
+                                                            </Button>
+                                                            <Button variant="ghost" size="icon" className="h-7 w-7" title="Download document" asChild>
+                                                                <a href={`/documents/${doc.id}/download`} download>
+                                                                    <Download className="h-3.5 w-3.5" />
+                                                                </a>
+                                                            </Button>
+                                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10" title="Delete document" onClick={() => deleteDocument(doc)}>
+                                                                <Trash2 className="h-3.5 w-3.5" />
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    );
+                                }
+                                return (
+                                    <div className="p-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                                        {groups.map(([folder, docs]) => (
+                                            <button
+                                                key={folder}
+                                                type="button"
+                                                onClick={() => setActiveDocFolder(folder)}
+                                                className="group flex flex-col items-center gap-2 rounded-xl border border-border/60 bg-card hover:bg-muted/40 hover:border-[#f59e0b]/40 hover:shadow-sm p-5 text-center transition-all"
+                                            >
+                                                <Folder className="h-12 w-12 text-[#f59e0b] group-hover:text-[#d97706] transition-colors" />
+                                                <span className="text-sm font-semibold leading-tight line-clamp-2 break-words w-full">{folder}</span>
+                                                <span className="text-xs text-muted-foreground tabular-nums">{(docs as any[]).length} file{(docs as any[]).length !== 1 ? 's' : ''}</span>
+                                            </button>
                                         ))}
                                     </div>
-                                ))}
-                            </>
+                                );
+                            })()
                         ) : (
                             <div className="px-6 py-10 text-center text-sm text-muted-foreground">
                                 <FileText className="h-8 w-8 mx-auto mb-2 text-muted-foreground/30" />
@@ -1463,6 +1533,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                     </CardContent>
                 </Card>
             )}
+
 
             {tab === 'tasks' && (
                 <div className="space-y-4">
@@ -1713,7 +1784,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                     {/* Matter Details */}
                     <Card className="rounded-[12px] border border-border/60 bg-card shadow-sm overflow-hidden">
                         <div className="px-5 py-3.5 border-b border-border/60 bg-muted/[0.12] flex items-center gap-2">
-                            <span className="flex h-7 w-7 items-center justify-center rounded-[8px] bg-[#014034] text-white shrink-0"><FileText className="h-3.5 w-3.5" /></span>
+                            <span className="flex h-7 w-7 items-center justify-center rounded-[8px] bg-[#016452] text-white shrink-0"><FileText className="h-3.5 w-3.5" /></span>
                             <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Matter Details</h3>
                         </div>
                         <div className="p-5">
@@ -1796,7 +1867,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                     {viewFinancial && (
                         <Card className="rounded-[12px] border border-border/60 bg-card shadow-sm overflow-hidden">
                             <div className="px-5 py-3.5 border-b border-border/60 bg-muted/[0.12] flex items-center gap-2">
-                                <span className="flex h-7 w-7 items-center justify-center rounded-[8px] bg-[#014034] text-white shrink-0"><Wallet className="h-3.5 w-3.5" /></span>
+                                <span className="flex h-7 w-7 items-center justify-center rounded-[8px] bg-[#016452] text-white shrink-0"><Wallet className="h-3.5 w-3.5" /></span>
                                 <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Financial</h3>
                             </div>
                             <div className="p-2">
@@ -1824,7 +1895,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                     {/* People */}
                     <Card className="rounded-[12px] border border-border/60 bg-card shadow-sm overflow-hidden">
                         <div className="px-5 py-3.5 border-b border-border/60 bg-muted/[0.12] flex items-center gap-2">
-                            <span className="flex h-7 w-7 items-center justify-center rounded-[8px] bg-[#014034] text-white shrink-0"><Users className="h-3.5 w-3.5" /></span>
+                            <span className="flex h-7 w-7 items-center justify-center rounded-[8px] bg-[#016452] text-white shrink-0"><Users className="h-3.5 w-3.5" /></span>
                             <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">People</h3>
                         </div>
                         <CardContent className="p-5 space-y-4">
@@ -1832,7 +1903,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                 <div>
                                     <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground mb-2">Responsible User</p>
                                     <div className="flex items-center gap-3">
-                                        <span className="h-9 w-9 rounded-full bg-[#014034] text-white text-sm font-bold flex items-center justify-center shrink-0">
+                                        <span className="h-9 w-9 rounded-full bg-[#016452] text-white text-sm font-bold flex items-center justify-center shrink-0">
                                             {matter.responsible_user.full_name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
                                         </span>
                                         <div className="min-w-0">
@@ -1851,16 +1922,16 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                             {matter.contacts.map((contact: any) => (
                                                 <Link key={contact.id} href={`/contacts/${contact.id}`}
                                                     className="flex items-center gap-3 group p-2 -mx-2 rounded-[10px] hover:bg-muted/40 transition-colors">
-                                                    <span className="h-8 w-8 rounded-full bg-muted text-muted-foreground text-xs font-bold flex items-center justify-center shrink-0 group-hover:bg-[#014034] group-hover:text-white transition-colors">
+                                                    <span className="h-8 w-8 rounded-full bg-muted text-muted-foreground text-xs font-bold flex items-center justify-center shrink-0 group-hover:bg-[#016452] group-hover:text-white transition-colors">
                                                         {(contact.full_name || contact.name)[0].toUpperCase()}
                                                     </span>
                                                     <div className="min-w-0 flex-1">
-                                                        <p className="text-sm font-semibold group-hover:text-[#014034] transition-colors truncate">{contact.full_name || contact.name}</p>
+                                                        <p className="text-sm font-semibold group-hover:text-[#016452] transition-colors truncate">{contact.full_name || contact.name}</p>
                                                         <p className="text-xs text-muted-foreground capitalize">
                                                             {(contact.pivot?.role || 'client').replace(/_/g, ' ')}
                                                         </p>
                                                     </div>
-                                                    <ExternalLink className="h-3.5 w-3.5 text-muted-foreground/30 group-hover:text-[#014034] transition-colors shrink-0" />
+                                                    <ExternalLink className="h-3.5 w-3.5 text-muted-foreground/30 group-hover:text-[#016452] transition-colors shrink-0" />
                                                 </Link>
                                             ))}
                                         </div>
@@ -1877,10 +1948,10 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                     <Card className="rounded-[12px] border border-border/60 bg-card shadow-sm overflow-hidden">
                         <div className="px-5 py-3.5 border-b border-border/60 bg-muted/[0.12] flex items-center justify-between">
                             <div className="flex items-center gap-2">
-                                <span className="flex h-7 w-7 items-center justify-center rounded-[8px] bg-[#014034] text-white shrink-0"><Receipt className="h-3.5 w-3.5" /></span>
+                                <span className="flex h-7 w-7 items-center justify-center rounded-[8px] bg-[#016452] text-white shrink-0"><Receipt className="h-3.5 w-3.5" /></span>
                                 <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Recent Invoices</h3>
                             </div>
-                            <Link href={`/billing/create?matter_id=${matter.id}`} className="text-xs font-semibold text-[#014034] hover:underline">
+                            <Link href={`/billing/create?matter_id=${matter.id}`} className="text-xs font-semibold text-[#016452] hover:underline">
                                 + New
                             </Link>
                         </div>
@@ -1897,7 +1968,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                         <Link key={inv.id} href={`/billing/${inv.id}`}
                                             className="px-5 py-3.5 flex items-center justify-between hover:bg-muted/20 transition-colors group">
                                             <div className="min-w-0">
-                                                <p className="text-sm font-semibold group-hover:text-[#014034] transition-colors truncate">{inv.invoice_number}</p>
+                                                <p className="text-sm font-semibold group-hover:text-[#016452] transition-colors truncate">{inv.invoice_number}</p>
                                                 <p className="text-xs text-muted-foreground mt-0.5">{formatDate(inv.created_at)}</p>
                                             </div>
                                             <div className="text-right shrink-0 ml-3">
@@ -2132,12 +2203,12 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
             </Dialog>
 
             <Dialog open={docModalOpen} onOpenChange={setDocModalOpen}>
-                <DialogContent className="rounded-2xl">
-                    <DialogHeader>
+                <DialogContent className="rounded-2xl p-0 gap-0 overflow-hidden flex flex-col max-h-[85vh] sm:max-w-lg">
+                    <DialogHeader className="px-6 pt-6 pb-4 shrink-0">
                         <DialogTitle>Upload documents</DialogTitle>
-                        <DialogDescription>Files will be saved to this matter&apos;s folder. No need to choose a folder.</DialogDescription>
+                        <DialogDescription>Default is this matter&apos;s folder. New folders are created as subfolders inside it and work like Windows.</DialogDescription>
                     </DialogHeader>
-                    <div className="space-y-4">
+                    <div className="overflow-y-auto px-6 pb-4 space-y-4 max-h-[60vh]">
                         <div className="space-y-2">
                             <Label className="text-sm font-medium">
                                 Files * <span className="text-muted-foreground font-normal">(max 20 MB each)</span>
@@ -2149,15 +2220,38 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                 onChange={(e) => handleDocFilesChosen(e.target.files)}
                             />
                         </div>
-                        <div className="rounded-xl bg-muted/20 border border-border/40 px-4 py-3 flex items-center gap-3">
-                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary shrink-0">
-                                <FileText className="h-4 w-4" />
-                            </div>
-                            <div className="min-w-0">
-                                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Destination folder</p>
-                                <p className="text-base font-semibold text-foreground truncate">{matter.matter_number} — {matter.name}</p>
-                                <p className="text-xs text-muted-foreground">Auto-created for this matter</p>
-                            </div>
+                        <div className="space-y-2">
+                            <Label className="text-sm font-medium">Folder <span className="text-muted-foreground font-normal">(default kept selected)</span></Label>
+                            <Select value={docExistingFolders.includes(docFolder) ? docFolder : '__custom'} onValueChange={(v) => { if (v !== '__custom') setDocFolder(v); }}>
+                                <SelectTrigger className="h-10">
+                                    <SelectValue placeholder="Select folder" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {docExistingFolders.map((f) => (
+                                        <SelectItem key={f} value={f}>{f}</SelectItem>
+                                    ))}
+                                    <SelectItem value="__custom">Create new subfolder…</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <Input
+                                placeholder={`${_baseFolder} (default) or ${_baseFolder}/NewFolder`}
+                                value={docFolder}
+                                onChange={(e) => setDocFolder(e.target.value)}
+                                className="h-10"
+                            />
+                            {(() => {
+                                const base = _baseFolder;
+                                const raw = docFolder.trim();
+                                const isSub = raw !== base && !raw.startsWith(base + '/') && raw !== '';
+                                return isSub ? <p className="text-xs text-primary font-medium">Will be created as: <span className="font-mono">{base}/{raw}</span></p> : <p className="text-xs text-muted-foreground">New names become subfolders inside <span className="font-mono">{base}</span> (like Windows).</p>;
+                            })()}
+                            {docExistingFolders.length > 0 && (
+                                <div className="flex flex-wrap gap-1.5 pt-1">
+                                    {docExistingFolders.slice(0, 6).map((f) => (
+                                        <button key={f} type="button" onClick={() => setDocFolder(f)} className={`px-2.5 py-1 rounded-full border text-xs font-medium transition-colors ${docFolder === f ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted hover:bg-muted/80 border-border/60'}`}>{f}</button>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                         <label className={cn('flex items-center gap-2', docUploadQueue.total > 0 ? 'cursor-not-allowed opacity-60' : 'cursor-pointer')}>
                             <input
@@ -2180,7 +2274,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                             onRemove={docUploadQueue.removeItem}
                         />
                     </div>
-                    <DialogFooter>
+                    <DialogFooter className="px-6 py-4 border-t bg-muted/20 shrink-0">
                         <Button type="button" variant="outline" onClick={() => setDocModalOpen(false)}>
                             {docUploadQueue.isUploading ? 'Upload in background' : 'Close'}
                         </Button>

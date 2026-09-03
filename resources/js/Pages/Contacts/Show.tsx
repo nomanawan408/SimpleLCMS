@@ -206,7 +206,9 @@ export default function ShowContact({ contact, invoices = [], documents = [], ca
         .toUpperCase();
 
     const addr = (contact.address as any) ?? {};
-    const addressLines = [addr.city, addr.county, addr.postcode].filter(Boolean).join(', ');
+    const hasAddress = Boolean(addr.line1 || addr.line2 || addr.city || addr.county || addr.postcode || addr.country);
+    const primaryAddress = [addr.line1, addr.line2].filter(Boolean).join(', ');
+    const secondaryAddress = [addr.city, addr.county, addr.postcode, addr.country].filter(Boolean).join(', ');
 
     return (
         <AppLayout title={contact.full_name || contact.name}>
@@ -314,13 +316,25 @@ export default function ShowContact({ contact, invoices = [], documents = [], ca
                                     </div>
                                 </div>
                             )}
-                            {addr.line1 && (
-                                <div className="rounded-xl border border-border/60 bg-muted/[0.18] px-3.5 py-2.5 flex items-center gap-2.5">
+                            {hasAddress ? (
+                                <div className="rounded-xl border border-border/60 bg-muted/[0.18] px-3.5 py-2.5 flex items-center gap-2.5 lg:col-span-2">
                                     <span className="flex h-7 w-7 items-center justify-center rounded-full bg-rose-50 shrink-0"><MapPin className="h-3.5 w-3.5 text-rose-600" /></span>
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-xs font-medium text-muted-foreground leading-none">Address</p>
+                                        <p className="text-sm font-semibold text-foreground truncate" title={[primaryAddress, secondaryAddress].filter(Boolean).join(', ')}>
+                                            {primaryAddress || secondaryAddress || '—'}
+                                        </p>
+                                        {primaryAddress && secondaryAddress && (
+                                            <p className="text-xs text-muted-foreground truncate">{secondaryAddress}</p>
+                                        )}
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="rounded-xl border border-dashed border-border/60 bg-muted/20 px-3.5 py-2.5 flex items-center gap-2.5">
+                                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-muted shrink-0"><MapPin className="h-3.5 w-3.5 text-muted-foreground" /></span>
                                     <div className="min-w-0">
                                         <p className="text-xs font-medium text-muted-foreground leading-none">Address</p>
-                                        <p className="text-base font-semibold text-foreground truncate">{addr.line1}</p>
-                                        {addressLines && <p className="text-sm text-muted-foreground truncate">{addressLines}</p>}
+                                        <p className="text-sm font-medium text-muted-foreground/60 italic">No address on file</p>
                                     </div>
                                 </div>
                             )}

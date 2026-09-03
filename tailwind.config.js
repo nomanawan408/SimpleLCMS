@@ -20,7 +20,7 @@ export default {
                 ring: 'hsl(var(--ring))',
                 background: 'hsl(var(--background))',
                 foreground: 'hsl(var(--foreground))',
-                /* SIMPLE-CM palette: Vivid #02b88e, Dark #014034, Mid #0097b2, Grey #545454, Coral #ff5757 */
+                /* SIMPLE-CM palette: Vivid #02b88e, Dark #016452 (lighter than #014034), Mid #0097b2, Grey #545454, Coral #ff5757 */
                 brand: {
                     50:  '#E6FBF7',
                     100: '#C7F5EA',
@@ -30,9 +30,9 @@ export default {
                     500: '#02b88e',
                     600: '#0097b2',
                     700: '#007a91',
-                    800: '#015C47',
-                    900: '#014034',
-                    950: '#00211c',
+                    800: '#016452',
+                    900: '#016452',
+                    950: '#014034',
                     DEFAULT: '#02b88e',
                 },
                 /* Warm magenta accent that pairs with the "Dark Blue" scale. */

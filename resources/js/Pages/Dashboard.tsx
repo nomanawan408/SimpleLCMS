@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { formatCurrency, formatDate, MATTER_STATUS_LABELS } from '@/lib/utils';
 import {
     AlertTriangle, ArrowDownLeft, ArrowUpRight, Briefcase, CheckSquare,
-    Clock, Plus, Receipt, TrendingUp, Wallet,
+    Clock, Plus, PoundSterling, Receipt, TrendingUp, Wallet,
 } from 'lucide-react';
 import type { Matter, Task } from '@/types';
 
@@ -127,7 +127,7 @@ export default function Dashboard({ stats, viewFinancial, recentMatters, upcomin
     const kpis: KpiCard[] = [
         { label: 'Hours Today', value: `${stats.hours_today}h`, href: '/time', icon: Clock, tone: 'primary' },
         { label: 'Open Matters', value: String(stats.open_matters), href: '/matters', icon: Briefcase, tone: 'primary' },
-        { label: viewFinancial ? 'Outstanding Invoices' : 'Hours This Week', value: viewFinancial ? formatCurrency(stats.outstanding_invoices) : `${stats.hours_week}h`, href: viewFinancial ? '/billing' : '/time', icon: viewFinancial ? Receipt : TrendingUp, tone: 'ink' },
+        { label: viewFinancial ? 'Outstanding Invoices' : 'Hours This Week', value: viewFinancial ? formatCurrency(stats.outstanding_invoices) : `${stats.hours_week}h`, href: viewFinancial ? '/billing' : '/time', icon: viewFinancial ? PoundSterling : TrendingUp, tone: 'ink' },
         { label: 'Overdue Tasks', value: String(stats.overdue_tasks), href: '/tasks', icon: AlertTriangle, tone: 'warning' },
     ];
 
