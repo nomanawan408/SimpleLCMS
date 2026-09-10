@@ -612,4 +612,91 @@ class SecurityRegressionTest extends TestCase
             'role' => 'solicitor',
         ])->assertSessionHasErrors('password');
     }
+
+    /** SL-27: the live timer endpoints require create_time_entries (H1) */
+    public function test_view_only_users_cannot_use_the_time_tracker(): void
+    {
+        [$firm, $admin] = $this->createFirmAndAdmin();
+        $matter = Matter::factory()->forFirm($firm, $admin)->create();
+        $secretary = User::factory()->forFirm($firm)->create(['role' => 'secretary']);
+        $secretary->assignRole('secretary');
+        $this->assertFalse($secretary->hasPermissionTo('create_time_entries'));
+
+        $this->actingAsUser($secretary);
+        $this->postJson('/time/checkin', ['matter_id' => $matter->id])->assertForbidden();
+        $this->postJson('/time/checkout')->assertForbidden();
+        $this->postJson('/time/discard')->assertForbidden();
+        $this->postJson('/time/pause')->assertForbidden();
+        $this->postJson('/time/resume')->assertForbidden();
+        $this->postJson('/time/timer/start', ['matter_id' => $matter->id])->assertForbidden();
+        $this->postJson('/time/timer/stop')->assertForbidden();
+
+        $this->assertDatabaseMissing('time_sessions', ['user_id' => $secretary->id]);
+        $this->assertDatabaseMissing('time_entries', ['user_id' => $secretary->id]);
+    }
+
+    /** SL-27: the gate must not block legitimate time tracking */
+    public function test_users_with_create_permission_can_still_check_in(): void
+    {
+        [$firm, $admin] = $this->createFirmAndAdmin();
+        $matter = Matter::factory()->forFirm($firm, $admin)->create();
+
+        $this->actingAsUser($admin)
+            ->postJson('/time/checkin', ['matter_id' => $matter->id])
+            ->assertOk();
+
+        $this->assertDatabaseHas('time_sessions', ['user_id' => $admin->id, 'matter_id' => $matter->id]);
+    }
+
+    /** SL-29: 2FA state cannot be flipped via mass assignment (M2) */
+    public function test_totp_fields_are_not_mass_assignable(): void
+    {
+        [$firm, $admin] = $this->createFirmAndAdmin();
+        $user = User::factory()->forFirm($firm)->create(['role' => 'solicitor']);
+        $user->assignRole('solicitor');
+
+        $user->update(['totp_enabled' => true, 'totp_secret' => 'ATTACKER']);
+        $this->assertFalse($user->fresh()->totp_enabled);
+        $this->assertNull($user->fresh()->totp_secret);
+
+        $this->actingAsUser($admin)
+            ->put("/admin/users/{$user->id}", ['totp_enabled' => true])
+            ->assertSessionHasNoErrors();
+        $this->assertFalse($user->fresh()->totp_enabled);
+    }
+
+    /** SL-30: the firm setup token cannot be set via mass assignment (M2) */
+    public function test_setup_token_fields_are_not_mass_assignable(): void
+    {
+        [$firm, $admin] = $this->createFirmAndAdmin();
+
+        $firm->update([
+            'setup_token' => 'ATTACKER',
+            'setup_token_expires_at' => now()->addDay(),
+        ]);
+        $this->assertNotEquals('ATTACKER', $firm->fresh()->setup_token);
+    }
+
+    /** SL-28: cross-firm IDs fail validation instead of leaking existence (H3) */
+    public function test_cross_firm_ids_are_rejected_by_scoped_validators(): void
+    {
+        [$firmA, $adminA] = $this->createFirmAndAdmin();
+        [$firmB, $adminB] = $this->createFirmAndAdmin();
+        $foreignMatter = Matter::factory()->forFirm($firmB, $adminB)->create();
+        $foreignInvoice = \App\Models\Invoice::factory()->forFirm($firmB)->create(['status' => 'sent']);
+
+        $this->actingAsUser($adminA)
+            ->postJson('/time/checkin', ['matter_id' => $foreignMatter->id])
+            ->assertStatus(422);
+        $this->assertDatabaseMissing('time_sessions', ['user_id' => $adminA->id]);
+
+        $this->actingAsUser($adminA)
+            ->postJson('/transactions', [
+                'invoice_id' => $foreignInvoice->id,
+                'amount' => 10, 'method' => 'cash',
+                'paid_at' => now()->toDateString(),
+            ])
+            ->assertStatus(422);
+        $this->assertDatabaseMissing('payments', ['invoice_id' => $foreignInvoice->id]);
+    }
 }

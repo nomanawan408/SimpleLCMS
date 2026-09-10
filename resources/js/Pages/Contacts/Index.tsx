@@ -113,7 +113,7 @@ export default function ContactsIndex({ contacts, filters, tablePreferences }: P
             minWidth: 110,
             maxWidth: 180,
             cell: (contact) => (
-                <span className={`inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-medium leading-none ${typeBadgeStyles[contact.type] ?? 'bg-muted text-muted-foreground border-border'}`}>
+                <span className={`inline-flex items-center whitespace-nowrap rounded border px-2.5 py-1 text-xs font-medium leading-none ${typeBadgeStyles[contact.type] ?? 'bg-muted text-muted-foreground border-border'}`}>
                     {CONTACT_TYPE_LABELS[contact.type] || contact.type.replace(/_/g, ' ')}
                 </span>
             ),
@@ -125,7 +125,7 @@ export default function ContactsIndex({ contacts, filters, tablePreferences }: P
             minWidth: 120,
             maxWidth: 200,
             cell: (contact) => contact.lead_status ? (
-                <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-medium leading-none ${leadBadgeStyles[contact.lead_status] ?? 'bg-muted text-muted-foreground border-border'}`}>
+                <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded border px-2.5 py-1 text-xs font-medium leading-none ${leadBadgeStyles[contact.lead_status] ?? 'bg-muted text-muted-foreground border-border'}`}>
                     <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-current" aria-hidden />
                     {LEAD_STATUS_LABELS[contact.lead_status] || contact.lead_status.replace(/_/g, ' ')}
                 </span>
@@ -196,7 +196,7 @@ export default function ContactsIndex({ contacts, filters, tablePreferences }: P
             cell: (contact) => contact.tags && contact.tags.length > 0 ? (
                 <span className="flex flex-wrap gap-1">
                     {contact.tags.slice(0, 3).map((tag) => (
-                        <Badge key={tag} variant="secondary" className="rounded-full px-2 py-0 text-xs font-medium">{tag}</Badge>
+                        <Badge key={tag} variant="secondary" className="rounded px-2 py-0 text-xs font-medium">{tag}</Badge>
                     ))}
                     {contact.tags.length > 3 && (
                         <span className="text-xs text-muted-foreground">+{contact.tags.length - 3}</span>

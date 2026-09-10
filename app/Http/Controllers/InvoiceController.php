@@ -13,6 +13,7 @@ use App\Models\Expense;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -483,7 +484,15 @@ class InvoiceController extends Controller
 
             return back()->with('success', "Invoice emailed to {$clientEmail} successfully.");
         } catch (\Exception $e) {
-            return back()->with('error', "Failed to send email: {$e->getMessage()}");
+            // Mail-driver internals must stay server-side: log the detail,
+            // show the user a generic message.
+            Log::warning('Invoice email failed', [
+                'invoice_id' => $invoice->id,
+                'recipient'  => $clientEmail,
+                'error'      => $e->getMessage(),
+            ]);
+
+            return back()->with('error', 'Failed to send email. Please try again or contact support.');
         }
     }
 

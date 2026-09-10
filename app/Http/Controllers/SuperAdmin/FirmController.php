@@ -108,9 +108,13 @@ class FirmController extends Controller
                 'invoice_prefix'     => strtoupper(Str::substr($validated['name'], 0, 3)),
                 'invoice_sequence'   => 1,
                 'payment_terms_days' => 30,
-                'setup_token'        => $setupToken,
-                'setup_token_expires_at' => now()->addHours(72),
             ]);
+
+            // Credential-equivalent: never mass-assignable (see Firm::$fillable).
+            $firm->forceFill([
+                'setup_token'            => $setupToken,
+                'setup_token_expires_at' => now()->addHours(72),
+            ])->save();
 
             $tempPassword = Str::random(12);
             $admin = User::create([

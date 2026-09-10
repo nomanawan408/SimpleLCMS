@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "application-security": {
+      "source": "oakoss/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/application-security/SKILL.md",
+      "computedHash": "1c1eb271d41f5a5c27a831c9c7f241ac9accece307d549a92122f93c2d940005"
+    }
+  }
+}

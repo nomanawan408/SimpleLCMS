@@ -152,6 +152,42 @@ class MatterStatusTest extends TestCase
                 ->where('filters.category', 'all'));
     }
 
+    public function test_closing_a_matter_stamps_closed_at_and_moves_it_to_the_closed_bucket(): void
+    {
+        [$firm, $admin] = $this->createFirmAndAdmin();
+        $matter = Matter::factory()->forFirm($firm, $admin)->create(['status' => 'open']);
+
+        $this->actingAsUser($admin)
+            ->patch("/matters/{$matter->id}", ['status' => 'closed'])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('matters', ['id' => $matter->id, 'status' => 'closed']);
+        $this->assertNotNull($matter->fresh()->closed_at);
+
+        $this->actingAsUser($admin)->get('/dashboard')
+            ->assertInertia(fn ($page) => $page->where('stats.open_matters', 0));
+        $this->actingAsUser($admin)->get('/matters?category=closed')
+            ->assertInertia(fn ($page) => $page->where('matters.total', 1));
+        $this->actingAsUser($admin)->get('/matters?category=open')
+            ->assertInertia(fn ($page) => $page->where('matters.total', 0));
+    }
+
+    public function test_reopening_a_matter_clears_closed_at_and_restores_open_counts(): void
+    {
+        [$firm, $admin] = $this->createFirmAndAdmin();
+        $matter = Matter::factory()->forFirm($firm, $admin)->create(['status' => 'closed']);
+
+        $this->actingAsUser($admin)
+            ->patch("/matters/{$matter->id}", ['status' => 'open'])
+            ->assertRedirect();
+
+        $this->assertDatabaseMissing('matters', ['id' => $matter->id, 'status' => 'closed']);
+        $this->assertNull($matter->fresh()->closed_at);
+
+        $this->actingAsUser($admin)->get('/dashboard')
+            ->assertInertia(fn ($page) => $page->where('stats.open_matters', 1));
+    }
+
     public function test_matters_index_can_filter_by_a_new_status(): void
     {
         [$firm, $admin] = $this->createFirmAndAdmin();

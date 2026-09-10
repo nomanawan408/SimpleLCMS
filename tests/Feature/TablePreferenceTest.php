@@ -2,10 +2,13 @@
 
 namespace Tests\Feature;
 
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class TablePreferenceTest extends TestCase
 {
+    use RefreshDatabase;
+
     public function test_user_can_save_and_read_own_table_layout(): void
     {
         [$firm, $admin] = $this->createFirmAndAdmin();

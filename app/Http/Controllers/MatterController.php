@@ -212,7 +212,14 @@ class MatterController extends Controller
     {
         $this->authorize('update', $matter);
 
-        $matter->update($request->validated());
+        $matter->fill($request->validated());
+
+        // Keep closed_at in step with the Open/Closed buckets: stamp it the
+        // moment a matter is finished, clear it if the matter is reopened.
+        if ($matter->isDirty('status')) {
+            $matter->closed_at = $matter->isClosed() ? ($matter->closed_at ?? now()) : null;
+        }
+        $matter->save();
 
         activity()->causedBy($request->user())->performedOn($matter)->log('updated');
 
@@ -319,7 +326,7 @@ class MatterController extends Controller
 
         $initials = 'XX';
         if ($contactId) {
-            $contact = Contact::where('id', $contactId)->first();
+            $contact = Contact::where('id', $contactId)->where('firm_id', $firmId)->first();
             if ($contact) {
                 $parts = array_filter([
                     $contact->first_name,

@@ -113,7 +113,7 @@ class TwoFactorController extends Controller
 
         if (! $user->totp_secret) {
             $secret = $this->google2fa->generateSecretKey();
-            $user->update(['totp_secret' => $secret]);
+            $user->forceFill(['totp_secret' => $secret])->save();
         }
 
         $qrCodeUrl = $this->google2fa->getQRCodeUrl(

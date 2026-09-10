@@ -158,14 +158,14 @@
     ::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 99px; }
     ::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground) / 0.5); }
 
-    /* Thick table scrollbar — for data tables where horizontal scroll is essential */
+    /* Thick table scrollbar — for data tables where horizontal scroll is essential — themed to primary teal */
     .table-scrollbar {
-        scrollbar-width: auto;
-        scrollbar-color: hsl(var(--muted-foreground) / 0.45) hsl(var(--muted));
+        scrollbar-width: thin;
+        scrollbar-color: hsl(var(--primary) / 0.85) hsl(var(--muted));
         /* lift the bar 8px off the very bottom edge so it's not flush */
         padding-bottom: 4px;
     }
-    .table-scrollbar::-webkit-scrollbar { width: 10px; height: 12px; }
+    .table-scrollbar::-webkit-scrollbar { width: 10px; height: 10px; }
     .table-scrollbar::-webkit-scrollbar-track {
         background: hsl(var(--muted));
         border-radius: 99px;
@@ -173,13 +173,13 @@
         border: 1px solid hsl(var(--border) / 0.5);
     }
     .table-scrollbar::-webkit-scrollbar-thumb {
-        background: hsl(var(--muted-foreground) / 0.45);
+        background: hsl(var(--primary) / 0.85);
         border-radius: 99px;
         border: 2px solid hsl(var(--muted));
         min-width: 40px;
     }
-    .table-scrollbar::-webkit-scrollbar-thumb:hover { background: hsl(var(--primary) / 0.55); }
-    .table-scrollbar::-webkit-scrollbar-thumb:active { background: hsl(var(--primary) / 0.75); }
+    .table-scrollbar::-webkit-scrollbar-thumb:hover { background: hsl(var(--primary)); }
+    .table-scrollbar::-webkit-scrollbar-thumb:active { background: hsl(var(--primary) / 0.95); }
 }
 
 @layer components {

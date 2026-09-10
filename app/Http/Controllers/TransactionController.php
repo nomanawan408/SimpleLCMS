@@ -6,6 +6,7 @@ use App\Models\Invoice;
 use App\Models\Matter;
 use App\Models\Payment;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -98,7 +99,7 @@ class TransactionController extends Controller
         $firmId = $user->firm_id;
 
         $validated = $request->validate([
-            'invoice_id' => ['required', 'uuid', 'exists:invoices,id'],
+            'invoice_id' => ['required', 'uuid', Rule::exists('invoices', 'id')->where(fn ($q) => $q->where('firm_id', $request->user()->firm_id))],
             'amount'     => ['required', 'numeric', 'min:0.01'],
             'method'     => ['required', 'in:cash,cheque,bank_transfer,stripe_card,stripe_sepa'],
             'paid_at'    => ['required', 'date'],

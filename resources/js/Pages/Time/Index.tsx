@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -13,9 +13,9 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
-import { cn, formatCurrency, formatDate } from '@/lib/utils';
+import { cn, formatCurrency, formatDate, hasPermission } from '@/lib/utils';
 import { Clock, LogIn, LogOut, Plus, Pencil, Trash2, Receipt, TrendingUp, AlertCircle, CheckCircle2, Timer, PoundSterling, X, CalendarDays, FileText, Search, SlidersHorizontal } from 'lucide-react';
-import type { PaginatedData, TimeEntry } from '@/types';
+import type { PageProps, PaginatedData, TimeEntry } from '@/types';
 
 interface ActiveSession {
     matter_id: string;
@@ -124,6 +124,9 @@ function getMatterRate(matters: Props['matters'], matterId: string, fallback: nu
 }
 
 export default function TimeIndex({ entries, stats, users, matters, filters, activeTimer: serverSession, defaultRate, firmVatRate, isAdmin }: Props) {
+    const { auth } = usePage<PageProps>().props;
+    // Timer + manual entry write to time entries server-side (403 without it).
+    const canCreateTime = hasPermission(auth.user?.permissions, 'create_time_entries');
     const [session, setSession] = useState<ActiveSession | null>(serverSession);
     const [elapsed, setElapsed] = useState(0);
     const [isPaused, setIsPaused] = useState(!!serverSession?.paused_at);
@@ -439,14 +442,16 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
                     <h1 className="text-2xl font-extrabold tracking-tight">Time Tracking</h1>
                     <p className="text-sm text-muted-foreground mt-0.5">Log, review and bill your time entries</p>
                 </div>
-                <Button onClick={() => openCreate()} className="gap-2 shadow-sm">
-                    <Plus className="h-4 w-4" />
-                    Manual Entry
-                </Button>
+                {canCreateTime && (
+                    <Button onClick={() => openCreate()} className="gap-2 shadow-sm">
+                        <Plus className="h-4 w-4" />
+                        Manual Entry
+                    </Button>
+                )}
             </div>
 
             {/* ─── Check-in / Active Session Panel ─── */}
-            {session ? (
+            {canCreateTime && (session ? (
                 <div className="mb-6 rounded-2xl border border-emerald-200/60 dark:border-emerald-800/30 bg-gradient-to-br from-emerald-50/90 via-white to-green-50/40 dark:from-emerald-950/40 dark:via-card dark:to-green-950/20 shadow-lg shadow-emerald-100/50 dark:shadow-emerald-900/20 overflow-hidden transition-all duration-300">
                     {/* Shimmer accent bar */}
                     <div className="relative h-1.5 w-full overflow-hidden">
@@ -653,7 +658,7 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
                         </p>
                     </div>
                 </div>
-            )}
+            ))}
 
             {/* Stats */}
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 mb-6">
@@ -830,10 +835,14 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
                             <Clock className="h-7 w-7 text-muted-foreground/40" />
                         </div>
                         <p className="text-sm font-medium text-muted-foreground mb-1">No time entries found</p>
-                        <p className="text-xs text-muted-foreground/60 mb-4">Start a timer or log a manual entry</p>
-                        <Button size="sm" onClick={() => openCreate()} className="gap-2">
-                            <Plus className="h-3.5 w-3.5" />Log Entry
-                        </Button>
+                        {canCreateTime && (
+                            <>
+                                <p className="text-xs text-muted-foreground/60 mb-4">Start a timer or log a manual entry</p>
+                                <Button size="sm" onClick={() => openCreate()} className="gap-2">
+                                    <Plus className="h-3.5 w-3.5" />Log Entry
+                                </Button>
+                            </>
+                        )}
                     </div>
                 ) : (
                     <div className="overflow-x-auto">

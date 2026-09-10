@@ -279,7 +279,7 @@ export function DynamicTable<T>({
                 </div>
             </div>
 
-            <div className="w-full overflow-x-auto">
+            <div className="w-full overflow-x-auto table-scrollbar">
                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                     <table
                         className="w-full caption-bottom border-collapse text-sm"

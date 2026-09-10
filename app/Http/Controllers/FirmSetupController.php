@@ -79,12 +79,13 @@ class FirmSetupController extends Controller
         $password = $validated['password'];
         unset($validated['password']);
 
-        $firm->update([
-            ...$validated,
-            'setup_completed_at' => now(),
-            'setup_token'        => null,
+        $firm->fill($validated);
+        // Credential-equivalent: never mass-assignable (see Firm::$fillable).
+        $firm->forceFill([
+            'setup_completed_at'     => now(),
+            'setup_token'            => null,
             'setup_token_expires_at' => null,
-        ]);
+        ])->save();
 
         $admin = User::where('firm_id', $firm->id)->where('role', 'firm_admin')->first();
         if ($admin) {

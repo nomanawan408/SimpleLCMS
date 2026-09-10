@@ -16,6 +16,12 @@ class Firm extends Model
     protected $keyType = 'string';
     public $incrementing = false;
 
+    /**
+     * setup_token / setup_token_expires_at / setup_completed_at are
+     * deliberately NOT fillable: the setup token is a credential (whoever
+     * holds it can set the firm admin password), so every write goes through
+     * forceFill in SuperAdmin\FirmController and FirmSetupController.
+     */
     protected $fillable = [
         'name', 'slug', 'plan', 'vat_number', 'sra_number',
         'logo_path', 'settings', 'subscription_status', 'trial_ends_at',
@@ -24,7 +30,6 @@ class Firm extends Model
         'invoice_prefix', 'invoice_sequence', 'vat_rate', 'payment_terms_days',
         'bank_name', 'bank_sort_code', 'bank_account_number', 'bank_account_name',
         'bank_iban', 'bank_swift_code', 'payment_instructions',
-        'setup_token', 'setup_token_expires_at', 'setup_completed_at',
     ];
 
     /** The setup token is a credential; never serialise it with the model. */

@@ -1,4 +1,4 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,14 +14,14 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
-import { cn, formatCurrency, formatDate, MATTER_STATUS_LABELS, MATTER_PRIORITY_LABELS, MATTER_PRIORITY_STYLES, PRACTICE_AREA_LABELS } from '@/lib/utils';
+import { cn, formatCurrency, formatDate, hasPermission, MATTER_STATUS_LABELS, MATTER_PRIORITY_LABELS, MATTER_PRIORITY_STYLES, PRACTICE_AREA_LABELS } from '@/lib/utils';
 import {
     ArrowLeft, Clock, Receipt, Wallet, FileText, CheckSquare, Users, Edit, Plus, Download,
     Gavel, Calendar, TrendingUp, AlertTriangle, ChevronRight, ChevronDown, MessageSquare, Timer,
     Paperclip, ExternalLink, DollarSign, PoundSterling, Eye, X, Pencil, Trash2,
-    Landmark, CalendarClock, Flag, Folder, FolderOpen,
+    Landmark, CalendarClock, Flag, Folder, FolderOpen, CircleCheck, RotateCcw,
 } from 'lucide-react';
-import type { Matter, Expense, Document, TrustEntry, User } from '@/types';
+import type { Matter, Expense, Document, TrustEntry, User, PageProps } from '@/types';
 import { useUploadQueue } from '@/hooks/useUploadQueue';
 import { UploadQueueList } from '@/components/documents/UploadQueueList';
 
@@ -70,12 +70,30 @@ interface Props {
 }
 
 export default function ShowMatter({ matter, users, viewFinancial, activeTimer: serverTimer }: Props) {
+    const { auth } = usePage<PageProps>().props;
+    const canCreateTime = hasPermission(auth.user?.permissions, 'create_time_entries');
     const [notes, setNotes] = useState<any[]>(matter.notes ?? []);
     const [timeEntries, setTimeEntries] = useState<any[]>(matter.time_entries ?? []);
     const [expenses, setExpenses] = useState<any[]>(matter.expenses ?? []);
     const [tasks, setTasks] = useState<any[]>(matter.tasks ?? []);
     const [documents, setDocuments] = useState<any[]>(matter.documents ?? []);
     const [activeDocFolder, setActiveDocFolder] = useState<string | null>(null);
+
+    // ── Close / Reopen ──
+    // Closed = status is closed/archived (Matter::CLOSED_STATUSES). Everything
+    // else counts as open, so finishing a matter is a single status flip.
+    const isClosed = matter.status === 'closed' || matter.status === 'archived';
+    const [statusDialog, setStatusDialog] = useState<null | 'close' | 'reopen'>(null);
+    const [statusSaving, setStatusSaving] = useState(false);
+    const openTasksCount = tasks.filter((t: any) => t.status !== 'done').length;
+
+    function submitStatusChange(next: 'closed' | 'open') {
+        setStatusSaving(true);
+        router.patch(`/matters/${matter.id}`, { status: next }, {
+            preserveScroll: true,
+            onFinish: () => { setStatusSaving(false); setStatusDialog(null); },
+        });
+    }
 
     // ── Live Timer State ──
     const [timerSession, setTimerSession] = useState(serverTimer && serverTimer.matter_id === matter.id ? serverTimer : null);
@@ -728,16 +746,35 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                     </Link>
                 </Button>
                 <div className="flex items-center gap-2">
-                    <Button size="sm" variant="outline" type="button" onClick={openTimeModal}>
-                        <Timer className="h-4 w-4 mr-1" />
-                        Log Time
-                    </Button>
+                    {canCreateTime && (
+                        <Button size="sm" variant="outline" type="button" onClick={openTimeModal}>
+                            <Timer className="h-4 w-4 mr-1" />
+                            Log Time
+                        </Button>
+                    )}
                     <Button asChild size="sm" variant="outline">
                         <Link href={`/billing/create?matter_id=${matter.id}`}>
                             <Receipt className="h-4 w-4 mr-1" />
                             New Invoice
                         </Link>
                     </Button>
+                    {isClosed ? (
+                        <Button size="sm" variant="outline" type="button" onClick={() => setStatusDialog('reopen')}>
+                            <RotateCcw className="h-4 w-4 mr-1" />
+                            Reopen
+                        </Button>
+                    ) : (
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            type="button"
+                            onClick={() => setStatusDialog('close')}
+                            className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800"
+                        >
+                            <CircleCheck className="h-4 w-4 mr-1" />
+                            Mark as Closed
+                        </Button>
+                    )}
                     <Button asChild size="sm">
                         <Link href={`/matters/${matter.id}/edit`}>
                             <Edit className="h-4 w-4 mr-1" />
@@ -746,6 +783,60 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                     </Button>
                 </div>
             </div>
+
+            {/* Close / Reopen confirmation */}
+            <Dialog open={statusDialog !== null} onOpenChange={(open) => { if (!open) setStatusDialog(null); }}>
+                <DialogContent className="max-w-sm">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            {statusDialog === 'reopen' ? (
+                                <><RotateCcw className="h-5 w-5 text-primary" />Reopen this matter?</>
+                            ) : (
+                                <><CircleCheck className="h-5 w-5 text-emerald-600" />Close this matter?</>
+                            )}
+                        </DialogTitle>
+                        <DialogDescription>
+                            {statusDialog === 'reopen'
+                                ? 'The matter returns to the Opened tab and back into the Open counts.'
+                                : 'Closing moves the matter to the Closed tab and out of the Open counts. Time entries, documents, invoices and history are kept.'}
+                        </DialogDescription>
+                    </DialogHeader>
+                    {statusDialog === 'close' && (openTasksCount > 0 || totalOutstanding > 0) && (
+                        <div className="space-y-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
+                            {openTasksCount > 0 && (
+                                <p className="flex items-start gap-2 text-xs font-medium text-amber-800">
+                                    <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                                    {openTasksCount} open task{openTasksCount === 1 ? '' : 's'} will remain on a closed matter.
+                                </p>
+                            )}
+                            {totalOutstanding > 0 && (
+                                <p className="flex items-start gap-2 text-xs font-medium text-amber-800">
+                                    <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                                    {formatCurrency(totalOutstanding)} still outstanding on this matter.
+                                </p>
+                            )}
+                        </div>
+                    )}
+                    <DialogFooter className="gap-2">
+                        <Button variant="outline" onClick={() => setStatusDialog(null)} disabled={statusSaving}>
+                            Cancel
+                        </Button>
+                        {statusDialog === 'reopen' ? (
+                            <Button onClick={() => submitStatusChange('open')} disabled={statusSaving}>
+                                {statusSaving ? 'Reopening…' : 'Reopen Matter'}
+                            </Button>
+                        ) : (
+                            <Button
+                                onClick={() => submitStatusChange('closed')}
+                                disabled={statusSaving}
+                                className="bg-emerald-600 hover:bg-emerald-700"
+                            >
+                                {statusSaving ? 'Closing…' : 'Close Matter'}
+                            </Button>
+                        )}
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             {/* Matter Header — slim, clean professional (adjustable: rounded 12px, average-shade accent, compact) */}
             <Card className="rounded-[12px] border border-border/60 bg-card shadow-sm overflow-hidden mb-4 hover:shadow-md transition-shadow">
@@ -1271,10 +1362,12 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                 </p>
                             )}
                         </div>
-                        <Button size="sm" variant="outline" type="button" onClick={openTimeModal}>
-                            <Plus className="h-3.5 w-3.5 mr-1" />
-                            Log Time
-                        </Button>
+                        {canCreateTime && (
+                            <Button size="sm" variant="outline" type="button" onClick={openTimeModal}>
+                                <Plus className="h-3.5 w-3.5 mr-1" />
+                                Log Time
+                            </Button>
+                        )}
                     </CardHeader>
                     <CardContent className="p-0">
                         {timeEntries?.length ? (

@@ -21,6 +21,11 @@ class User extends Authenticatable implements MustVerifyEmail
     protected $keyType = 'string';
     public $incrementing = false;
 
+    /**
+     * totp_secret / totp_enabled are deliberately NOT fillable: every write
+     * goes through forceFill in TwoFactorController, so no request payload
+     * can ever flip second-factor state via mass assignment.
+     */
     protected $fillable = [
         'firm_id',
         'full_name',
@@ -29,8 +34,6 @@ class User extends Authenticatable implements MustVerifyEmail
         'role',
         'phone',
         'rate_per_hour',
-        'totp_secret',
-        'totp_enabled',
         'is_active',
         'google_id',
         'microsoft_id',

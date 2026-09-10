@@ -128,7 +128,7 @@ export default function MattersIndex({ matters, filters, counts, tablePreference
         {
             id: 'status', header: 'Status', defaultWidth: 190, minWidth: 140, maxWidth: 300,
             cell: (matter) => (
-                <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-medium leading-none ${statusBadgeStyles[matter.status] ?? 'bg-muted text-muted-foreground border-border'}`}>
+                <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded border px-2.5 py-1 text-xs font-medium leading-none ${statusBadgeStyles[matter.status] ?? 'bg-muted text-muted-foreground border-border'}`}>
                     <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-current" aria-hidden />
                     {MATTER_STATUS_LABELS[matter.status] ?? matter.status.replace(/_/g, ' ')}
                 </span>
@@ -137,7 +137,7 @@ export default function MattersIndex({ matters, filters, counts, tablePreference
         {
             id: 'priority', header: 'Priority', defaultWidth: 120, minWidth: 100, maxWidth: 180,
             cell: (matter) => (
-                <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-medium leading-none ${MATTER_PRIORITY_STYLES[(matter as any).priority ?? 'medium'] ?? 'bg-muted text-muted-foreground border-border'}`}>
+                <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded border px-2.5 py-1 text-xs font-medium leading-none ${MATTER_PRIORITY_STYLES[(matter as any).priority ?? 'medium'] ?? 'bg-muted text-muted-foreground border-border'}`}>
                     <Flag className="h-3 w-3 shrink-0" />
                     {MATTER_PRIORITY_LABELS[(matter as any).priority ?? 'medium']}
                 </span>
@@ -159,7 +159,7 @@ export default function MattersIndex({ matters, filters, counts, tablePreference
                     )}
                     {matter.tasks && matter.tasks.length > 0 && (
                         <button
-                            className="mt-1.5 inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 px-2 py-0.5 text-xs font-medium leading-none text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                            className="mt-1.5 inline-flex items-center gap-1 rounded border border-border bg-muted/40 px-2 py-0.5 text-xs font-medium leading-none text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                             title={`View all ${matter.tasks.length} tasks`}
                             onClick={(e) => {
                                 e.stopPropagation();
@@ -183,7 +183,7 @@ export default function MattersIndex({ matters, filters, counts, tablePreference
                 if (!matter.next_deadline) {
                     return (
                         <button
-                            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/30 px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                            className="inline-flex items-center gap-1.5 rounded border border-border bg-muted/30 px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                             onClick={(e) => {
                                 e.stopPropagation();
                                 setEditingDeadline(matter);
@@ -224,7 +224,7 @@ export default function MattersIndex({ matters, filters, counts, tablePreference
                             setDeadlineDate(matter.next_deadline || '');
                         }}
                     >
-                        <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border ${boxStyles}`}>
+                        <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded border ${boxStyles}`}>
                             <Calendar className="h-3.5 w-3.5 shrink-0" />
                         </span>
                         <span className="flex min-w-0 flex-col">
@@ -232,7 +232,7 @@ export default function MattersIndex({ matters, filters, counts, tablePreference
                                 {formatDate(matter.next_deadline)}
                             </span>
                             {meta && (
-                                <span className={`mt-1 inline-flex w-fit whitespace-nowrap rounded-full border px-1.5 py-0.5 text-xs font-medium leading-none ${badgeStyles}`}>
+                                <span className={`mt-1 inline-flex w-fit whitespace-nowrap rounded border px-1.5 py-0.5 text-xs font-medium leading-none ${badgeStyles}`}>
                                     <span className={`mr-1 inline-block h-1.5 w-1.5 self-center rounded-full ${isDanger ? 'bg-red-500' : isSoon ? 'bg-amber-500' : 'bg-zinc-400'}`} aria-hidden />
                                     {meta}
                                 </span>
@@ -263,7 +263,7 @@ export default function MattersIndex({ matters, filters, counts, tablePreference
             id: 'open_tasks', header: 'Open Tasks', defaultWidth: 110, minWidth: 90, maxWidth: 160, defaultVisible: false,
             cell: (matter) => matter.tasks && matter.tasks.length > 0 ? (
                 <button
-                    className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-primary/15 bg-primary/5 px-2.5 py-1 text-xs font-semibold text-primary transition-colors hover:bg-primary/10"
+                    className="inline-flex items-center gap-1.5 whitespace-nowrap rounded border border-primary/15 bg-primary/5 px-2.5 py-1 text-xs font-semibold text-primary transition-colors hover:bg-primary/10"
                     title={`View all ${matter.tasks.length} tasks`}
                     onClick={(e) => {
                         e.stopPropagation();
@@ -280,7 +280,7 @@ export default function MattersIndex({ matters, filters, counts, tablePreference
         {
             id: 'fee_type', header: 'Fee Type', defaultWidth: 125, minWidth: 100, maxWidth: 180, defaultVisible: false,
             cell: (matter) => (
-                <span className="inline-flex items-center whitespace-nowrap rounded-full border border-border bg-muted/40 px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                <span className="inline-flex items-center whitespace-nowrap rounded border border-border bg-muted/40 px-2.5 py-1 text-xs font-medium text-muted-foreground">
                     {FEE_ARRANGEMENT_LABELS[(matter as any).fee_arrangement] ?? (matter as any).fee_arrangement?.replace(/_/g, ' ') ?? '—'}
                 </span>
             ),
@@ -383,7 +383,7 @@ export default function MattersIndex({ matters, filters, counts, tablePreference
                                 }`}
                             >
                                 {tab.label}
-                                <span className={`min-w-5 rounded-full px-1 text-center text-xs font-semibold tabular-nums ${
+                                <span className={`min-w-5 rounded px-1 text-center text-xs font-semibold tabular-nums ${
                                     active ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
                                 }`}>
                                     {counts?.[tab.value] ?? 0}

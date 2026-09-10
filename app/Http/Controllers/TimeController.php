@@ -246,6 +246,7 @@ class TimeController extends Controller
 
     public function checkIn(Request $request): JsonResponse
     {
+        abort_unless($request->user()->hasPermissionTo('create_time_entries'), 403);
         $user = $request->user();
         $key  = 'active_timer_' . $user->id;
 
@@ -259,7 +260,7 @@ class TimeController extends Controller
         }
 
         $validated = $request->validate([
-            'matter_id'     => ['required', 'uuid', 'exists:matters,id'],
+            'matter_id'     => ['required', 'uuid', Rule::exists('matters', 'id')->where(fn ($q) => $q->where('firm_id', $request->user()->firm_id))],
             'activity_type' => ['nullable', 'in:advising,drafting,research,court_attendance,travel,telephone,correspondence,meeting,other'],
             'description'   => ['nullable', 'string', 'max:500'],
         ]);
@@ -310,6 +311,7 @@ class TimeController extends Controller
 
     public function checkOut(Request $request): SymfonyResponse
     {
+        abort_unless($request->user()->hasPermissionTo('create_time_entries'), 403);
         $user = $request->user();
         $key  = 'active_timer_' . $user->id;
         $sess = session($key);
@@ -388,6 +390,7 @@ class TimeController extends Controller
 
     public function discardSession(Request $request): JsonResponse
     {
+        abort_unless($request->user()->hasPermissionTo('create_time_entries'), 403);
         $key  = 'active_timer_' . $request->user()->id;
         $sess = session($key) ?? $this->restoreSessionFromDb($request->user());
         $dbExists = TimeSession::where('user_id', $request->user()->id)->exists();
@@ -403,6 +406,7 @@ class TimeController extends Controller
 
     public function pauseSession(Request $request): JsonResponse
     {
+        abort_unless($request->user()->hasPermissionTo('create_time_entries'), 403);
         $key  = 'active_timer_' . $request->user()->id;
         $sess = session($key);
 
@@ -431,6 +435,7 @@ class TimeController extends Controller
 
     public function resumeSession(Request $request): JsonResponse
     {
+        abort_unless($request->user()->hasPermissionTo('create_time_entries'), 403);
         $key  = 'active_timer_' . $request->user()->id;
         $sess = session($key);
 
@@ -463,6 +468,7 @@ class TimeController extends Controller
 
     public function startTimer(Request $request): JsonResponse
     {
+        abort_unless($request->user()->hasPermissionTo('create_time_entries'), 403);
         $validated = $request->validate([
             'matter_id' => ['required', 'uuid', Rule::exists('matters', 'id')->where(fn ($q) => $q->where('firm_id', $request->user()->firm_id))],
         ]);
@@ -504,6 +510,7 @@ class TimeController extends Controller
 
     public function stopTimer(Request $request): JsonResponse
     {
+        abort_unless($request->user()->hasPermissionTo('create_time_entries'), 403);
         $key   = 'active_timer_' . $request->user()->id;
         $timer = session($key);
 
