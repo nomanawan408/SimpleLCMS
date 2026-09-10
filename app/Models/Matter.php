@@ -52,6 +52,31 @@ class Matter extends Model
         'open', 'actively_progressing', 'reviewing', 'being_worked', 'in_progress', 'in_review',
     ];
 
+    /**
+     * Terminal states: the work is finished and the user marked the matter
+     * done/closed. Everything else -- including every awaiting_* status and
+     * on_hold -- counts as OPEN. This is the definition behind the dashboard's
+     * open-matters figure and the Matters page Opened/Closed tabs.
+     */
+    public const CLOSED_STATUSES = [
+        'closed', 'archived',
+    ];
+
+    public function isClosed(): bool
+    {
+        return in_array($this->status, self::CLOSED_STATUSES, true);
+    }
+
+    public function scopeOpen($query)
+    {
+        return $query->whereNotIn('status', self::CLOSED_STATUSES);
+    }
+
+    public function scopeClosed($query)
+    {
+        return $query->whereIn('status', self::CLOSED_STATUSES);
+    }
+
     protected $fillable = [
         'firm_id', 'matter_number', 'name', 'description', 'status', 'priority',
         'practice_area', 'fee_arrangement', 'responsible_user_id',

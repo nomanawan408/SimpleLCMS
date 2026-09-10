@@ -89,12 +89,13 @@ class MatterStatusTest extends TestCase
     }
 
     /**
-     * The new "awaiting" statuses behave like the existing awaiting_client /
-     * awaiting_opponent: waiting on someone else's action, so they do not
-     * count toward the same three checks. This documents the intended
-     * design rather than leaving it as an accidental omission.
+     * Open vs closed is a two-bucket model: only closed/archived are finished.
+     * Every awaiting_* status still counts as an OPEN matter on the dashboard
+     * and under the Matters page Opened tab. The billing-create picker is a
+     * separate question (billable right now vs finished) and keeps using
+     * ACTIVE_STATUSES.
      */
-    public function test_awaiting_statuses_do_not_count_as_open(): void
+    public function test_awaiting_statuses_count_as_open_but_stay_out_of_the_billing_picker(): void
     {
         [$firm, $admin] = $this->createFirmAndAdmin();
 
@@ -104,13 +105,51 @@ class MatterStatusTest extends TestCase
             $matter = Matter::factory()->forFirm($firm, $admin)->create(['status' => $status]);
 
             $this->actingAsUser($admin)->get('/dashboard')
-                ->assertInertia(fn ($page) => $page->where('stats.open_matters', 0));
+                ->assertInertia(fn ($page) => $page->where('stats.open_matters', 1));
 
             $this->actingAsUser($admin)->get('/billing/create')
                 ->assertInertia(fn ($page) => $page->has('matters', 0));
 
             $matter->delete();
         }
+    }
+
+    public function test_only_closed_and_archived_are_excluded_from_open_matters(): void
+    {
+        [$firm, $admin] = $this->createFirmAndAdmin();
+
+        Matter::factory()->forFirm($firm, $admin)->create(['status' => 'open']);
+        Matter::factory()->forFirm($firm, $admin)->create(['status' => 'awaiting_client']);
+        Matter::factory()->forFirm($firm, $admin)->create(['status' => 'on_hold']);
+        Matter::factory()->forFirm($firm, $admin)->create(['status' => 'closed']);
+        Matter::factory()->forFirm($firm, $admin)->create(['status' => 'archived']);
+
+        $this->actingAsUser($admin)->get('/dashboard')
+            ->assertInertia(fn ($page) => $page->where('stats.open_matters', 3));
+    }
+
+    public function test_matters_index_can_filter_by_open_closed_category_with_counts(): void
+    {
+        [$firm, $admin] = $this->createFirmAndAdmin();
+
+        Matter::factory()->forFirm($firm, $admin)->create(['status' => 'open']);
+        Matter::factory()->forFirm($firm, $admin)->create(['status' => 'awaiting_claimant_solicitors']);
+        Matter::factory()->forFirm($firm, $admin)->create(['status' => 'closed']);
+
+        $this->actingAsUser($admin)->get('/matters?category=open')
+            ->assertInertia(fn ($page) => $page
+                ->where('matters.total', 2)
+                ->where('counts.open', 2)
+                ->where('counts.closed', 1)
+                ->where('counts.all', 3));
+
+        $this->actingAsUser($admin)->get('/matters?category=closed')
+            ->assertInertia(fn ($page) => $page->where('matters.total', 1));
+
+        $this->actingAsUser($admin)->get('/matters?category=bogus')
+            ->assertInertia(fn ($page) => $page
+                ->where('matters.total', 3)
+                ->where('filters.category', 'all'));
     }
 
     public function test_matters_index_can_filter_by_a_new_status(): void

@@ -17,9 +17,18 @@ import type { Matter, PaginatedData } from '@/types';
 
 interface Props {
     matters: PaginatedData<Matter>;
-    filters: { search?: string; status?: string; practice_area?: string };
+    filters: { search?: string; status?: string; practice_area?: string; category?: string };
+    counts: { all: number; open: number; closed: number };
     tablePreferences?: TablePreferences | null;
 }
+
+type MatterCategory = 'all' | 'open' | 'closed';
+
+const CATEGORY_TABS: { value: MatterCategory; label: string }[] = [
+    { value: 'all', label: 'All' },
+    { value: 'open', label: 'Opened' },
+    { value: 'closed', label: 'Closed' },
+];
 
 function useDebounce(value: string, delay: number) {
     const [debounced, setDebounced] = useState(value);
@@ -65,11 +74,14 @@ const statusBadgeStyles: Record<string, string> = {
     archived: 'bg-zinc-100 text-zinc-600 border-zinc-200',
 };
 
-export default function MattersIndex({ matters, filters, tablePreferences }: Props) {
+export default function MattersIndex({ matters, filters, counts, tablePreferences }: Props) {
     const [search, setSearch]   = useState(filters.search ?? '');
     const [status, setStatus]   = useState(filters.status ?? '_all');
     const [area, setArea]       = useState(filters.practice_area ?? '_all');
     const [priority, setPriority] = useState((filters as any).priority ?? '_all');
+    const [category, setCategory] = useState<MatterCategory>(
+        filters.category === 'open' || filters.category === 'closed' ? filters.category : 'all',
+    );
     const debouncedSearch       = useDebounce(search, 300);
     const isFirstRun            = useRef(true);
     const [editingHearing, setEditingHearing] = useState<Matter | null>(null);
@@ -327,13 +339,21 @@ export default function MattersIndex({ matters, filters, tablePreferences }: Pro
             status:        status === '_all' ? undefined : status,
             practice_area: area === '_all' ? undefined : area,
             priority:      priority === '_all' ? undefined : priority,
+            category:      category === 'all' ? undefined : category,
         }, { preserveState: true, replace: true });
-    }, [debouncedSearch, status, area, priority]);
+    }, [debouncedSearch, status, area, priority, category]);
 
-    const hasFilters = search || status !== '_all' || area !== '_all' || priority !== '_all';
+    const hasFilters = search || status !== '_all' || area !== '_all' || priority !== '_all' || category !== 'all';
 
     function clearAll() {
-        setSearch(''); setStatus('_all'); setArea('_all'); setPriority('_all');
+        setSearch(''); setStatus('_all'); setArea('_all'); setPriority('_all'); setCategory('all');
+    }
+
+    // Statuses belong to a category -- switching tabs resets the status
+    // filter so a stale "Closed" status can't empty out the Opened tab.
+    function switchCategory(next: MatterCategory) {
+        setCategory(next);
+        setStatus('_all');
     }
 
     return (
@@ -346,6 +366,31 @@ export default function MattersIndex({ matters, filters, tablePreferences }: Pro
                     <Button asChild className="gap-2">
                         <Link href="/matters/create"><Plus className="h-4 w-4" />New Matter</Link>
                     </Button>
+                </div>
+                <div className="flex items-center gap-1 self-start rounded-lg border border-border/60 bg-muted/40 p-1" role="tablist" aria-label="Matter categories">
+                    {CATEGORY_TABS.map((tab) => {
+                        const active = category === tab.value;
+                        return (
+                            <button
+                                key={tab.value}
+                                role="tab"
+                                aria-selected={active}
+                                onClick={() => switchCategory(tab.value)}
+                                className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                                    active
+                                        ? 'bg-card text-foreground shadow-sm'
+                                        : 'text-muted-foreground hover:text-foreground'
+                                }`}
+                            >
+                                {tab.label}
+                                <span className={`min-w-5 rounded-full px-1 text-center text-xs font-semibold tabular-nums ${
+                                    active ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
+                                }`}>
+                                    {counts?.[tab.value] ?? 0}
+                                </span>
+                            </button>
+                        );
+                    })}
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                     <div className="relative flex-1 min-w-[200px]">

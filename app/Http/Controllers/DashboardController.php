@@ -41,8 +41,11 @@ class DashboardController extends Controller
             ->whereBetween('date', [$monthStart, $today])
             ->sum('duration_minutes') / 60;
 
+        // Open = everything still being worked, including all awaiting_*
+        // statuses. Only closed/archived matters are finished (see
+        // Matter::CLOSED_STATUSES).
         $openMattersCount = Matter::where('firm_id', $firmId)
-            ->whereIn('status', Matter::ACTIVE_STATUSES)
+            ->open()
             ->count();
 
         $overdueTasks = Task::where('firm_id', $firmId)

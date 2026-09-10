@@ -44,6 +44,24 @@ class MatterController extends Controller
             });
         }
 
+        $category = $request->input('category', 'all');
+        if (! in_array($category, ['all', 'open', 'closed'], true)) {
+            $category = 'all';
+        }
+
+        // Tab counts respect every other filter, just not the category itself.
+        $counts = [
+            'all'    => (clone $query)->count(),
+            'open'   => (clone $query)->open()->count(),
+            'closed' => (clone $query)->closed()->count(),
+        ];
+
+        if ($category === 'open') {
+            $query->open();
+        } elseif ($category === 'closed') {
+            $query->closed();
+        }
+
         $matters = $query->paginate(20)->withQueryString();
 
         $tablePreferences = TablePreference::where('user_id', $request->user()->id)
@@ -52,7 +70,8 @@ class MatterController extends Controller
 
         return Inertia::render('Matters/Index', [
             'matters' => $matters,
-            'filters' => $request->only('status', 'practice_area', 'priority', 'search'),
+            'filters' => [...$request->only('status', 'practice_area', 'priority', 'search'), 'category' => $category],
+            'counts' => $counts,
             'tablePreferences' => $tablePreferences,
         ]);
     }
