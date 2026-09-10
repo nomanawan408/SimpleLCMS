@@ -110,7 +110,7 @@ export default function AppLayout({ children, title }: AppLayoutProps) {
             {/* Logo */}
             <div className="flex h-20 items-center px-6">
                 <Link href={isSuperAdmin ? '/superadmin/dashboard' : '/dashboard'} className="flex items-center gap-3">
-                    <img src="/assets/simplelaw-logo-primary.png" alt="Simple Law" className="h-12 w-12 shrink-0 object-contain" />
+                    <img src="/New%20Logos/13.png" alt="SIMPLE Case Management" className="h-12 w-12 shrink-0 object-contain" />
                     <div className="leading-tight min-w-0">
                         <p className="text-base font-bold text-white tracking-tight whitespace-nowrap">Simple Law</p>
                         <p className="mt-0.5 text-xs uppercase tracking-[0.14em] text-white/60 font-medium whitespace-nowrap">Case Management</p>

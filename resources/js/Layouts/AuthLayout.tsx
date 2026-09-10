@@ -25,12 +25,8 @@ export default function AuthLayout({ children, title, description, split = false
     }, [split]);
 
     const logo = (
-        <div className="flex items-center gap-3">
-            <img src="/assets/simplelaw-mark-transparent.svg" alt="Simple Lawyer" className="h-10 w-10 object-contain" />
-            <div>
-                <span className="text-2xl font-bold tracking-tight text-foreground">Simple Lawyer</span>
-                <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Management System</p>
-            </div>
+        <div className="flex items-center justify-center">
+            <img src="/New%20Logos/5.png" alt="SIMPLE Case Management" className="h-16 w-auto object-contain" />
         </div>
     );
 
@@ -81,9 +77,8 @@ export default function AuthLayout({ children, title, description, split = false
 
                     {/* Top bar with logo — kept in original colors */}
                     <div className="relative z-10 flex w-full px-8 pt-8">
-                        <div className="flex items-center gap-3 rounded-xl bg-white/90 px-4 py-2 shadow-lg backdrop-blur ring-1 ring-black/5">
-                            <img src="/assets/simplelaw-mark-transparent.svg" alt="Simple Lawyer" className="h-8 w-8 object-contain" />
-                            <span className="text-lg font-bold tracking-tight text-slate-900">Simple Lawyer</span>
+                        <div className="flex items-center rounded-xl bg-white/95 px-5 py-2.5 shadow-lg backdrop-blur ring-1 ring-black/5">
+                            <img src="/New%20Logos/5.png" alt="SIMPLE Case Management" className="h-14 w-auto object-contain" />
                         </div>
                     </div>
 

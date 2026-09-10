@@ -1,24 +1,24 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Card, CardContent } from '@/components/ui/card';
-import {
-    Table, TableHeader, TableHeaderRow, TableBody, TableRow, TableHead, TableCell,
-} from '@/components/ui/table';
+import { DynamicTable, type DynamicColumn } from '@/components/table/DynamicTable';
+import type { TablePreferences } from '@/lib/tablePreferences';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { DateUrgencyDot, getDateUrgency } from '@/components/ui/urgency-dot';
-import { formatDate, MATTER_STATUS_LABELS, MATTER_PRIORITY_LABELS, MATTER_PRIORITY_STYLES, PRACTICE_AREA_LABELS } from '@/lib/utils';
-import { Plus, Search, X, Calendar, Clock, ListTodo, Briefcase, Flag, AlertTriangle, FileText } from 'lucide-react';
+import { getDateUrgency } from '@/components/ui/urgency-dot';
+import { formatDate, initials, MATTER_STATUS_LABELS, MATTER_PRIORITY_LABELS, MATTER_PRIORITY_STYLES, PRACTICE_AREA_LABELS } from '@/lib/utils';
+import { Plus, Search, X, Calendar, Clock, ListTodo, Briefcase, Flag } from 'lucide-react';
 import type { Matter, PaginatedData } from '@/types';
 
 interface Props {
     matters: PaginatedData<Matter>;
     filters: { search?: string; status?: string; practice_area?: string };
+    tablePreferences?: TablePreferences | null;
 }
 
 function useDebounce(value: string, delay: number) {
@@ -37,6 +37,13 @@ const statusVariant: Record<string, any> = {
     awaiting_opponent: 'info', awaiting_response: 'info', awaiting_third_party: 'info',
     awaiting_respondent_solicitors: 'info', awaiting_claimant_solicitors: 'info',
     on_hold: 'secondary', closed: 'default', archived: 'secondary',
+};
+
+const FEE_ARRANGEMENT_LABELS: Record<string, string> = {
+    hourly_rate: 'Hourly Rate',
+    fixed_fee: 'Fixed Fee',
+    contingency: 'Contingency',
+    retainer: 'Retainer',
 };
 
 const statusBadgeStyles: Record<string, string> = {
@@ -58,7 +65,7 @@ const statusBadgeStyles: Record<string, string> = {
     archived: 'bg-zinc-100 text-zinc-600 border-zinc-200',
 };
 
-export default function MattersIndex({ matters, filters }: Props) {
+export default function MattersIndex({ matters, filters, tablePreferences }: Props) {
     const [search, setSearch]   = useState(filters.search ?? '');
     const [status, setStatus]   = useState(filters.status ?? '_all');
     const [area, setArea]       = useState(filters.practice_area ?? '_all');
@@ -72,6 +79,246 @@ export default function MattersIndex({ matters, filters }: Props) {
     const [deadlineDate, setDeadlineDate] = useState('');
     const [deadlineSaving, setDeadlineSaving] = useState(false);
     const [viewingTasks, setViewingTasks] = useState<Matter | null>(null);
+
+    const columns: DynamicColumn<Matter>[] = useMemo(() => [
+        {
+            id: 'matter', header: 'Matter', defaultWidth: 280, minWidth: 200, maxWidth: 420, hideable: false,
+            cell: (matter) => (
+                <>
+                    <p className="text-sm font-semibold leading-snug text-foreground transition-colors [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden break-words group-hover:text-primary" title={matter.name}>{matter.name}</p>
+                    <p className="mt-1 text-xs tabular-nums tracking-wide text-muted-foreground">{matter.matter_number}</p>
+                </>
+            ),
+        },
+        {
+            id: 'practice_area', header: 'Practice Area', defaultWidth: 130, minWidth: 100, maxWidth: 220,
+            cell: (matter) => <span className="whitespace-nowrap text-sm text-muted-foreground">{PRACTICE_AREA_LABELS[matter.practice_area]}</span>,
+        },
+        {
+            id: 'clients', header: 'Clients / Contact', defaultWidth: 170, minWidth: 130, maxWidth: 280,
+            cell: (matter) => (
+                <p className="text-sm leading-snug text-muted-foreground [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden break-words" title={matter.client_names ?? undefined}>{matter.client_names ?? '—'}</p>
+            ),
+        },
+        {
+            id: 'responsible', header: 'Responsible', defaultWidth: 160, minWidth: 120, maxWidth: 260,
+            cell: (matter) => matter.responsible_user?.full_name ? (
+                <span className="inline-flex items-center gap-2">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[11px] font-semibold text-primary" aria-hidden>
+                        {initials(matter.responsible_user.full_name)}
+                    </span>
+                    <span className="whitespace-nowrap text-sm text-muted-foreground">{matter.responsible_user.full_name}</span>
+                </span>
+            ) : (
+                <span className="text-sm text-muted-foreground">—</span>
+            ),
+        },
+        {
+            id: 'status', header: 'Status', defaultWidth: 190, minWidth: 140, maxWidth: 300,
+            cell: (matter) => (
+                <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-medium leading-none ${statusBadgeStyles[matter.status] ?? 'bg-muted text-muted-foreground border-border'}`}>
+                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-current" aria-hidden />
+                    {MATTER_STATUS_LABELS[matter.status] ?? matter.status.replace(/_/g, ' ')}
+                </span>
+            ),
+        },
+        {
+            id: 'priority', header: 'Priority', defaultWidth: 120, minWidth: 100, maxWidth: 180,
+            cell: (matter) => (
+                <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-medium leading-none ${MATTER_PRIORITY_STYLES[(matter as any).priority ?? 'medium'] ?? 'bg-muted text-muted-foreground border-border'}`}>
+                    <Flag className="h-3 w-3 shrink-0" />
+                    {MATTER_PRIORITY_LABELS[(matter as any).priority ?? 'medium']}
+                </span>
+            ),
+        },
+        {
+            id: 'next_step', header: 'Next Step', defaultWidth: 240, minWidth: 180, maxWidth: 360,
+            cell: (matter) => (
+                <div className="min-w-0">
+                    {matter.next_step ? (
+                        <p
+                            className="text-sm leading-snug text-foreground [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden break-words"
+                            title={matter.next_step}
+                        >
+                            {matter.next_step}
+                        </p>
+                    ) : (
+                        <span className="text-sm tabular-nums text-muted-foreground/40">—</span>
+                    )}
+                    {matter.tasks && matter.tasks.length > 0 && (
+                        <button
+                            className="mt-1.5 inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 px-2 py-0.5 text-xs font-medium leading-none text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                            title={`View all ${matter.tasks.length} tasks`}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setViewingTasks(matter);
+                            }}
+                        >
+                            <ListTodo className="h-3 w-3 shrink-0" />
+                            {matter.tasks.length} open
+                        </button>
+                    )}
+                </div>
+            ),
+        },
+        {
+            id: 'deadline', header: 'Deadline', defaultWidth: 148, minWidth: 130, maxWidth: 200,
+            cell: (matter) => {
+                const urgency = getDateUrgency(matter.next_deadline);
+                const days = matter.next_deadline ? Math.ceil((new Date(matter.next_deadline).getTime() - Date.now()) / 86400000) : null;
+                const isDanger = urgency === 'urgent';
+                const isSoon = urgency === 'soon';
+                if (!matter.next_deadline) {
+                    return (
+                        <button
+                            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/30 px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingDeadline(matter);
+                                setDeadlineDate('');
+                            }}
+                            title="Set deadline"
+                        >
+                            <Calendar className="h-3 w-3 shrink-0" />
+                            —
+                        </button>
+                    );
+                }
+                let meta = '';
+                if (days !== null) {
+                    if (days < 0) meta = `Overdue · ${Math.abs(days)}d`;
+                    else if (days === 0) meta = 'Today';
+                    else if (days === 1) meta = 'Tomorrow';
+                    else if (days <= 7) meta = `In ${days}d`;
+                    else meta = `In ${days}d`;
+                }
+                const boxStyles = isDanger
+                    ? 'border-red-200 bg-red-50 text-red-600'
+                    : isSoon
+                        ? 'border-amber-200 bg-amber-50 text-amber-600'
+                        : 'border-zinc-200 bg-zinc-50 text-zinc-500';
+                const badgeStyles = isDanger
+                    ? 'bg-red-50 text-red-700 border-red-200'
+                    : isSoon
+                        ? 'bg-amber-50 text-amber-700 border-amber-200'
+                        : 'bg-zinc-50 text-zinc-600 border-zinc-200';
+                return (
+                    <button
+                        className="group flex items-center gap-2.5 text-left"
+                        title={matter.next_deadline ? `${formatDate(matter.next_deadline)}${meta ? ` · ${meta}` : ''} — click to edit` : undefined}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingDeadline(matter);
+                            setDeadlineDate(matter.next_deadline || '');
+                        }}
+                    >
+                        <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border ${boxStyles}`}>
+                            <Calendar className="h-3.5 w-3.5 shrink-0" />
+                        </span>
+                        <span className="flex min-w-0 flex-col">
+                            <span className="whitespace-nowrap text-sm font-medium tabular-nums leading-none tracking-tight text-foreground">
+                                {formatDate(matter.next_deadline)}
+                            </span>
+                            {meta && (
+                                <span className={`mt-1 inline-flex w-fit whitespace-nowrap rounded-full border px-1.5 py-0.5 text-xs font-medium leading-none ${badgeStyles}`}>
+                                    <span className={`mr-1 inline-block h-1.5 w-1.5 self-center rounded-full ${isDanger ? 'bg-red-500' : isSoon ? 'bg-amber-500' : 'bg-zinc-400'}`} aria-hidden />
+                                    {meta}
+                                </span>
+                            )}
+                        </span>
+                    </button>
+                );
+            },
+        },
+        {
+            id: 'hearing_date', header: 'Hearing Date', defaultWidth: 150, minWidth: 120, maxWidth: 220,
+            cell: (matter) => (
+                <button
+                    className="inline-flex items-center gap-1.5 whitespace-nowrap text-sm text-muted-foreground transition-colors hover:text-primary"
+                    title={matter.hearing_date ? `${formatDate(matter.hearing_date)} — click to edit` : 'Set hearing date'}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setEditingHearing(matter);
+                        setHearingDate(matter.hearing_date || '');
+                    }}
+                >
+                    <Calendar className="h-3.5 w-3.5 shrink-0" />
+                    {matter.hearing_date ? <span className="font-medium text-foreground">{formatDate(matter.hearing_date)}</span> : 'Set date'}
+                </button>
+            ),
+        },
+        {
+            id: 'open_tasks', header: 'Open Tasks', defaultWidth: 110, minWidth: 90, maxWidth: 160, defaultVisible: false,
+            cell: (matter) => matter.tasks && matter.tasks.length > 0 ? (
+                <button
+                    className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-primary/15 bg-primary/5 px-2.5 py-1 text-xs font-semibold text-primary transition-colors hover:bg-primary/10"
+                    title={`View all ${matter.tasks.length} tasks`}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setViewingTasks(matter);
+                    }}
+                >
+                    <ListTodo className="h-3 w-3 shrink-0" />
+                    {matter.tasks.length}
+                </button>
+            ) : (
+                <span className="text-sm text-muted-foreground/50">—</span>
+            ),
+        },
+        {
+            id: 'fee_type', header: 'Fee Type', defaultWidth: 125, minWidth: 100, maxWidth: 180, defaultVisible: false,
+            cell: (matter) => (
+                <span className="inline-flex items-center whitespace-nowrap rounded-full border border-border bg-muted/40 px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                    {FEE_ARRANGEMENT_LABELS[(matter as any).fee_arrangement] ?? (matter as any).fee_arrangement?.replace(/_/g, ' ') ?? '—'}
+                </span>
+            ),
+        },
+        {
+            id: 'court', header: 'Court', defaultWidth: 150, minWidth: 110, maxWidth: 260, defaultVisible: false,
+            cell: (matter) => (
+                <p className="truncate text-sm text-muted-foreground" title={(matter as any).court ?? undefined}>{(matter as any).court ?? '—'}</p>
+            ),
+        },
+        {
+            id: 'court_ref', header: 'Court Ref', defaultWidth: 140, minWidth: 110, maxWidth: 220, defaultVisible: false,
+            cell: (matter) => (
+                <p className="truncate text-xs tabular-nums tracking-wide text-muted-foreground" title={(matter as any).court_reference ?? undefined}>{(matter as any).court_reference ?? '—'}</p>
+            ),
+        },
+        {
+            id: 'originator', header: 'Originated By', defaultWidth: 160, minWidth: 120, maxWidth: 240, defaultVisible: false,
+            cell: (matter) => (matter as any).originating_user?.full_name ? (
+                <span className="inline-flex items-center gap-2">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-semibold text-muted-foreground" aria-hidden>
+                        {initials((matter as any).originating_user.full_name)}
+                    </span>
+                    <span className="whitespace-nowrap text-sm text-muted-foreground">{(matter as any).originating_user.full_name}</span>
+                </span>
+            ) : (
+                <span className="text-sm text-muted-foreground">—</span>
+            ),
+        },
+        {
+            id: 'description', header: 'Description', defaultWidth: 220, minWidth: 160, maxWidth: 360, defaultVisible: false,
+            cell: (matter) => matter.description ? (
+                <p className="text-sm leading-snug text-muted-foreground [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden break-words" title={matter.description}>{matter.description}</p>
+            ) : (
+                <span className="text-sm italic text-muted-foreground/50">No description</span>
+            ),
+        },
+        {
+            id: 'opened_at', header: 'Opened', defaultWidth: 120, minWidth: 100, maxWidth: 180, defaultVisible: false,
+            cell: (matter) => (
+                <span className="whitespace-nowrap text-sm tabular-nums text-muted-foreground">{matter.opened_at ? formatDate(matter.opened_at) : '—'}</span>
+            ),
+        },
+        {
+            id: 'closed_at', header: 'Closed', defaultWidth: 120, minWidth: 100, maxWidth: 180, defaultVisible: false,
+            cell: (matter) => (
+                <span className="whitespace-nowrap text-sm tabular-nums text-muted-foreground">{matter.closed_at ? formatDate(matter.closed_at) : '—'}</span>
+            ),
+        },
+    ], []);
 
     useEffect(() => {
         if (isFirstRun.current) { isFirstRun.current = false; return; }
@@ -160,156 +407,14 @@ export default function MattersIndex({ matters, filters }: Props) {
                             </Button>
                         </div>
                     ) : (
-                        <div className="overflow-x-auto table-scrollbar rounded-b-2xl pb-2">
-                            <Table>
-                                <TableHeader>
-                                    <TableHeaderRow>
-                                        <TableHead>Matter</TableHead>
-                                        <TableHead className="hidden md:table-cell">Practice Area</TableHead>
-                                        <TableHead className="hidden lg:table-cell">Clients / Contact</TableHead>
-                                        <TableHead className="hidden lg:table-cell">Responsible</TableHead>
-                                        <TableHead className="min-w-[170px]">Status</TableHead>
-                                        <TableHead>Priority</TableHead>
-                                        <TableHead className="hidden xl:table-cell min-w-[180px]">Next Step</TableHead>
-                                        <TableHead className="hidden xl:table-cell min-w-[160px]">Deadline</TableHead>
-                                        <TableHead className="hidden xl:table-cell">Hearing Date</TableHead>
-                                        <TableHead className="hidden xl:table-cell">Opened</TableHead>
-                                    </TableHeaderRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {matters.data.map((matter) => (
-                                        <TableRow key={matter.id} className="cursor-pointer" onClick={() => router.visit(`/matters/${matter.id}`)}
-                                        >
-                                            <TableCell className="align-top min-w-[180px] max-w-[260px]">
-                                                <p className="font-medium text-foreground group-hover:text-primary transition-colors leading-snug break-words whitespace-normal overflow-hidden [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:3]" title={matter.name}>{matter.name}</p>
-                                                <p className="text-xs text-muted-foreground mt-1 truncate">{matter.matter_number}</p>
-                                            </TableCell>
-                                            <TableCell className="hidden md:table-cell text-muted-foreground">
-                                                {PRACTICE_AREA_LABELS[matter.practice_area]}
-                                            </TableCell>
-                                            <TableCell className="hidden lg:table-cell text-muted-foreground">
-                                                {matter.client_names ?? '—'}
-                                            </TableCell>
-                                            <TableCell className="hidden lg:table-cell text-muted-foreground">
-                                                {matter.responsible_user?.full_name ?? '—'}
-                                            </TableCell>
-                                            <TableCell className="whitespace-nowrap">
-                                                <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold leading-none whitespace-nowrap shadow-sm ${statusBadgeStyles[matter.status] ?? 'bg-muted text-muted-foreground border-border'}`}>
-                                                    <span className="h-1.5 w-1.5 rounded-full bg-current shrink-0" aria-hidden />
-                                                    {MATTER_STATUS_LABELS[matter.status] ?? matter.status.replace(/_/g, ' ')}
-                                                </span>
-                                            </TableCell>
-                                            <TableCell className="whitespace-nowrap">
-                                                <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold leading-none whitespace-nowrap shadow-sm ${MATTER_PRIORITY_STYLES[(matter as any).priority ?? 'medium'] ?? 'bg-muted text-muted-foreground border-border'}`}>
-                                                    <Flag className="h-3 w-3 shrink-0" />
-                                                    {MATTER_PRIORITY_LABELS[(matter as any).priority ?? 'medium']}
-                                                </span>
-                                            </TableCell>
-                                            <TableCell className="hidden xl:table-cell">
-                                                <div className="flex items-center gap-1.5 max-w-[200px]">
-                                                    {matter.next_step ? (
-                                                        <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-white px-2.5 py-1 text-xs font-medium text-foreground shadow-sm truncate">
-                                                            <FileText className="h-3 w-3 shrink-0 text-muted-foreground" />
-                                                            <span className="truncate">{matter.next_step}</span>
-                                                        </span>
-                                                    ) : (
-                                                        <span className="inline-flex items-center gap-1 rounded-full border border-dashed border-border bg-muted/30 px-2.5 py-1 text-xs font-medium text-muted-foreground/60 italic">
-                                                            No step
-                                                        </span>
-                                                    )}
-                                                    {matter.tasks && matter.tasks.length > 0 && (
-                                                        <button
-                                                            className="inline-flex items-center justify-center gap-1 rounded-full border border-primary/15 bg-primary/5 px-2 py-1 text-xs font-semibold text-primary hover:bg-primary/10 transition-colors shrink-0"
-                                                            title={`View all ${matter.tasks.length} tasks`}
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                setViewingTasks(matter);
-                                                            }}
-                                                        >
-                                                            <ListTodo className="h-3 w-3" />
-                                                            {matter.tasks.length}
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            </TableCell>
-                                            <TableCell className="hidden xl:table-cell">
-                                                {(() => {
-                                                    const urgency = getDateUrgency(matter.next_deadline);
-                                                    const days = matter.next_deadline ? Math.ceil((new Date(matter.next_deadline).getTime() - Date.now()) / 86400000) : null;
-                                                    // Danger = 3 days including today (days 0,1,2) or overdue (days <0) — already handled by urgency==='urgent' (days <=2)
-                                                    const isDanger = urgency === 'urgent';
-                                                    const isSoon = urgency === 'soon';
-                                                    if (!matter.next_deadline) {
-                                                        return (
-                                                            <button
-                                                                className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-border bg-muted/20 px-2.5 py-1 text-xs font-medium text-muted-foreground hover:border-primary/30 hover:bg-primary/5 hover:text-primary transition-colors"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    setEditingDeadline(matter);
-                                                                    setDeadlineDate('');
-                                                                }}
-                                                            >
-                                                                <Calendar className="h-3 w-3" />
-                                                                Set deadline
-                                                            </button>
-                                                        );
-                                                    }
-                                                    const badgeClass = isDanger
-                                                        ? 'bg-red-50 text-red-700 border-red-200 shadow-sm'
-                                                        : isSoon
-                                                            ? 'bg-amber-50 text-amber-800 border-amber-200 shadow-sm'
-                                                            : 'bg-white text-zinc-600 border-zinc-200 shadow-sm';
-                                                    const Icon = isDanger ? AlertTriangle : isSoon ? Clock : Calendar;
-                                                    let meta = '';
-                                                    if (days !== null) {
-                                                        if (days < 0) meta = `Overdue ${Math.abs(days)}d`;
-                                                        else if (days === 0) meta = 'Due today';
-                                                        else if (days <= 2) meta = `Due in ${days}d`;
-                                                        else if (days <= 7) meta = `In ${days}d`;
-                                                    }
-                                                    return (
-                                                        <button
-                                                            className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold leading-none whitespace-nowrap transition-colors hover:opacity-90 ${badgeClass}`}
-                                                            title={matter.next_deadline ? `${formatDate(matter.next_deadline)}${meta ? ` · ${meta}` : ''}` : undefined}
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                setEditingDeadline(matter);
-                                                                setDeadlineDate(matter.next_deadline || '');
-                                                            }}
-                                                        >
-                                                            <Icon className="h-3 w-3 shrink-0" />
-                                                            <span>{formatDate(matter.next_deadline)}</span>
-                                                            {meta && (
-                                                                <>
-                                                                    <span className="opacity-40">·</span>
-                                                                    <span className="font-bold">{meta}</span>
-                                                                </>
-                                                            )}
-                                                        </button>
-                                                    );
-                                                })()}
-                                            </TableCell>
-                                            <TableCell className="hidden xl:table-cell">
-                                                <button
-                                                    className="flex items-center gap-1.5 text-muted-foreground hover:text-primary transition-colors"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setEditingHearing(matter);
-                                                        setHearingDate(matter.hearing_date || '');
-                                                    }}
-                                                >
-                                                    <Calendar className="h-3.5 w-3.5" />
-                                                    <span>{matter.hearing_date ? formatDate(matter.hearing_date) : 'Set date'}</span>
-                                                </button>
-                                            </TableCell>
-                                            <TableCell className="hidden xl:table-cell text-muted-foreground">
-                                                {formatDate(matter.opened_at)}
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </div>
+                        <DynamicTable
+                            tableKey="matters.index"
+                            columns={columns}
+                            data={matters.data}
+                            initialPreferences={tablePreferences}
+                            getRowId={(matter) => matter.id}
+                            onRowClick={(matter) => router.visit(`/matters/${matter.id}`)}
+                        />
                     )}
 
                     {/* Pagination */}

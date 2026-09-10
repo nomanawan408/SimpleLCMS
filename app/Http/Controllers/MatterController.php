@@ -7,6 +7,7 @@ use App\Http\Requests\Matter\UpdateMatterRequest;
 use App\Models\CalendarEvent;
 use App\Models\Contact;
 use App\Models\Matter;
+use App\Models\TablePreference;
 use App\Models\Task;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
@@ -21,7 +22,7 @@ class MatterController extends Controller
         $this->authorize('viewAny', Matter::class);
 
         $query = Matter::where('firm_id', $request->user()->firm_id)
-            ->with(['responsibleUser', 'contacts', 'tasks' => fn ($q) => $q->whereIn('status', ['todo', 'in_progress'])->whereNull('completed_at')->orderBy('due_date')->with('assignee'), 'calendarEvents' => fn ($q) => $q->where('is_court_date', true)->where('start_at', '>=', now())->orderBy('start_at')])
+            ->with(['responsibleUser', 'originatingUser:id,full_name', 'contacts', 'tasks' => fn ($q) => $q->whereIn('status', ['todo', 'in_progress'])->whereNull('completed_at')->orderBy('due_date')->with('assignee'), 'calendarEvents' => fn ($q) => $q->where('is_court_date', true)->where('start_at', '>=', now())->orderBy('start_at')])
             ->orderBy('created_at', 'desc');
 
         if ($request->filled('status')) {
@@ -45,9 +46,14 @@ class MatterController extends Controller
 
         $matters = $query->paginate(20)->withQueryString();
 
+        $tablePreferences = TablePreference::where('user_id', $request->user()->id)
+            ->where('table_key', 'matters.index')
+            ->value('preferences');
+
         return Inertia::render('Matters/Index', [
             'matters' => $matters,
             'filters' => $request->only('status', 'practice_area', 'priority', 'search'),
+            'tablePreferences' => $tablePreferences,
         ]);
     }
 

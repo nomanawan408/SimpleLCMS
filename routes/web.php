@@ -27,6 +27,7 @@ use App\Http\Controllers\SuperAdmin\DashboardController as SuperAdminDashboardCo
 use App\Http\Controllers\SuperAdmin\FirmController as SuperAdminFirmController;
 use App\Http\Controllers\SuperAdmin\UserController as SuperAdminUserController;
 use App\Http\Controllers\SuperAdmin\BackupController;
+use App\Http\Controllers\TablePreferenceController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\TimeController;
 use App\Http\Controllers\TransactionController;
@@ -198,6 +199,10 @@ Route::middleware(['auth', 'verified', 'set.tenant', 'requires.two.factor', 'red
 
     // Global search (the header's command palette)
     Route::get('/search', [SearchController::class, 'index'])->name('search');
+
+    // Per-user table layouts (column order / widths / visibility)
+    Route::get('/table-preferences', [TablePreferenceController::class, 'show'])->name('table-preferences.show');
+    Route::put('/table-preferences', [TablePreferenceController::class, 'update'])->name('table-preferences.update');
 
     // Notifications (the header's bell)
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');

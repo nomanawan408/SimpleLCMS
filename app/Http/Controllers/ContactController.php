@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Contact;
 use App\Models\Document;
 use App\Models\Invoice;
+use App\Models\TablePreference;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
@@ -31,9 +32,14 @@ class ContactController extends Controller
             ->paginate(25)
             ->withQueryString();
 
+        $tablePreferences = TablePreference::where('user_id', $request->user()->id)
+            ->where('table_key', 'contacts.index')
+            ->value('preferences');
+
         return Inertia::render('Contacts/Index', [
             'contacts' => $contacts,
             'filters'  => $request->only('search', 'type', 'lead_status'),
+            'tablePreferences' => $tablePreferences,
         ]);
     }
 
