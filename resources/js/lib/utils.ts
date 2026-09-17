@@ -19,6 +19,29 @@ export function formatDate(date: string | null | undefined, opts?: Intl.DateTime
     }).format(new Date(date));
 }
 
+/** "14:30" — for hearing times and anywhere a clock time accompanies a date. */
+export function formatTime(date: string | null | undefined): string {
+    if (!date) return '—';
+    return new Intl.DateTimeFormat('en-GB', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+    }).format(new Date(date));
+}
+
+/** Split "Y-m-d H:i:s" (or date-only) into [date, time] for date/time inputs. */
+export function splitDateTime(value: string | null | undefined): [string, string] {
+    if (!value) return ['', ''];
+    const date = value.slice(0, 10);
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return [date, ''];
+    // A bare "Y-m-d" parses to midnight — that is not a real hearing time.
+    if (value.length <= 10) return [date, ''];
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
+    return [date, `${hh}:${mm}`];
+}
+
 /** "3 hours ago", "2 days ago" -- for notifications and activity feeds, where the exact timestamp matters less than roughly how stale it is. */
 export function formatRelativeTime(date: string | null | undefined): string {
     if (!date) return '—';

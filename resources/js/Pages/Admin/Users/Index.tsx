@@ -14,6 +14,7 @@ import {
     Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
 import { formatDate, initials } from '@/lib/utils';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Plus, Pencil, Trash2, KeyRound, Eye, EyeOff } from 'lucide-react';
 
 interface RoleOption {
@@ -176,8 +177,18 @@ export default function UsersIndex({ users, availableRoles }: Props) {
                                         {users.map((user) => (
                                             <TableRow key={user.id}>
                                                 <TableCell>
-                                                    <p className="font-medium">{user.full_name}</p>
-                                                    <p className="text-xs text-muted-foreground">{user.email}</p>
+                                                    <span className="flex items-center gap-3 min-w-0">
+                                                        <Avatar className="h-8 w-8 shrink-0">
+                                                            <AvatarImage src={user.avatar_url ?? undefined} alt={user.full_name} />
+                                                            <AvatarFallback className="bg-primary/10 text-xs font-semibold text-primary">
+                                                                {initials(user.full_name)}
+                                                            </AvatarFallback>
+                                                        </Avatar>
+                                                        <span className="min-w-0">
+                                                            <p className="truncate font-medium">{user.full_name}</p>
+                                                            <p className="truncate text-xs text-muted-foreground">{user.email}</p>
+                                                        </span>
+                                                    </span>
                                                 </TableCell>
                                                 <TableCell className="hidden md:table-cell">
                                                     {user.roles.length > 0 ? (

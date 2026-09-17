@@ -50,6 +50,9 @@ class HandleInertiaRequests extends Middleware
             // polls the /notifications/recent endpoint separately to catch
             // anything that arrives while a page is sitting open.
             'unreadNotificationsCount' => $user ? $user->unreadNotifications()->count() : 0,
+            // Active theme for the app shell (light/dark/system). The client
+            // applies it to <html> on every navigation (see lib/theme.ts).
+            'theme' => $user ? ($user->preferences['theme'] ?? 'light') : 'light',
             'ziggy' => fn () => [
                 ...(new Ziggy)->toArray(),
                 'location' => $request->url(),

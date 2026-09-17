@@ -68,6 +68,11 @@ class RolePermissionSeeder extends Seeder
             'delete_tasks',
             'view_reports',
             'export_data',
+            'view_ledger',
+            'post_ledger',
+            'transfer_client_funds',
+            'reverse_ledger_entries',
+            'run_reconciliation',
         ];
 
         foreach ($permissions as $permission) {
@@ -110,6 +115,7 @@ class RolePermissionSeeder extends Seeder
             'manage_documents', 'view_documents', 'upload_documents',
             'manage_calendar', 'view_calendar', 'create_events', 'edit_events', 'delete_events',
             'manage_tasks', 'view_tasks', 'create_tasks', 'edit_tasks', 'delete_tasks',
+            'view_ledger', 'post_ledger', 'transfer_client_funds', 'run_reconciliation',
         ]);
 
         // ── Solicitor ──
@@ -123,6 +129,7 @@ class RolePermissionSeeder extends Seeder
             'view_documents', 'upload_documents',
             'view_calendar', 'create_events', 'edit_events',
             'view_tasks', 'create_tasks', 'edit_tasks',
+            'view_ledger', 'post_ledger',
         ]);
 
         // ── Lawyer ──
@@ -136,6 +143,7 @@ class RolePermissionSeeder extends Seeder
             'view_documents', 'upload_documents',
             'view_calendar', 'create_events', 'edit_events',
             'view_tasks', 'create_tasks', 'edit_tasks',
+            'view_ledger', 'post_ledger',
         ]);
 
         // ── Barrister ──
@@ -149,6 +157,7 @@ class RolePermissionSeeder extends Seeder
             'view_documents', 'upload_documents',
             'view_calendar', 'create_events', 'edit_events',
             'view_tasks', 'create_tasks',
+            'view_ledger', 'post_ledger',
         ]);
 
         // ── Paralegal ──
@@ -162,6 +171,7 @@ class RolePermissionSeeder extends Seeder
             'view_documents', 'upload_documents',
             'view_calendar', 'create_events',
             'view_tasks', 'create_tasks', 'edit_tasks',
+            'view_ledger',
         ]);
 
         // ── Secretary ──
@@ -175,6 +185,7 @@ class RolePermissionSeeder extends Seeder
             'view_documents', 'upload_documents',
             'view_calendar', 'create_events',
             'view_tasks',
+            'view_ledger',
         ]);
 
         // ── Clerk ──
@@ -188,6 +199,7 @@ class RolePermissionSeeder extends Seeder
             'view_documents', 'upload_documents',
             'view_calendar', 'create_events',
             'view_tasks', 'create_tasks',
+            'view_ledger',
         ]);
 
         // ── Consultant ──
@@ -201,6 +213,7 @@ class RolePermissionSeeder extends Seeder
             'view_documents', 'upload_documents',
             'view_calendar', 'create_events',
             'view_tasks', 'create_tasks', 'edit_tasks',
+            'view_ledger',
         ]);
 
         // ── Accounts (financial role, retained as-is) ──
@@ -218,6 +231,7 @@ class RolePermissionSeeder extends Seeder
             'view_calendar',
             'view_tasks',
             'view_reports', 'export_data',
+            'view_ledger', 'post_ledger', 'transfer_client_funds', 'reverse_ledger_entries', 'run_reconciliation',
         ]);
 
         app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();

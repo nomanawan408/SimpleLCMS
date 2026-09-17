@@ -188,6 +188,37 @@ class MatterStatusTest extends TestCase
             ->assertInertia(fn ($page) => $page->where('stats.open_matters', 1));
     }
 
+    public function test_matters_index_sorts_by_closest_deadline_first(): void
+    {
+        [$firm, $admin] = $this->createFirmAndAdmin();
+
+        // Created newest-first so creation order opposes deadline order.
+        $noDeadline = Matter::factory()->forFirm($firm, $admin)->create(['status' => 'open']);
+        $far = Matter::factory()->forFirm($firm, $admin)->create(['status' => 'open']);
+        \App\Models\Task::factory()->forFirm($firm, $admin)->create([
+            'matter_id' => $far->id, 'status' => 'todo', 'due_date' => now()->addDays(11)->toDateString(),
+        ]);
+        $near = Matter::factory()->forFirm($firm, $admin)->create(['status' => 'open']);
+        \App\Models\Task::factory()->forFirm($firm, $admin)->create([
+            'matter_id' => $near->id, 'status' => 'todo', 'due_date' => now()->addDay()->toDateString(),
+        ]);
+        $overdue = Matter::factory()->forFirm($firm, $admin)->create(['status' => 'open']);
+        \App\Models\Task::factory()->forFirm($firm, $admin)->create([
+            'matter_id' => $overdue->id, 'status' => 'in_progress', 'due_date' => now()->subDays(13)->toDateString(),
+        ]);
+        // Done and deleted tasks must not drag a matter upward.
+        \App\Models\Task::factory()->forFirm($firm, $admin)->done()->create([
+            'matter_id' => $noDeadline->id, 'due_date' => now()->subDays(30)->toDateString(),
+        ]);
+
+        $this->actingAsUser($admin)->get('/matters')
+            ->assertInertia(fn ($page) => $page
+                ->where('matters.data.0.id', $overdue->id)
+                ->where('matters.data.1.id', $near->id)
+                ->where('matters.data.2.id', $far->id)
+                ->where('matters.data.3.id', $noDeadline->id));
+    }
+
     public function test_matters_index_can_filter_by_a_new_status(): void
     {
         [$firm, $admin] = $this->createFirmAndAdmin();

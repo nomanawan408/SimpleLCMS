@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { usePage } from '@inertiajs/react';
 import type { PageProps } from '@/types';
+import { applyTheme } from '@/lib/theme';
 
 interface AuthLayoutProps {
     children: React.ReactNode;
@@ -15,7 +16,11 @@ interface AuthLayoutProps {
 }
 
 export default function AuthLayout({ children, title, description, split = false, brandHeadline, brandSubheadline }: AuthLayoutProps) {
-    const { flash } = usePage<PageProps>().props;
+    const { flash, theme } = usePage<PageProps>().props;
+
+    useEffect(() => {
+        applyTheme(theme);
+    }, [theme]);
     const slides = ['/assets/legal1.jpg', '/assets/legal2.jpg', '/assets/legal3.jpg'];
     const [slide, setSlide] = useState(0);
     useEffect(() => {

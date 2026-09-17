@@ -14,12 +14,13 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
-import { cn, formatCurrency, formatDate, hasPermission, MATTER_STATUS_LABELS, MATTER_PRIORITY_LABELS, MATTER_PRIORITY_STYLES, PRACTICE_AREA_LABELS } from '@/lib/utils';
+import { cn, formatCurrency, formatDate, formatTime, hasPermission, splitDateTime, MATTER_STATUS_LABELS, MATTER_PRIORITY_LABELS, MATTER_PRIORITY_STYLES, PRACTICE_AREA_LABELS } from '@/lib/utils';
+import { UserAvatar } from '@/components/ui/user-avatar';
 import {
     ArrowLeft, Clock, Receipt, Wallet, FileText, CheckSquare, Users, Edit, Plus, Download,
     Gavel, Calendar, TrendingUp, AlertTriangle, ChevronRight, ChevronDown, MessageSquare, Timer,
     Paperclip, ExternalLink, DollarSign, PoundSterling, Eye, X, Pencil, Trash2,
-    Landmark, CalendarClock, Flag, Folder, FolderOpen, CircleCheck, RotateCcw,
+    Landmark, CalendarClock, Flag, Folder, FolderOpen, CircleCheck, RotateCcw, BookOpenText,
 } from 'lucide-react';
 import type { Matter, Expense, Document, TrustEntry, User, PageProps } from '@/types';
 import { useUploadQueue } from '@/hooks/useUploadQueue';
@@ -56,6 +57,7 @@ interface Props {
     };
     users: { id: string; full_name: string }[];
     viewFinancial: boolean;
+    ledgerBalances?: { client: string; office: string } | null;
     activeTimer: {
         matter_id: string;
         matter_name: string;
@@ -69,15 +71,40 @@ interface Props {
     } | null;
 }
 
-export default function ShowMatter({ matter, users, viewFinancial, activeTimer: serverTimer }: Props) {
+export default function ShowMatter({ matter, users, viewFinancial, activeTimer: serverTimer, ledgerBalances }: Props) {
     const { auth } = usePage<PageProps>().props;
     const canCreateTime = hasPermission(auth.user?.permissions, 'create_time_entries');
+    const canViewLedger = hasPermission(auth.user?.permissions, 'view_ledger');
+    const canDeleteDocuments = hasPermission(auth.user?.permissions, 'delete_documents');
     const [notes, setNotes] = useState<any[]>(matter.notes ?? []);
     const [timeEntries, setTimeEntries] = useState<any[]>(matter.time_entries ?? []);
     const [expenses, setExpenses] = useState<any[]>(matter.expenses ?? []);
     const [tasks, setTasks] = useState<any[]>(matter.tasks ?? []);
     const [documents, setDocuments] = useState<any[]>(matter.documents ?? []);
     const [activeDocFolder, setActiveDocFolder] = useState<string | null>(null);
+    const [hearingDialogOpen, setHearingDialogOpen] = useState(false);
+    const [hearingDate, setHearingDate] = useState('');
+    const [hearingTime, setHearingTime] = useState('');
+    const [hearingSaving, setHearingSaving] = useState(false);
+
+    function openHearingDialog() {
+        const [d, t] = splitDateTime((matter as any).hearing_date);
+        setHearingDate(d);
+        setHearingTime(t);
+        setHearingDialogOpen(true);
+    }
+
+    function saveHearing() {
+        if (!hearingDate) return;
+        setHearingSaving(true);
+        router.put(`/matters/${matter.id}/hearing-date`, {
+            hearing_date: hearingDate,
+            hearing_time: hearingTime || undefined,
+        }, {
+            preserveScroll: true,
+            onFinish: () => { setHearingSaving(false); setHearingDialogOpen(false); },
+        });
+    }
 
     // ── Close / Reopen ──
     // Closed = status is closed/archived (Matter::CLOSED_STATUSES). Everything
@@ -758,6 +785,14 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                             New Invoice
                         </Link>
                     </Button>
+                    {canViewLedger && (
+                        <Button asChild size="sm" variant="outline">
+                            <Link href={`/ledger/matters/${matter.id}`}>
+                                <BookOpenText className="h-4 w-4 mr-1" />
+                                Ledger
+                            </Link>
+                        </Button>
+                    )}
                     {isClosed ? (
                         <Button size="sm" variant="outline" type="button" onClick={() => setStatusDialog('reopen')}>
                             <RotateCcw className="h-4 w-4 mr-1" />
@@ -855,6 +890,21 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                         <span className="inline-flex items-center rounded-full border border-border bg-muted/50 px-2.5 py-1 font-mono text-xs font-semibold tabular-nums tracking-wide text-foreground">
                             {matter.matter_number}
                         </span>
+                        {canViewLedger && ledgerBalances && (
+                            <>
+                                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold tabular-nums text-emerald-700">
+                                    Client {formatCurrency(parseFloat(ledgerBalances.client))} {parseFloat(ledgerBalances.client) < 0 ? 'DR' : 'CR'}
+                                </span>
+                                <span className={cn(
+                                    'inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold tabular-nums',
+                                    parseFloat(ledgerBalances.office) < 0
+                                        ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                        : 'border-amber-200 bg-amber-50 text-amber-800',
+                                )}>
+                                    Office {formatCurrency(Math.abs(parseFloat(ledgerBalances.office)))} {parseFloat(ledgerBalances.office) < 0 ? 'CR' : 'DR'}
+                                </span>
+                            </>
+                        )}
                         {daysUntil !== null && daysUntil <= 14 && (
                             <span className={cn('inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold leading-none shadow-sm', daysUntil < 0 ? 'bg-[#ff5757]/10 text-[#ff5757] border-[#ff5757]/20' : daysUntil === 0 ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-amber-50 text-amber-700 border-amber-200')}>
                                 <AlertTriangle className="h-3 w-3 shrink-0" />
@@ -886,8 +936,8 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                         )}
                     </div>
 
-                    {/* Deadline + Court — slim inline pills */}
-                    {(matter.next_deadline && new Date(matter.next_deadline) <= new Date(Date.now() + 7 * 86400000)) || matter.court || matter.court_reference ? (
+                    {/* Deadline + Hearing + Court — slim inline pills */}
+                    {(matter.next_deadline && new Date(matter.next_deadline) <= new Date(Date.now() + 7 * 86400000)) || (matter as any).hearing_date || matter.court || matter.court_reference ? (
                         <div className="mt-3 flex flex-wrap items-center gap-2">
                             {matter.next_deadline && new Date(matter.next_deadline) <= new Date(Date.now() + 7 * 86400000) && (
                                 <div className="flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1">
@@ -895,6 +945,19 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                     <span className="text-xs font-medium text-amber-800">Deadline {formatDate(matter.next_deadline)}</span>
                                     {daysUntil !== null && <span className="text-xs text-amber-700">{daysUntil < 0 ? `· overdue ${Math.abs(daysUntil)}d` : daysUntil === 0 ? '· today' : `· in ${daysUntil}d`}</span>}
                                 </div>
+                            )}
+                            {(matter as any).hearing_date && (
+                                <button
+                                    type="button"
+                                    onClick={openHearingDialog}
+                                    title="Edit hearing date and time"
+                                    className="flex items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 transition-colors hover:bg-sky-100"
+                                >
+                                    <Gavel className="h-3 w-3 text-sky-700 shrink-0" />
+                                    <span className="text-xs font-medium tabular-nums text-sky-800">
+                                        Hearing {formatDate((matter as any).hearing_date)} · {formatTime((matter as any).hearing_date)}
+                                    </span>
+                                </button>
                             )}
                             {(matter.court || matter.court_reference) && (
                                 <div className="flex items-center gap-2 rounded-full border border-border/60 bg-muted/20 px-3 py-1 text-xs">
@@ -954,9 +1017,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                         {notes.map((note: any) => (
                                             <div key={note.id} className="px-6 py-4 hover:bg-muted/10 transition-colors">
                                                 <div className="flex items-center gap-2.5 mb-2">
-                                                    <span className="h-7 w-7 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center shrink-0">
-                                                        {(note.user?.full_name || 'S')[0].toUpperCase()}
-                                                    </span>
+                                                    <UserAvatar user={note.user} fallbackClassName="bg-primary text-primary-foreground text-xs font-bold" />
                                                     <span className="text-sm font-semibold text-foreground">{note.user?.full_name || 'System'}</span>
                                                     <span className="text-xs text-muted-foreground">
                                                         · {formatDate(note.logged_at ?? note.created_at)} {(() => { const d = note.logged_at ?? note.created_at; return d ? new Date(d).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''; })()}
@@ -1394,7 +1455,14 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                                 <TableCell className="text-muted-foreground hidden md:table-cell">
                                                     {ACTIVITY_LABELS[entry.activity_type] ?? entry.activity_type ?? '—'}
                                                 </TableCell>
-                                                <TableCell className="text-muted-foreground hidden lg:table-cell">{entry.user?.full_name ?? '—'}</TableCell>
+                                                <TableCell className="text-muted-foreground hidden lg:table-cell">
+                                                    {entry.user?.full_name ? (
+                                                        <span className="inline-flex items-center gap-1.5">
+                                                            <UserAvatar user={entry.user} className="h-5 w-5" fallbackClassName="text-[9px]" />
+                                                            {entry.user.full_name}
+                                                        </span>
+                                                    ) : '—'}
+                                                </TableCell>
                                                 <TableCell className="text-center">
                                                     <Badge variant={entry.billable ? 'success' : 'secondary'} className="text-xs">
                                                         {entry.billable ? 'Yes' : 'No'}
@@ -1590,9 +1658,11 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                                                     <Download className="h-3.5 w-3.5" />
                                                                 </a>
                                                             </Button>
-                                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10" title="Delete document" onClick={() => deleteDocument(doc)}>
-                                                                <Trash2 className="h-3.5 w-3.5" />
-                                                            </Button>
+                                                            {canDeleteDocuments && (
+                                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10" title="Delete document" onClick={() => deleteDocument(doc)}>
+                                                                    <Trash2 className="h-3.5 w-3.5" />
+                                                                </Button>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 ))}
@@ -1683,7 +1753,10 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                                                 </span>
                                                             )}
                                                             {task.assignee?.full_name && (
-                                                                <span>· {task.assignee.full_name}</span>
+                                                                <span className="inline-flex items-center gap-1">
+                                                                    <UserAvatar user={task.assignee} className="h-4 w-4" fallbackClassName="text-[8px]" />
+                                                                    {task.assignee.full_name}
+                                                                </span>
                                                             )}
                                                         </div>
                                                     </div>
@@ -1884,9 +1957,13 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                             <div className="space-y-4 divide-y divide-border/40">
                                 {/* Responsible User */}
                                 <div className="flex gap-3 pb-4 first:pt-0 pt-4">
-                                    <span className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-slate-50 border border-border/60 shrink-0">
-                                        <Users className="h-3.5 w-3.5 text-slate-600" />
-                                    </span>
+                                    {matter.responsible_user ? (
+                                        <UserAvatar user={matter.responsible_user} className="h-8 w-8" />
+                                    ) : (
+                                        <span className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-slate-50 border border-border/60 shrink-0">
+                                            <Users className="h-3.5 w-3.5 text-slate-600" />
+                                        </span>
+                                    )}
                                     <div className="min-w-0 flex-1">
                                         <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Responsible</p>
                                         {matter.responsible_user ? (
@@ -1912,6 +1989,34 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                         </div>
                                     </div>
                                 )}
+
+                                {/* Hearing — date + time */}
+                                <div className="flex gap-3 py-4">
+                                    <span className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-sky-50 border border-sky-100 shrink-0">
+                                        <Gavel className="h-3.5 w-3.5 text-sky-700" />
+                                    </span>
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex items-center justify-between gap-2">
+                                            <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Hearing</p>
+                                            <button
+                                                type="button"
+                                                onClick={openHearingDialog}
+                                                className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                                            >
+                                                <Pencil className="h-3 w-3" />
+                                                {(matter as any).hearing_date ? 'Edit' : 'Set'}
+                                            </button>
+                                        </div>
+                                        {(matter as any).hearing_date ? (
+                                            <p className="text-sm font-semibold tabular-nums text-foreground">
+                                                {formatDate((matter as any).hearing_date)}
+                                                <span className="ml-1.5 font-normal text-muted-foreground">{formatTime((matter as any).hearing_date)}</span>
+                                            </p>
+                                        ) : (
+                                            <p className="text-sm italic text-muted-foreground">No hearing set</p>
+                                        )}
+                                    </div>
+                                </div>
 
                                 {/* Priority */}
                                 <div className="flex gap-3 py-4">
@@ -1996,9 +2101,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                 <div>
                                     <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground mb-2">Responsible User</p>
                                     <div className="flex items-center gap-3">
-                                        <span className="h-9 w-9 rounded-full bg-[#016452] text-white text-sm font-bold flex items-center justify-center shrink-0">
-                                            {matter.responsible_user.full_name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
-                                        </span>
+                                        <UserAvatar user={matter.responsible_user} className="h-9 w-9" fallbackClassName="bg-[#016452] text-white text-sm font-bold" />
                                         <div className="min-w-0">
                                             <p className="text-sm font-semibold text-foreground truncate">{matter.responsible_user.full_name}</p>
                                             <p className="text-xs text-muted-foreground truncate">{matter.responsible_user.email}</p>
@@ -2370,6 +2473,68 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                     <DialogFooter className="px-6 py-4 border-t bg-muted/20 shrink-0">
                         <Button type="button" variant="outline" onClick={() => setDocModalOpen(false)}>
                             {docUploadQueue.isUploading ? 'Upload in background' : 'Close'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* ── Hearing Date & Time Dialog ── */}
+            <Dialog open={hearingDialogOpen} onOpenChange={setHearingDialogOpen}>
+                <DialogContent className="max-w-sm">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Gavel className="h-5 w-5 text-primary" />
+                            Hearing Date
+                        </DialogTitle>
+                        <DialogDescription>{matter.name}</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-3 py-2">
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1.5">
+                                <Label htmlFor="show_hearing_date">Date</Label>
+                                <Input
+                                    id="show_hearing_date"
+                                    type="date"
+                                    value={hearingDate}
+                                    onChange={(e) => setHearingDate(e.target.value)}
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label htmlFor="show_hearing_time">Time</Label>
+                                <Input
+                                    id="show_hearing_time"
+                                    type="time"
+                                    value={hearingTime}
+                                    onChange={(e) => setHearingTime(e.target.value)}
+                                />
+                            </div>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                            Time defaults to 10:00 when left empty.
+                        </p>
+                    </div>
+                    <DialogFooter className="gap-2">
+                        {(matter as any).hearing_date && (
+                            <Button
+                                variant="outline"
+                                className="text-destructive hover:text-destructive"
+                                disabled={hearingSaving}
+                                onClick={() => {
+                                    setHearingSaving(true);
+                                    router.put(`/matters/${matter.id}/hearing-date`, { hearing_date: null }, {
+                                        preserveScroll: true,
+                                        onFinish: () => { setHearingSaving(false); setHearingDialogOpen(false); },
+                                    });
+                                }}
+                            >
+                                Clear Date
+                            </Button>
+                        )}
+                        <Button variant="outline" onClick={() => setHearingDialogOpen(false)} disabled={hearingSaving}>
+                            Cancel
+                        </Button>
+                        <Button disabled={!hearingDate || hearingSaving} onClick={saveHearing}>
+                            {hearingSaving ? 'Saving…' : 'Save'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

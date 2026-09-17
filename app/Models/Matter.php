@@ -214,6 +214,6 @@ class Matter extends Model
             ->where('start_at', '>=', now())
             ->orderBy('start_at')
             ->first();
-        return $event?->start_at?->format('Y-m-d');
+        return $event?->start_at?->format('Y-m-d H:i:s');
     }
 }

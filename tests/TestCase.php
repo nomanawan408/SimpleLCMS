@@ -41,6 +41,11 @@ abstract class TestCase extends BaseTestCase
             'manage_calendar', 'view_calendar', 'create_events', 'edit_events', 'delete_events',
             'manage_tasks', 'view_tasks', 'create_tasks', 'edit_tasks', 'delete_tasks',
             'view_reports', 'export_data',
+            'view_ledger',
+            'post_ledger',
+            'transfer_client_funds',
+            'reverse_ledger_entries',
+            'run_reconciliation',
         ];
 
         foreach ($permissions as $permission) {
@@ -67,6 +72,7 @@ abstract class TestCase extends BaseTestCase
             'manage_calendar', 'view_calendar', 'create_events', 'edit_events', 'delete_events',
             'manage_tasks', 'view_tasks', 'create_tasks', 'edit_tasks', 'delete_tasks',
             'view_reports', 'export_data',
+            'view_ledger', 'post_ledger', 'transfer_client_funds', 'reverse_ledger_entries', 'run_reconciliation',
         ]);
 
         $solicitor = Role::firstOrCreate(['name' => 'solicitor', 'guard_name' => 'web']);
@@ -79,6 +85,7 @@ abstract class TestCase extends BaseTestCase
             'view_documents', 'upload_documents',
             'view_calendar', 'create_events', 'edit_events',
             'view_tasks', 'create_tasks', 'edit_tasks',
+            'view_ledger', 'post_ledger',
         ]);
 
         $paralegal = Role::firstOrCreate(['name' => 'paralegal', 'guard_name' => 'web']);
@@ -91,6 +98,7 @@ abstract class TestCase extends BaseTestCase
             'view_documents', 'upload_documents',
             'view_calendar',
             'view_tasks', 'create_tasks',
+            'view_ledger',
         ]);
 
         $secretary = Role::firstOrCreate(['name' => 'secretary', 'guard_name' => 'web']);
@@ -103,6 +111,7 @@ abstract class TestCase extends BaseTestCase
             'view_documents', 'upload_documents',
             'view_calendar',
             'view_tasks',
+            'view_ledger',
         ]);
 
         foreach (['clerk', 'lawyer', 'barrister', 'consultant', 'manager', 'accounts'] as $name) {

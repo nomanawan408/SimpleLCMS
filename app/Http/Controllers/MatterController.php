@@ -22,8 +22,16 @@ class MatterController extends Controller
         $this->authorize('viewAny', Matter::class);
 
         $query = Matter::where('firm_id', $request->user()->firm_id)
-            ->with(['responsibleUser', 'originatingUser:id,full_name', 'contacts', 'tasks' => fn ($q) => $q->whereIn('status', ['todo', 'in_progress'])->whereNull('completed_at')->orderBy('due_date')->with('assignee'), 'calendarEvents' => fn ($q) => $q->where('is_court_date', true)->where('start_at', '>=', now())->orderBy('start_at')])
-            ->orderBy('created_at', 'desc');
+            ->with(['responsibleUser', 'originatingUser:id,full_name,avatar_url', 'contacts', 'tasks' => fn ($q) => $q->whereIn('status', ['todo', 'in_progress'])->whereNull('completed_at')->orderBy('due_date')->with('assignee'), 'calendarEvents' => fn ($q) => $q->where('is_court_date', true)->where('start_at', '>=', now())->orderBy('start_at')])
+            // Default sort is deadline urgency: most overdue first, then the
+            // nearest upcoming deadline; matters with no open-task deadline
+            // sink to the bottom. Mirrors getNextDeadlineAttribute (open,
+            // non-deleted tasks) so the list order matches the badges shown.
+            ->orderByRaw(
+                "COALESCE((SELECT MIN(due_date) FROM tasks WHERE tasks.matter_id = matters.id AND tasks.deleted_at IS NULL AND tasks.status IN (?, ?) AND tasks.completed_at IS NULL), '9999-12-31') ASC",
+                ['todo', 'in_progress']
+            )
+            ->orderBy('matters.created_at', 'desc');
 
         if ($request->filled('status')) {
             $query->where('status', $request->status);
@@ -177,6 +185,17 @@ class MatterController extends Controller
             }
         }
 
+        // SRA matter summary badge (client CR / office DR), for roles that can
+        // view the ledger. Two aggregate sums — no postings payload here.
+        $ledgerBalances = null;
+        if ($request->user()->hasPermissionTo('view_ledger')) {
+            $svc = new \App\Services\Accounting\LedgerService($matter->firm_id, $request->user()->id);
+            $ledgerBalances = [
+                'client' => $svc->clientBalance($matter->id),
+                'office' => $svc->officeBalance($matter->id),
+            ];
+        }
+
         return Inertia::render('Matters/Show', [
             'matter' => $matter,
             'users'  => User::where('firm_id', $matter->firm_id)
@@ -184,6 +203,7 @@ class MatterController extends Controller
                 ->get(['id', 'full_name']),
             'viewFinancial' => $viewFinancial,
             'activeTimer' => $activeTimer,
+            'ledgerBalances' => $ledgerBalances,
         ]);
     }
 
@@ -243,6 +263,7 @@ class MatterController extends Controller
 
         $validated = $request->validate([
             'hearing_date' => ['nullable', 'date'],
+            'hearing_time' => ['nullable', 'date_format:H:i'],
         ]);
 
         $date = $validated['hearing_date'] ?? null;
@@ -254,8 +275,20 @@ class MatterController extends Controller
             ->first();
 
         if ($date) {
+            // Time comes from its own field; fall back to any time embedded
+            // in the date string, then to the historic 10:00 default so old
+            // date-only submissions keep working.
+            $time = $validated['hearing_time'] ?? null;
+            if ($time === null && preg_match('/(\d{1,2}):(\d{2})/', (string) $date, $m)) {
+                $time = sprintf('%02d:%02d', (int) $m[1], (int) $m[2]);
+            }
+            $time ??= '10:00';
+
+            $start = \Carbon\Carbon::parse(substr((string) $date, 0, 10) . ' ' . $time);
+            $end = (clone $start)->addHour();
+
             if ($existing) {
-                $existing->update(['start_at' => $date . ' 10:00:00']);
+                $existing->update(['start_at' => $start, 'end_at' => $end]);
             } else {
                 CalendarEvent::create([
                     'firm_id'       => $matter->firm_id,
@@ -263,8 +296,8 @@ class MatterController extends Controller
                     'created_by_id' => $request->user()->id,
                     'title'         => 'Court Hearing — ' . $matter->name,
                     'type'          => 'court_date',
-                    'start_at'      => $date . ' 10:00:00',
-                    'end_at'        => $date . ' 11:00:00',
+                    'start_at'      => $start,
+                    'end_at'        => $end,
                     'is_court_date' => true,
                 ]);
             }

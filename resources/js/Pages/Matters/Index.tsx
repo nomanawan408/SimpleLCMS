@@ -11,7 +11,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { getDateUrgency } from '@/components/ui/urgency-dot';
-import { formatDate, initials, MATTER_STATUS_LABELS, MATTER_PRIORITY_LABELS, MATTER_PRIORITY_STYLES, PRACTICE_AREA_LABELS } from '@/lib/utils';
+import { formatDate, splitDateTime, MATTER_STATUS_LABELS, MATTER_PRIORITY_LABELS, MATTER_PRIORITY_STYLES, PRACTICE_AREA_LABELS } from '@/lib/utils';
+import { UserAvatar } from '@/components/ui/user-avatar';
 import { Plus, Search, X, Calendar, Clock, ListTodo, Briefcase, Flag } from 'lucide-react';
 import type { Matter, PaginatedData } from '@/types';
 
@@ -86,6 +87,7 @@ export default function MattersIndex({ matters, filters, counts, tablePreference
     const isFirstRun            = useRef(true);
     const [editingHearing, setEditingHearing] = useState<Matter | null>(null);
     const [hearingDate, setHearingDate] = useState('');
+    const [hearingTime, setHearingTime] = useState('');
     const [hearingSaving, setHearingSaving] = useState(false);
     const [editingDeadline, setEditingDeadline] = useState<Matter | null>(null);
     const [deadlineDate, setDeadlineDate] = useState('');
@@ -116,9 +118,7 @@ export default function MattersIndex({ matters, filters, counts, tablePreference
             id: 'responsible', header: 'Responsible', defaultWidth: 160, minWidth: 120, maxWidth: 260,
             cell: (matter) => matter.responsible_user?.full_name ? (
                 <span className="inline-flex items-center gap-2">
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[11px] font-semibold text-primary" aria-hidden>
-                        {initials(matter.responsible_user.full_name)}
-                    </span>
+                    <UserAvatar user={matter.responsible_user} />
                     <span className="whitespace-nowrap text-sm text-muted-foreground">{matter.responsible_user.full_name}</span>
                 </span>
             ) : (
@@ -243,21 +243,31 @@ export default function MattersIndex({ matters, filters, counts, tablePreference
             },
         },
         {
-            id: 'hearing_date', header: 'Hearing Date', defaultWidth: 150, minWidth: 120, maxWidth: 220,
-            cell: (matter) => (
-                <button
-                    className="inline-flex items-center gap-1.5 whitespace-nowrap text-sm text-muted-foreground transition-colors hover:text-primary"
-                    title={matter.hearing_date ? `${formatDate(matter.hearing_date)} — click to edit` : 'Set hearing date'}
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        setEditingHearing(matter);
-                        setHearingDate(matter.hearing_date || '');
-                    }}
-                >
-                    <Calendar className="h-3.5 w-3.5 shrink-0" />
-                    {matter.hearing_date ? <span className="font-medium text-foreground">{formatDate(matter.hearing_date)}</span> : 'Set date'}
-                </button>
-            ),
+            id: 'hearing_date', header: 'Hearing Date', defaultWidth: 170, minWidth: 140, maxWidth: 240,
+            cell: (matter) => {
+                const [, time] = splitDateTime(matter.hearing_date);
+                return (
+                    <button
+                        className="inline-flex items-center gap-1.5 whitespace-nowrap text-sm text-muted-foreground transition-colors hover:text-primary"
+                        title={matter.hearing_date ? `${formatDate(matter.hearing_date)}${time ? ` · ${time}` : ''} — click to edit` : 'Set hearing date and time'}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingHearing(matter);
+                            const [d, t] = splitDateTime(matter.hearing_date);
+                            setHearingDate(d);
+                            setHearingTime(t);
+                        }}
+                    >
+                        <Calendar className="h-3.5 w-3.5 shrink-0" />
+                        {matter.hearing_date ? (
+                            <span className="font-medium tabular-nums text-foreground">
+                                {formatDate(matter.hearing_date)}
+                                {time && <span className="ml-1.5 font-normal text-muted-foreground">{time}</span>}
+                            </span>
+                        ) : 'Set date'}
+                    </button>
+                );
+            },
         },
         {
             id: 'open_tasks', header: 'Open Tasks', defaultWidth: 110, minWidth: 90, maxWidth: 160, defaultVisible: false,
@@ -301,9 +311,7 @@ export default function MattersIndex({ matters, filters, counts, tablePreference
             id: 'originator', header: 'Originated By', defaultWidth: 160, minWidth: 120, maxWidth: 240, defaultVisible: false,
             cell: (matter) => (matter as any).originating_user?.full_name ? (
                 <span className="inline-flex items-center gap-2">
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-semibold text-muted-foreground" aria-hidden>
-                        {initials((matter as any).originating_user.full_name)}
-                    </span>
+                    <UserAvatar user={(matter as any).originating_user} fallbackClassName="bg-muted text-muted-foreground" />
                     <span className="whitespace-nowrap text-sm text-muted-foreground">{(matter as any).originating_user.full_name}</span>
                 </span>
             ) : (
@@ -553,13 +561,29 @@ export default function MattersIndex({ matters, filters, counts, tablePreference
                         </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-3 py-2">
-                        <Label htmlFor="hearing_date">Court hearing date</Label>
-                        <Input
-                            id="hearing_date"
-                            type="date"
-                            value={hearingDate}
-                            onChange={(e) => setHearingDate(e.target.value)}
-                        />
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1.5">
+                                <Label htmlFor="hearing_date">Date</Label>
+                                <Input
+                                    id="hearing_date"
+                                    type="date"
+                                    value={hearingDate}
+                                    onChange={(e) => setHearingDate(e.target.value)}
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label htmlFor="hearing_time">Time</Label>
+                                <Input
+                                    id="hearing_time"
+                                    type="time"
+                                    value={hearingTime}
+                                    onChange={(e) => setHearingTime(e.target.value)}
+                                />
+                            </div>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                            Time defaults to 10:00 when left empty.
+                        </p>
                     </div>
                     <DialogFooter className="gap-2">
                         {editingHearing?.hearing_date && (
@@ -585,6 +609,7 @@ export default function MattersIndex({ matters, filters, counts, tablePreference
                                 setHearingSaving(true);
                                 router.put(`/matters/${editingHearing.id}/hearing-date`, {
                                     hearing_date: hearingDate,
+                                    hearing_time: hearingTime || undefined,
                                 }, {
                                     preserveScroll: true,
                                     preserveState: true,
@@ -638,8 +663,9 @@ export default function MattersIndex({ matters, filters, counts, tablePreference
                                                 {task.priority}
                                             </Badge>
                                             {task.assignee && (
-                                                <span className="text-xs text-muted-foreground">
-                                                    → {task.assignee.full_name}
+                                                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                                                    <UserAvatar user={task.assignee} className="h-4 w-4" fallbackClassName="text-[8px]" />
+                                                    {task.assignee.full_name}
                                                 </span>
                                             )}
                                         </div>

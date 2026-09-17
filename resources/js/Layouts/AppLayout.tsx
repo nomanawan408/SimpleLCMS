@@ -2,15 +2,17 @@ import { useEffect, useState } from 'react';
 import { Link, router, usePage } from '@inertiajs/react';
 import {
     LayoutDashboard, Briefcase, Users, FileText, Clock, Receipt, PoundSterling,
-    Calendar, CheckSquare, LogOut, Menu, Search, Radio, ChevronDown,
-    Building2, Shield, Activity, BarChart2, Landmark, CreditCard, Database,
+    Calendar, CheckSquare, LogOut, Menu, Search, Radio, ChevronDown, UserRound,
+    Building2, Shield, ShieldCheck, Activity, BarChart2, Landmark, CreditCard, Database, ScrollText, Scale, Settings,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
 import { GlobalSearch } from '@/components/GlobalSearch';
 import { NotificationBell } from '@/components/NotificationBell';
-import { cn, initials } from '@/lib/utils';
+import { cn, hasPermission, initials, ROLE_LABELS } from '@/lib/utils';
+import { applyTheme } from '@/lib/theme';
 import type { PageProps } from '@/types';
 
 interface NavItem {
@@ -38,7 +40,7 @@ const navItems: NavItem[] = [
     { label: 'Tasks',      href: '/tasks',        icon: CheckSquare,     routeName: 'tasks.index',     permission: 'view_tasks' },
     { label: 'Activities', href: '/activities',   icon: Activity,        routeName: 'activities.index' },
     { label: 'Reports',    href: '/reports',      icon: BarChart2,       routeName: 'reports.index',   permission: 'view_reports' },
-    { label: 'Accounts',   href: '/accounts',     icon: Landmark,        routeName: 'accounts.index', permission: 'view_trust' },
+    { label: 'Settings',   href: '/settings',     icon: Settings,        routeName: 'settings.index' },
 ];
 
 const adminItems: NavItem[] = [
@@ -60,12 +62,19 @@ interface AppLayoutProps {
 }
 
 export default function AppLayout({ children, title }: AppLayoutProps) {
-    const { auth, flash } = usePage<PageProps>().props;
+    const { auth, flash, theme } = usePage<PageProps>().props;
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({});
     const [searchOpen, setSearchOpen] = useState(false);
+    const [userMenuOpen, setUserMenuOpen] = useState(false);
     const { url } = usePage();
     const user = auth.user!;
+
+    // Visits don't reload the document, so re-apply the stored theme here —
+    // this layout re-renders on every navigation.
+    useEffect(() => {
+        applyTheme(theme);
+    }, [theme, url]);
 
     // Cmd+K on Mac, Ctrl+K elsewhere -- the standard shortcut for "open
     // search" (Linear, GitHub, Notion, Stripe all use it), available from
@@ -109,12 +118,9 @@ export default function AppLayout({ children, title }: AppLayoutProps) {
         <div className="flex h-full flex-col">
             {/* Logo */}
             <div className="flex h-20 items-center px-6">
-                <Link href={isSuperAdmin ? '/superadmin/dashboard' : '/dashboard'} className="flex items-center gap-3">
-                    <img src="/New%20Logos/13.png" alt="SIMPLE Case Management" className="h-12 w-12 shrink-0 object-contain" />
-                    <div className="leading-tight min-w-0">
-                        <p className="text-base font-bold text-white tracking-tight whitespace-nowrap">Simple Law</p>
-                        <p className="mt-0.5 text-xs uppercase tracking-[0.14em] text-white/60 font-medium whitespace-nowrap">Case Management</p>
-                    </div>
+                <Link href={isSuperAdmin ? '/superadmin/dashboard' : '/dashboard'} className="flex min-w-0 items-center gap-2.5">
+                    <img src="/New%20Logos/13.png" alt="" aria-hidden className="h-11 w-11 shrink-0 object-contain" />
+                    <img src="/New%20Logos/8.png" alt="SIMPLE Case Management" className="h-10 w-auto min-w-0 flex-1 object-contain object-left" />
                 </Link>
             </div>
 
@@ -233,28 +239,6 @@ isActive(item) ? 'text-white' : 'text-white/80 group-hover:text-white'
                 )}
             </nav>
 
-             <Separator className="bg-white/15" />
-
-            {/* User */}
-            <div className="p-4">
-                 <div className="rounded-xl border border-white/15 bg-white/10 p-3">
-                    <div className="flex items-center gap-3">
-                    <Avatar className="h-8 w-8 shrink-0 ring-2 ring-white/10">
-                        <AvatarImage src={user.avatar_url ?? undefined} />
-                        <AvatarFallback className="bg-brand-500 text-brand-950 text-xs font-bold">
-                            {initials(user.full_name)}
-                        </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                         <p className="truncate text-sm font-medium text-white">{user.full_name}</p>
-                         <p className="truncate text-xs text-white/70">{user.email}</p>
-                    </div>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-white/70 hover:bg-white/10 hover:text-white" onClick={handleLogout} title="Sign out">
-                        <LogOut className="h-4 w-4" />
-                    </Button>
-                    </div>
-                </div>
-            </div>
         </div>
     );
 
@@ -301,15 +285,100 @@ isActive(item) ? 'text-white' : 'text-white/80 group-hover:text-white'
                             Search
                         </Button>
                         <NotificationBell />
-                        <div className="flex items-center gap-2 rounded-md border border-border/60 bg-background px-2.5 py-2 text-sm">
-                            <Avatar className="h-9 w-9">
-                                <AvatarImage src={user.avatar_url ?? undefined} />
-                                <AvatarFallback className="bg-brand-500 text-brand-950 text-sm font-bold">
-                                    {initials(user.full_name)}
-                                </AvatarFallback>
-                            </Avatar>
-                            <span className="hidden sm:block font-medium text-base text-foreground">{user.full_name}</span>
-                        </div>
+                        <Popover open={userMenuOpen} onOpenChange={setUserMenuOpen}>
+                            <PopoverTrigger asChild>
+                                <button
+                                    type="button"
+                                    aria-label="Account menu"
+                                    aria-expanded={userMenuOpen}
+                                    className="flex items-center gap-2 rounded-md border border-border/60 bg-background px-2.5 py-2 text-sm transition-colors hover:border-border hover:bg-muted/50"
+                                >
+                                    <Avatar className="h-9 w-9">
+                                        <AvatarImage src={user.avatar_url ?? undefined} />
+                                        <AvatarFallback className="bg-brand-500 text-brand-950 text-sm font-bold">
+                                            {initials(user.full_name)}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                    <span className="hidden sm:block font-medium text-base text-foreground max-w-40 truncate">{user.full_name}</span>
+                                    <ChevronDown className={cn('hidden h-4 w-4 text-muted-foreground transition-transform duration-200 sm:block', userMenuOpen && 'rotate-180')} />
+                                </button>
+                            </PopoverTrigger>
+                            <PopoverContent align="end" className="w-64 p-1.5">
+                                <div className="flex items-center gap-3 rounded-lg bg-muted/50 px-3 py-2.5">
+                                    <Avatar className="h-10 w-10 shrink-0">
+                                        <AvatarImage src={user.avatar_url ?? undefined} />
+                                        <AvatarFallback className="bg-brand-500 text-brand-950 text-sm font-bold">
+                                            {initials(user.full_name)}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                    <div className="min-w-0">
+                                        <p className="truncate text-sm font-semibold text-foreground">{user.full_name}</p>
+                                        <p className="truncate text-xs text-muted-foreground">{user.email}</p>
+                                        {(user.firm?.name || user.roles?.[0]) && (
+                                            <p className="mt-0.5 truncate text-xs text-muted-foreground/70">
+                                                {[user.firm?.name, user.roles?.[0] ? (ROLE_LABELS[user.roles[0]] ?? user.roles[0]) : null].filter(Boolean).join(' · ')}
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="mt-1.5 space-y-0.5">
+                                    <Link
+                                        href="/profile"
+                                        onClick={() => setUserMenuOpen(false)}
+                                        className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-muted"
+                                    >
+                                        <UserRound className="h-4 w-4 shrink-0 text-muted-foreground" />
+                                        Profile
+                                    </Link>
+                                    {hasPermission(user.permissions, 'view_trust') && (
+                                        <Link
+                                            href="/accounts"
+                                            onClick={() => setUserMenuOpen(false)}
+                                            className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-muted"
+                                        >
+                                            <Landmark className="h-4 w-4 shrink-0 text-muted-foreground" />
+                                            Accounts
+                                        </Link>
+                                    )}
+                                    {hasPermission(user.permissions, 'view_ledger') && (
+                                        <>
+                                            <Link
+                                                href="/ledger/cash-sheet"
+                                                onClick={() => setUserMenuOpen(false)}
+                                                className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-muted"
+                                            >
+                                                <ScrollText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                                                Client Cash Sheet
+                                            </Link>
+                                            <Link
+                                                href="/ledger/reconciliations"
+                                                onClick={() => setUserMenuOpen(false)}
+                                                className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-muted"
+                                            >
+                                                <Scale className="h-4 w-4 shrink-0 text-muted-foreground" />
+                                                Reconciliation
+                                            </Link>
+                                        </>
+                                    )}
+                                    <Link
+                                        href="/two-factor/setup"
+                                        onClick={() => setUserMenuOpen(false)}
+                                        className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-muted"
+                                    >
+                                        <ShieldCheck className="h-4 w-4 shrink-0 text-muted-foreground" />
+                                        Two-Factor Authentication
+                                    </Link>
+                                    <button
+                                        type="button"
+                                        onClick={() => { setUserMenuOpen(false); handleLogout(); }}
+                                        className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm text-destructive transition-colors hover:bg-destructive/10"
+                                    >
+                                        <LogOut className="h-4 w-4 shrink-0" />
+                                        Sign out
+                                    </button>
+                                </div>
+                            </PopoverContent>
+                        </Popover>
                     </div>
                 </header>
 

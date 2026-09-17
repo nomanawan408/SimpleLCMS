@@ -191,6 +191,10 @@ class DocumentController extends Controller
             Storage::disk('local')->delete($path);
         }
 
+        if ($request->expectsJson()) {
+            return response()->json(['message' => 'Document deleted.']);
+        }
+
         return back()->with('success', 'Document deleted.');
     }
 }

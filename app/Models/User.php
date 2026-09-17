@@ -61,6 +61,7 @@ class User extends Authenticatable implements MustVerifyEmail
             'totp_enabled'      => 'boolean',
             'is_active'         => 'boolean',
             'rate_per_hour'     => 'decimal:2',
+            'preferences'       => 'array',
         ];
     }
 

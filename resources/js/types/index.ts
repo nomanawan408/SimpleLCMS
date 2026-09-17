@@ -249,6 +249,46 @@ export interface TrustEntry {
     balance_after: number;
 }
 
+export interface FinancialTransaction {
+    id: string;
+    firm_id: string;
+    matter_id: string;
+    transaction_date: string;
+    reference: string | null;
+    narrative: string;
+    transaction_type: 'client_receipt' | 'client_payment' | 'client_to_office_transfer' | 'reversal';
+    reversal_of_id: string | null;
+    created_by: string;
+}
+
+export interface LedgerPosting {
+    id: string;
+    firm_id: string;
+    transaction_id: string;
+    matter_id: string;
+    account_type: 'matter_client' | 'matter_business' | 'cash_sheet_client' | 'cash_sheet_business';
+    entry_type: 'debit' | 'credit';
+    amount: string;
+    value_date: string;
+    balance_after: string | null;
+    transaction?: Pick<FinancialTransaction, 'id' | 'transaction_date' | 'reference' | 'narrative' | 'transaction_type'>;
+    matter?: Pick<Matter, 'id' | 'name' | 'matter_number'>;
+}
+
+export interface BankReconciliation {
+    id: string;
+    firm_id: string;
+    as_at_date: string;
+    reconciliation_date: string;
+    paper_statement_balance: string;
+    system_cash_sheet_balance: string;
+    aggregate_client_ledger_balance: string;
+    discrepancy: string;
+    status: 'balanced' | 'discrepancy_found';
+    notes: string | null;
+    performer?: Pick<User, 'id' | 'full_name'>;
+}
+
 export interface Note {
     id: string;
     matter_id: string;
@@ -290,4 +330,5 @@ export interface PageProps {
         routes: Record<string, unknown>;
     };
     unreadNotificationsCount: number;
+    theme: string;
 }

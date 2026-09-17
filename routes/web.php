@@ -27,6 +27,9 @@ use App\Http\Controllers\SuperAdmin\DashboardController as SuperAdminDashboardCo
 use App\Http\Controllers\SuperAdmin\FirmController as SuperAdminFirmController;
 use App\Http\Controllers\SuperAdmin\UserController as SuperAdminUserController;
 use App\Http\Controllers\SuperAdmin\BackupController;
+use App\Http\Controllers\LedgerController;
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\TablePreferenceController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\TimeController;
@@ -203,6 +206,28 @@ Route::middleware(['auth', 'verified', 'set.tenant', 'requires.two.factor', 'red
     // Per-user table layouts (column order / widths / visibility)
     Route::get('/table-preferences', [TablePreferenceController::class, 'show'])->name('table-preferences.show');
     Route::put('/table-preferences', [TablePreferenceController::class, 'update'])->name('table-preferences.update');
+
+    // Self-service settings (scoped to the authenticated user / their firm).
+    Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
+    Route::put('/settings/profile', [SettingsController::class, 'updateProfile'])->name('settings.profile');
+    Route::put('/settings/preferences', [SettingsController::class, 'updatePreferences'])->name('settings.preferences');
+    Route::put('/settings/password', [SettingsController::class, 'updatePassword'])
+        ->middleware('throttle:5,1')
+        ->name('settings.password');
+    Route::put('/settings/firm', [SettingsController::class, 'updateFirm'])->name('settings.firm');
+
+    // SRA ledger: no update/delete routes exist by design (reversals only).
+    Route::get('/ledger/cash-sheet', [LedgerController::class, 'cashSheet'])->name('ledger.cash-sheet');
+    Route::get('/ledger/matters/{matter}', [LedgerController::class, 'matterLedger'])->name('ledger.matters.show');
+    Route::post('/ledger/entries', [LedgerController::class, 'store'])->name('ledger.entries.store');
+    Route::post('/ledger/reversals/{transaction}', [LedgerController::class, 'reverse'])->name('ledger.reversals.store');
+    Route::get('/ledger/reconciliations', [LedgerController::class, 'reconciliations'])->name('ledger.reconciliations.index');
+    Route::post('/ledger/reconciliations', [LedgerController::class, 'reconcile'])->name('ledger.reconciliations.store');
+
+    // Profile — every signed-in user can manage their own picture.
+    Route::get('/profile', [ProfileController::class, 'show'])->name('profile.show');
+    Route::post('/profile/avatar', [ProfileController::class, 'updateAvatar'])->name('profile.avatar.update');
+    Route::delete('/profile/avatar', [ProfileController::class, 'destroyAvatar'])->name('profile.avatar.destroy');
 
     // Notifications (the header's bell)
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
