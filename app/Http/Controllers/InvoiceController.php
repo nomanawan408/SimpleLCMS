@@ -44,6 +44,12 @@ class InvoiceController extends Controller
         $query = Invoice::with(['matter', 'matter.responsibleUser'])
             ->withSum('payments as amount_paid', 'amount')
             ->where('firm_id', $firmId)
+            // Urgency first: collectable (sent/partial) by due date with
+            // overdue on top, then drafts, then finished (paid/written
+            // off/cancelled) by recency. Dateless invoices sink via COALESCE
+            // so MySQL and PgSQL agree (MySQL sorts NULLs first on ASC).
+            ->orderByRaw("CASE WHEN status IN ('sent', 'partial') THEN 0 WHEN status = 'draft' THEN 1 ELSE 2 END")
+            ->orderByRaw("COALESCE(due_date, '9999-12-31') ASC")
             ->orderBy('created_at', 'desc');
 
         // Filters

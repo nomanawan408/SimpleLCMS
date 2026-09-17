@@ -119,6 +119,8 @@ export default {
                 /* Deliberately the same face: reference numbers stay in Lato
                    and rely on tabular-nums to keep their digits aligned. */
                 mono: ['Lato', ...defaultTheme.fontFamily.sans],
+                /* Logo wordmark only — tall condensed medium-bold. */
+                logo: ['"Barlow Condensed"', 'Lato', ...defaultTheme.fontFamily.sans],
             },
             keyframes: {
                 'accordion-down': {

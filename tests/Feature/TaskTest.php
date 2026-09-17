@@ -22,6 +22,22 @@ class TaskTest extends TestCase
             ->assertInertia(fn ($page) => $page->where('tasks.total', 4));
     }
 
+    public function test_tasks_sort_overdue_first_and_dateless_last(): void
+    {
+        [$firm, $user] = $this->createFirmAndUser();
+        $dateless = Task::factory()->forFirm($firm, $user)->create(['status' => 'todo', 'due_date' => null]);
+        $future = Task::factory()->forFirm($firm, $user)->create(['status' => 'todo', 'due_date' => now()->addDays(5)->toDateString()]);
+        $overdue = Task::factory()->forFirm($firm, $user)->create(['status' => 'todo', 'due_date' => now()->subDays(2)->toDateString()]);
+        $done = Task::factory()->forFirm($firm, $user)->done()->create(['due_date' => now()->subDays(30)->toDateString()]);
+
+        $this->actingAsUser($user)->get('/tasks')
+            ->assertInertia(fn ($page) => $page
+                ->where('tasks.data.0.id', $overdue->id)
+                ->where('tasks.data.1.id', $future->id)
+                ->where('tasks.data.2.id', $dateless->id)
+                ->where('tasks.data.3.id', $done->id));
+    }
+
     public function test_can_create_task(): void
     {
         [$firm, $user] = $this->createFirmAndUser();

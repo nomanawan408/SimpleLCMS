@@ -4,6 +4,9 @@
 @import '@fontsource/lato/400-italic.css';
 @import '@fontsource/lato/700.css';
 @import '@fontsource/lato/900.css';
+/* Barlow Condensed (500/600) — logo wordmark only, tall narrow medium-bold. */
+@import '@fontsource/barlow-condensed/500.css';
+@import '@fontsource/barlow-condensed/600.css';
 
 @tailwind base;
 @tailwind components;

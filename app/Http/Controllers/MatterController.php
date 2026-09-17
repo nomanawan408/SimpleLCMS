@@ -313,10 +313,24 @@ class MatterController extends Controller
         $this->authorize('update', $matter);
 
         $validated = $request->validate([
-            'deadline' => ['nullable', 'date'],
+            'deadline'      => ['nullable', 'date'],
+            'deadline_time' => ['nullable', 'date_format:H:i'],
         ]);
 
         $date = $validated['deadline'] ?? null;
+
+        // Time comes from its own field; fall back to any time embedded in
+        // the date string, then to 17:00 (close of business) so old
+        // date-only submissions keep working.
+        $dueAt = null;
+        if ($date) {
+            $time = $validated['deadline_time'] ?? null;
+            if ($time === null && preg_match('/(\d{1,2}):(\d{2})/', (string) $date, $m)) {
+                $time = sprintf('%02d:%02d', (int) $m[1], (int) $m[2]);
+            }
+            $time ??= '17:00';
+            $dueAt = \Carbon\Carbon::parse(substr((string) $date, 0, 10) . ' ' . $time);
+        }
 
         // Find the task that currently represents the deadline (earliest non-null due_date)
         $task = $matter->tasks()
@@ -327,8 +341,8 @@ class MatterController extends Controller
             ->first();
 
         if ($task) {
-            $task->update(['due_date' => $date]);
-        } elseif ($date) {
+            $task->update(['due_date' => $dueAt]);
+        } elseif ($dueAt) {
             // No task has a due_date — update the first open task or create one
             $firstTask = $matter->tasks()
                 ->whereIn('status', ['todo', 'in_progress'])
@@ -336,7 +350,7 @@ class MatterController extends Controller
                 ->first();
 
             if ($firstTask) {
-                $firstTask->update(['due_date' => $date]);
+                $firstTask->update(['due_date' => $dueAt]);
             } else {
                 Task::create([
                     'firm_id'       => $matter->firm_id,
@@ -345,7 +359,7 @@ class MatterController extends Controller
                     'title'         => 'Deadline — ' . $matter->name,
                     'priority'      => 'high',
                     'status'        => 'todo',
-                    'due_date'      => $date,
+                    'due_date'      => $dueAt,
                 ]);
             }
         }
@@ -355,7 +369,9 @@ class MatterController extends Controller
 
     private function generateMatterNumber(string $firmId, ?string $contactId = null): string
     {
-        $datePart = now()->format('Ymd');
+        // Year + 4 random digits (not month/day): e.g. 20264821-SK-01002.
+        // Uniqueness still comes from the firm-global serial + retry loop below.
+        $datePart = now()->format('Y') . str_pad((string) random_int(0, 9999), 4, '0', STR_PAD_LEFT);
 
         $initials = 'XX';
         if ($contactId) {

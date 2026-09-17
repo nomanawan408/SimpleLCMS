@@ -3,7 +3,7 @@ import { Link, router, usePage } from '@inertiajs/react';
 import {
     LayoutDashboard, Briefcase, Users, FileText, Clock, Receipt, PoundSterling,
     Calendar, CheckSquare, LogOut, Menu, Search, Radio, ChevronDown, UserRound,
-    Building2, Shield, ShieldCheck, Activity, BarChart2, Landmark, CreditCard, Database, ScrollText, Scale, Settings,
+    Building2, Shield, ShieldCheck, Activity, BarChart2, Landmark, CreditCard, Database, ScrollText, Scale, Settings, KeyRound,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -40,13 +40,17 @@ const navItems: NavItem[] = [
     { label: 'Tasks',      href: '/tasks',        icon: CheckSquare,     routeName: 'tasks.index',     permission: 'view_tasks' },
     { label: 'Activities', href: '/activities',   icon: Activity,        routeName: 'activities.index' },
     { label: 'Reports',    href: '/reports',      icon: BarChart2,       routeName: 'reports.index',   permission: 'view_reports' },
-    { label: 'Settings',   href: '/settings',     icon: Settings,        routeName: 'settings.index' },
 ];
 
+// All settings live in one place: the Admin section's Settings submenu.
 const adminItems: NavItem[] = [
-    { label: 'Users',      href: '/admin/users',       icon: Shield,     routeName: 'admin.users.index', adminOnly: true },
-    { label: 'Roles',      href: '/admin/roles',       icon: Shield,     routeName: 'admin.roles.index', adminOnly: true },
-    { label: 'Firm Setup', href: '/admin/firm/setup',  icon: Building2,  routeName: 'admin.firm.setup',  adminOnly: true },
+    { label: 'Settings',   href: '/settings',     icon: Settings,        routeName: 'settings.index',
+        children: [
+            { label: 'General',    href: '/settings',                   icon: UserRound,  routeName: 'settings.general' },
+            { label: 'Users',      href: '/settings?section=users',     icon: Users,      routeName: 'settings.users', adminOnly: true },
+            { label: 'Roles',      href: '/settings?section=roles',     icon: KeyRound,   routeName: 'settings.roles', adminOnly: true },
+            { label: 'Firm Setup', href: '/settings?section=company',   icon: Building2,  routeName: 'settings.company', adminOnly: true },
+        ] },
 ];
 
 const superAdminNavItems: NavItem[] = [
@@ -99,7 +103,7 @@ export default function AppLayout({ children, title }: AppLayoutProps) {
 
     const allNavItems = [
         ...navItems.flatMap((i) => [i, ...visibleChildren(i)]),
-        ...adminItems,
+        ...adminItems.flatMap((i) => [i, ...visibleChildren(i)]),
     ];
     const bestMatch = allNavItems
         .filter((i) => url === i.href || url.startsWith(i.href + '/'))
@@ -118,9 +122,12 @@ export default function AppLayout({ children, title }: AppLayoutProps) {
         <div className="flex h-full flex-col">
             {/* Logo */}
             <div className="flex h-20 items-center px-6">
-                <Link href={isSuperAdmin ? '/superadmin/dashboard' : '/dashboard'} className="flex min-w-0 items-center gap-2.5">
-                    <img src="/New%20Logos/13.png" alt="" aria-hidden className="h-11 w-11 shrink-0 object-contain" />
-                    <img src="/New%20Logos/8.png" alt="SIMPLE Case Management" className="h-10 w-auto min-w-0 flex-1 object-contain object-left" />
+                <Link href={isSuperAdmin ? '/superadmin/dashboard' : '/dashboard'} className="flex items-center gap-3">
+                    <img src="/New%20Logos/13.png" alt="SIMPLE Case Management" className="h-12 w-12 shrink-0 object-contain" />
+                    <div className="leading-none min-w-0 flex-1 font-logo">
+                        <p className="text-[26px] font-semibold text-white tracking-[0.1em] whitespace-nowrap">SIMPLE</p>
+                        <p className="mt-0.5 truncate text-[11px] uppercase tracking-[0.18em] text-white/60 font-medium">Case Management</p>
+                    </div>
                 </Link>
             </div>
 
@@ -217,24 +224,81 @@ export default function AppLayout({ children, title }: AppLayoutProps) {
                         <div className="pt-5 pb-2">
                              <p className="px-3 text-xs font-semibold text-white/70 uppercase tracking-[0.15em]">Admin</p>
                         </div>
-                        {adminItems.map((item) => (
-                            <Link
-                                key={item.routeName}
-                                href={item.href}
-                                className={cn(
-                                     'group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors',
-                                    isActive(item)
-                                         ? 'bg-white text-brand-900 shadow-sm'
-                                         : 'text-white hover:bg-white/10 hover:text-white',
-                                )}
-                            >
-                                <item.icon className={cn(
-                                    'h-4 w-4 shrink-0',
-isActive(item) ? 'text-white' : 'text-white/80 group-hover:text-white'
-                                )} />
-                                {item.label}
-                            </Link>
-                        ))}
+                        {adminItems.map((item) => {
+                            const children = visibleChildren(item);
+                            // Child hrefs carry ?section= deep links: match the path
+                            // plus the section param (read from the live URL so it
+                            // works whether or not Inertia's url includes query).
+                            const childActive = (c: NavItem) => {
+                                if (isActive(c)) return true;
+                                const [cPath, cQuery] = c.href.split('?');
+                                if (typeof window === 'undefined' || window.location.pathname !== cPath) return false;
+                                const want = cQuery ? new URLSearchParams(cQuery).get('section') : null;
+                                const got = new URLSearchParams(window.location.search).get('section');
+                                if (want) return got === want;
+                                return got === null || ['profile', 'appearance', 'security'].includes(got);
+                            };
+                            const sectionActive = isActive(item) || children.some(childActive);
+                            const open = openMenus[item.routeName] ?? sectionActive;
+                            return (
+                                <div key={item.routeName}>
+                                    <div className="relative">
+                                        <Link
+                                            href={item.href}
+                                            onClick={() => setOpenMenus((m) => ({ ...m, [item.routeName]: true }))}
+                                            className={cn(
+                                                'group flex items-center gap-3 rounded-xl px-3 py-2.5 pr-12 text-sm font-medium transition-colors',
+                                                sectionActive
+                                                    ? 'bg-slate-800 text-white shadow-sm'
+                                                    : 'text-white hover:bg-white/10 hover:text-white',
+                                            )}
+                                        >
+                                            <item.icon className={cn(
+                                                'h-4 w-4 shrink-0 transition-colors',
+                                                sectionActive ? 'text-white' : 'text-white/80 group-hover:text-white'
+                                            )} />
+                                            {item.label}
+                                        </Link>
+                                        <button
+                                            type="button"
+                                            aria-label={open ? 'Collapse' : 'Expand'}
+                                            onClick={() => setOpenMenus((m) => ({ ...m, [item.routeName]: !open }))}
+                                            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+                                        >
+                                            <ChevronDown className={cn('h-4 w-4 transition-transform duration-200', !open && '-rotate-90')} />
+                                        </button>
+                                    </div>
+                                    <div className={cn(
+                                        'grid transition-all duration-300 ease-in-out',
+                                        open ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0',
+                                    )}>
+                                        <div className="overflow-hidden">
+                                            <div className="ml-3 mt-0.5 space-y-0.5">
+                                                {children.map((child) => (
+                                                    <Link
+                                                        key={child.routeName}
+                                                        href={child.href}
+                                                        className={cn(
+                                                            'group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors',
+                                                            childActive(child)
+                                                                ? 'bg-slate-800 text-white shadow-sm'
+                                                                : 'text-white/80 hover:bg-white/10 hover:text-white',
+                                                        )}
+                                                    >
+                                                        <child.icon className={cn(
+                                                            'h-4 w-4 shrink-0 transition-colors',
+                                                            childActive(child) ? 'text-white' : 'text-white/50 group-hover:text-white',
+                                                        )} />
+                                                        {child.label}
+                                                        {childActive(child) && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-white" />}
+                                                    </Link>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
                     </>
                 )}
             </nav>
@@ -329,6 +393,14 @@ isActive(item) ? 'text-white' : 'text-white/80 group-hover:text-white'
                                     >
                                         <UserRound className="h-4 w-4 shrink-0 text-muted-foreground" />
                                         Profile
+                                    </Link>
+                                    <Link
+                                        href="/settings"
+                                        onClick={() => setUserMenuOpen(false)}
+                                        className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-muted"
+                                    >
+                                        <Settings className="h-4 w-4 shrink-0 text-muted-foreground" />
+                                        My Settings
                                     </Link>
                                     {hasPermission(user.permissions, 'view_trust') && (
                                         <Link

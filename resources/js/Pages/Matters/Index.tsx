@@ -91,6 +91,7 @@ export default function MattersIndex({ matters, filters, counts, tablePreference
     const [hearingSaving, setHearingSaving] = useState(false);
     const [editingDeadline, setEditingDeadline] = useState<Matter | null>(null);
     const [deadlineDate, setDeadlineDate] = useState('');
+    const [deadlineTime, setDeadlineTime] = useState('');
     const [deadlineSaving, setDeadlineSaving] = useState(false);
     const [viewingTasks, setViewingTasks] = useState<Matter | null>(null);
 
@@ -174,12 +175,13 @@ export default function MattersIndex({ matters, filters, counts, tablePreference
             ),
         },
         {
-            id: 'deadline', header: 'Deadline', defaultWidth: 148, minWidth: 130, maxWidth: 200,
+            id: 'deadline', header: 'Deadline', defaultWidth: 170, minWidth: 140, maxWidth: 240,
             cell: (matter) => {
                 const urgency = getDateUrgency(matter.next_deadline);
                 const days = matter.next_deadline ? Math.ceil((new Date(matter.next_deadline).getTime() - Date.now()) / 86400000) : null;
                 const isDanger = urgency === 'urgent';
                 const isSoon = urgency === 'soon';
+                const [, deadlineTime] = splitDateTime(matter.next_deadline);
                 if (!matter.next_deadline) {
                     return (
                         <button
@@ -188,6 +190,7 @@ export default function MattersIndex({ matters, filters, counts, tablePreference
                                 e.stopPropagation();
                                 setEditingDeadline(matter);
                                 setDeadlineDate('');
+                                setDeadlineTime('');
                             }}
                             title="Set deadline"
                         >
@@ -217,11 +220,13 @@ export default function MattersIndex({ matters, filters, counts, tablePreference
                 return (
                     <button
                         className="group flex items-center gap-2.5 text-left"
-                        title={matter.next_deadline ? `${formatDate(matter.next_deadline)}${meta ? ` · ${meta}` : ''} — click to edit` : undefined}
+                        title={matter.next_deadline ? `${formatDate(matter.next_deadline)}${deadlineTime ? ` · ${deadlineTime}` : ''}${meta ? ` · ${meta}` : ''} — click to edit` : undefined}
                         onClick={(e) => {
                             e.stopPropagation();
                             setEditingDeadline(matter);
-                            setDeadlineDate(matter.next_deadline || '');
+                            const [d, t] = splitDateTime(matter.next_deadline);
+                            setDeadlineDate(d);
+                            setDeadlineTime(t);
                         }}
                     >
                         <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded border ${boxStyles}`}>
@@ -230,6 +235,7 @@ export default function MattersIndex({ matters, filters, counts, tablePreference
                         <span className="flex min-w-0 flex-col">
                             <span className="whitespace-nowrap text-sm font-medium tabular-nums leading-none tracking-tight text-foreground">
                                 {formatDate(matter.next_deadline)}
+                                {deadlineTime && <span className="ml-1.5 font-normal text-muted-foreground">{deadlineTime}</span>}
                             </span>
                             {meta && (
                                 <span className={`mt-1 inline-flex w-fit whitespace-nowrap rounded border px-1.5 py-0.5 text-xs font-medium leading-none ${badgeStyles}`}>
@@ -500,15 +506,28 @@ export default function MattersIndex({ matters, filters, counts, tablePreference
                         </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-3 py-2">
-                        <Label htmlFor="deadline_date">Next deadline</Label>
-                        <Input
-                            id="deadline_date"
-                            type="date"
-                            value={deadlineDate}
-                            onChange={(e) => setDeadlineDate(e.target.value)}
-                        />
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1.5">
+                                <Label htmlFor="deadline_date">Date</Label>
+                                <Input
+                                    id="deadline_date"
+                                    type="date"
+                                    value={deadlineDate}
+                                    onChange={(e) => setDeadlineDate(e.target.value)}
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label htmlFor="deadline_time">Time</Label>
+                                <Input
+                                    id="deadline_time"
+                                    type="time"
+                                    value={deadlineTime}
+                                    onChange={(e) => setDeadlineTime(e.target.value)}
+                                />
+                            </div>
+                        </div>
                         <p className="text-xs text-muted-foreground">
-                            This updates the due date on the next open task for this matter.
+                            This updates the due date on the next open task for this matter. Time defaults to 17:00 when left empty.
                         </p>
                     </div>
                     <DialogFooter className="gap-2">
@@ -535,6 +554,7 @@ export default function MattersIndex({ matters, filters, counts, tablePreference
                                 setDeadlineSaving(true);
                                 router.put(`/matters/${editingDeadline.id}/deadline`, {
                                     deadline: deadlineDate,
+                                    deadline_time: deadlineTime || undefined,
                                 }, {
                                     preserveScroll: true,
                                     preserveState: true,

@@ -41,6 +41,42 @@ class MatterTest extends TestCase
         ]);
     }
 
+    public function test_matter_number_uses_year_plus_random_digits(): void
+    {
+        [$firm, $admin] = $this->createFirmAndAdmin();
+        $contact = Contact::factory()->forFirm($firm)->create();
+
+        $this->actingAsUser($admin)->post('/matters', [
+            'name'                => 'Smith v Jones',
+            'practice_area'       => 'litigation',
+            'fee_arrangement'     => 'hourly_rate',
+            'responsible_user_id' => $admin->id,
+            'contact_ids'         => [$contact->id],
+        ])->assertRedirect();
+
+        $number = Matter::where('firm_id', $firm->id)->value('matter_number');
+
+        // YYYY + 4 random digits (not month/day) + initials + serial.
+        $this->assertMatchesRegularExpression(
+            '/^' . now()->format('Y') . '\d{4}-[A-Z]{2}-\d{5}$/',
+            $number
+        );
+    }
+
+    public function test_reformat_command_rewrites_old_numbers_keeping_serial(): void
+    {
+        [$firm, $admin] = $this->createFirmAndAdmin();
+        $old = Matter::factory()->forFirm($firm, $admin)->create([
+            'matter_number' => '20260823-SK-01002',
+        ]);
+
+        $this->artisan('matters:reformat-numbers')->assertExitCode(0);
+
+        $new = $old->fresh()->matter_number;
+        $this->assertMatchesRegularExpression('/^2026\d{4}-SK-01002$/', $new);
+        $this->assertNotSame('20260823-SK-01002', $new);
+    }
+
     public function test_paralegal_cannot_create_matter(): void
     {
         [$firm, $admin] = $this->createFirmAndAdmin();

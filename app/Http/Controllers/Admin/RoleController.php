@@ -13,7 +13,8 @@ use Spatie\Permission\Models\Role;
 
 class RoleController extends Controller
 {
-    private const BUILT_IN_ROLES = ['super_admin', 'firm_admin'];
+    /** Shared with SettingsController so both role listings agree on built-ins. */
+    public const BUILT_IN_ROLES = ['super_admin', 'firm_admin'];
 
     public function index(Request $request): Response
     {

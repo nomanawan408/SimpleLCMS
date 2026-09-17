@@ -14,7 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
-import { cn, formatCurrency, formatDate, formatTime, hasPermission, splitDateTime, MATTER_STATUS_LABELS, MATTER_PRIORITY_LABELS, MATTER_PRIORITY_STYLES, PRACTICE_AREA_LABELS } from '@/lib/utils';
+import { cn, formatCurrency, formatDate, hasPermission, splitDateTime, MATTER_STATUS_LABELS, MATTER_PRIORITY_LABELS, MATTER_PRIORITY_STYLES, PRACTICE_AREA_LABELS } from '@/lib/utils';
 import { UserAvatar } from '@/components/ui/user-avatar';
 import {
     ArrowLeft, Clock, Receipt, Wallet, FileText, CheckSquare, Users, Edit, Plus, Download,
@@ -942,7 +942,10 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                             {matter.next_deadline && new Date(matter.next_deadline) <= new Date(Date.now() + 7 * 86400000) && (
                                 <div className="flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1">
                                     <CalendarClock className="h-3 w-3 text-amber-600 shrink-0" />
-                                    <span className="text-xs font-medium text-amber-800">Deadline {formatDate(matter.next_deadline)}</span>
+                                    <span className="text-xs font-medium tabular-nums text-amber-800">
+                                        Deadline {formatDate(matter.next_deadline)}
+                                        {splitDateTime(matter.next_deadline)[1] && ` · ${splitDateTime(matter.next_deadline)[1]}`}
+                                    </span>
                                     {daysUntil !== null && <span className="text-xs text-amber-700">{daysUntil < 0 ? `· overdue ${Math.abs(daysUntil)}d` : daysUntil === 0 ? '· today' : `· in ${daysUntil}d`}</span>}
                                 </div>
                             )}
@@ -955,7 +958,8 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                 >
                                     <Gavel className="h-3 w-3 text-sky-700 shrink-0" />
                                     <span className="text-xs font-medium tabular-nums text-sky-800">
-                                        Hearing {formatDate((matter as any).hearing_date)} · {formatTime((matter as any).hearing_date)}
+                                        Hearing {formatDate((matter as any).hearing_date)}
+                                        {splitDateTime((matter as any).hearing_date)[1] && ` · ${splitDateTime((matter as any).hearing_date)[1]}`}
                                     </span>
                                 </button>
                             )}
@@ -2010,7 +2014,9 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                         {(matter as any).hearing_date ? (
                                             <p className="text-sm font-semibold tabular-nums text-foreground">
                                                 {formatDate((matter as any).hearing_date)}
-                                                <span className="ml-1.5 font-normal text-muted-foreground">{formatTime((matter as any).hearing_date)}</span>
+                                                {splitDateTime((matter as any).hearing_date)[1] && (
+                                                    <span className="ml-1.5 font-normal text-muted-foreground">{splitDateTime((matter as any).hearing_date)[1]}</span>
+                                                )}
                                             </p>
                                         ) : (
                                             <p className="text-sm italic text-muted-foreground">No hearing set</p>

@@ -25,7 +25,11 @@ class TaskController extends Controller
         $query = Task::where('firm_id', $firmId)
             ->with(['matter', 'assignee'])
             ->orderByRaw("CASE status WHEN 'todo' THEN 1 WHEN 'in_progress' THEN 2 WHEN 'review' THEN 3 ELSE 4 END")
-            ->orderBy('due_date');
+            // Urgency within each status: overdue first, then upcoming;
+            // dateless tasks sink (COALESCE keeps MySQL and PgSQL identical —
+            // MySQL sorts NULLs first on ASC by default).
+            ->orderByRaw("COALESCE(due_date, '9999-12-31') ASC")
+            ->orderBy('created_at', 'desc');
 
         if ($request->filled('status')) {
             $query->where('status', $request->status);

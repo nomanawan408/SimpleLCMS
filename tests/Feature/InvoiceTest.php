@@ -23,6 +23,23 @@ class InvoiceTest extends TestCase
             ->assertInertia(fn ($page) => $page->where('invoices.total', 3));
     }
 
+    public function test_invoices_sort_collectable_first_and_finished_last(): void
+    {
+        [$firm, $admin] = $this->createFirmAndAdmin();
+        $matter = Matter::factory()->forFirm($firm, $admin)->create();
+        $paid = Invoice::factory()->forMatter($matter)->create(['status' => 'paid', 'due_date' => now()->subDays(20)->toDateString()]);
+        $draft = Invoice::factory()->forMatter($matter)->create(['status' => 'draft', 'due_date' => now()->subDays(1)->toDateString()]);
+        $upcoming = Invoice::factory()->sent()->forMatter($matter)->create(['due_date' => now()->addDays(9)->toDateString()]);
+        $overdue = Invoice::factory()->sent()->forMatter($matter)->create(['due_date' => now()->subDays(3)->toDateString()]);
+
+        $this->actingAsUser($admin)->get('/billing')
+            ->assertInertia(fn ($page) => $page
+                ->where('invoices.data.0.id', $overdue->id)
+                ->where('invoices.data.1.id', $upcoming->id)
+                ->where('invoices.data.2.id', $draft->id)
+                ->where('invoices.data.3.id', $paid->id));
+    }
+
     public function test_can_create_invoice_manually(): void
     {
         [$firm, $admin] = $this->createFirmAndAdmin();

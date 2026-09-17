@@ -11,7 +11,7 @@ class SettingsTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_settings_page_exposes_prefs_and_firm_defaults(): void
+    public function test_settings_page_exposes_prefs_firm_and_team(): void
     {
         [$firm, $admin] = $this->createFirmAndAdmin();
 
@@ -20,10 +20,15 @@ class SettingsTest extends TestCase
             ->assertInertia(fn ($page) => $page
                 ->where('preferences.theme', 'light')
                 ->where('canEditFirm', true)
-                ->where('firmDefaults.vat_rate', fn ($v) => (float) $v === (float) $firm->vat_rate));
+                ->where('canManageTeam', true)
+                ->where('firm.id', $firm->id)
+                ->has('users')
+                ->has('availableRoles')
+                ->has('roles')
+                ->has('groupedPermissions'));
     }
 
-    public function test_non_admin_cannot_edit_firm_but_sees_the_page(): void
+    public function test_non_admin_gets_no_firm_or_team_payload(): void
     {
         [$firm, $admin] = $this->createFirmAndAdmin();
         $user = User::factory()->forFirm($firm)->create(['role' => 'solicitor']);
@@ -31,11 +36,12 @@ class SettingsTest extends TestCase
 
         $this->actingAsUser($user)->get('/settings')
             ->assertOk()
-            ->assertInertia(fn ($page) => $page->where('canEditFirm', false));
-
-        $this->actingAsUser($user)->put('/settings/firm', ['vat_rate' => 5])
-            ->assertForbidden();
-        $this->assertNotEquals(5, (float) $firm->fresh()->vat_rate);
+            ->assertInertia(fn ($page) => $page
+                ->where('canEditFirm', false)
+                ->where('canManageTeam', false)
+                ->where('firm', null)
+                ->missing('users')
+                ->missing('roles'));
     }
 
     public function test_profile_update_changes_own_record_only(): void
@@ -100,20 +106,13 @@ class SettingsTest extends TestCase
         $this->assertTrue(Hash::check('NewStrongPassword123!', $admin->fresh()->password));
     }
 
-    public function test_firm_defaults_update_with_validation(): void
+    public function test_removed_firm_endpoint_stays_gone(): void
     {
+        // Firm edits live only in the embedded Company form (PUT /admin/firm);
+        // a standalone settings mutation path must not exist.
         [$firm, $admin] = $this->createFirmAndAdmin();
 
-        $this->actingAsUser($admin)->put('/settings/firm', ['vat_rate' => 150])
-            ->assertSessionHasErrors('vat_rate');
-
-        $this->actingAsUser($admin)->put('/settings/firm', [
-            'vat_rate' => 20, 'invoice_prefix' => 'SL', 'payment_terms_days' => 14, 'default_hourly_rate' => 300,
-        ])->assertRedirect()->assertSessionHasNoErrors();
-
-        $firm->refresh();
-        $this->assertEquals(20, (float) $firm->vat_rate);
-        $this->assertSame('SL', $firm->invoice_prefix);
-        $this->assertSame(14, (int) $firm->payment_terms_days);
+        $this->actingAsUser($admin)->put('/settings/firm', ['vat_rate' => 5])
+            ->assertNotFound();
     }
 }

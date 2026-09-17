@@ -192,7 +192,7 @@ class Matter extends Model
             ->whereNotNull('due_date')
             ->orderBy('due_date')
             ->first();
-        return $task?->due_date?->format('Y-m-d');
+        return $task?->due_date?->format('Y-m-d H:i:s');
     }
 
     public function getClientNamesAttribute(): ?string

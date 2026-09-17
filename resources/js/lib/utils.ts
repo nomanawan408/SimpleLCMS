@@ -35,10 +35,13 @@ export function splitDateTime(value: string | null | undefined): [string, string
     const date = value.slice(0, 10);
     const d = new Date(value);
     if (Number.isNaN(d.getTime())) return [date, ''];
-    // A bare "Y-m-d" parses to midnight — that is not a real hearing time.
+    // A bare "Y-m-d" parses to midnight, and legacy date-only rows stored
+    // midnight too — neither is a real set time, so no time is shown until
+    // one is explicitly saved.
     if (value.length <= 10) return [date, ''];
     const hh = String(d.getHours()).padStart(2, '0');
     const mm = String(d.getMinutes()).padStart(2, '0');
+    if (hh === '00' && mm === '00') return [date, ''];
     return [date, `${hh}:${mm}`];
 }
 

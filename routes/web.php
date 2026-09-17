@@ -214,7 +214,6 @@ Route::middleware(['auth', 'verified', 'set.tenant', 'requires.two.factor', 'red
     Route::put('/settings/password', [SettingsController::class, 'updatePassword'])
         ->middleware('throttle:5,1')
         ->name('settings.password');
-    Route::put('/settings/firm', [SettingsController::class, 'updateFirm'])->name('settings.firm');
 
     // SRA ledger: no update/delete routes exist by design (reversals only).
     Route::get('/ledger/cash-sheet', [LedgerController::class, 'cashSheet'])->name('ledger.cash-sheet');
