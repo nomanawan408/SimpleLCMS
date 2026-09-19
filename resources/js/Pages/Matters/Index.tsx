@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { getDateUrgency } from '@/components/ui/urgency-dot';
-import { formatDate, splitDateTime, MATTER_STATUS_LABELS, MATTER_PRIORITY_LABELS, MATTER_PRIORITY_STYLES, PRACTICE_AREA_LABELS } from '@/lib/utils';
+import { daysUntilDate, formatDate, isOverdueDate, splitDateTime, MATTER_STATUS_LABELS, MATTER_PRIORITY_LABELS, MATTER_PRIORITY_STYLES, PRACTICE_AREA_LABELS } from '@/lib/utils';
 import { UserAvatar } from '@/components/ui/user-avatar';
 import { Plus, Search, X, Calendar, Clock, ListTodo, Briefcase, Flag } from 'lucide-react';
 import type { Matter, PaginatedData } from '@/types';
@@ -178,9 +178,12 @@ export default function MattersIndex({ matters, filters, counts, tablePreference
             id: 'deadline', header: 'Deadline', defaultWidth: 170, minWidth: 140, maxWidth: 240,
             cell: (matter) => {
                 const urgency = getDateUrgency(matter.next_deadline);
-                const days = matter.next_deadline ? Math.ceil((new Date(matter.next_deadline).getTime() - Date.now()) / 86400000) : null;
-                const isDanger = urgency === 'urgent';
-                const isSoon = urgency === 'soon';
+                const days = daysUntilDate(matter.next_deadline);
+                // A deadline earlier today has already passed — it is missed,
+                // not merely "today". Date-only deadlines stay "today" all day.
+                const isPastTime = days === 0 && isOverdueDate(matter.next_deadline);
+                const isDanger = urgency === 'urgent' || isPastTime;
+                const isSoon = !isPastTime && urgency === 'soon';
                 const [, deadlineTime] = splitDateTime(matter.next_deadline);
                 if (!matter.next_deadline) {
                     return (
@@ -202,7 +205,7 @@ export default function MattersIndex({ matters, filters, counts, tablePreference
                 let meta = '';
                 if (days !== null) {
                     if (days < 0) meta = `Overdue · ${Math.abs(days)}d`;
-                    else if (days === 0) meta = 'Today';
+                    else if (days === 0) meta = isPastTime ? 'Overdue' : 'Today';
                     else if (days === 1) meta = 'Tomorrow';
                     else if (days <= 7) meta = `In ${days}d`;
                     else meta = `In ${days}d`;

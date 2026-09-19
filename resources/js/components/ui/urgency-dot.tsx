@@ -1,4 +1,4 @@
-import { cn } from '@/lib/utils';
+import { cn, daysUntilDate } from '@/lib/utils';
 
 export type DateUrgency = 'urgent' | 'soon' | 'ok';
 
@@ -15,7 +15,8 @@ export type DateUrgency = 'urgent' | 'soon' | 'ok';
 export function getDateUrgency(dateString?: string | null): DateUrgency | null {
     if (!dateString) return null;
 
-    const days = Math.ceil((new Date(dateString).getTime() - Date.now()) / 86400000);
+    const days = daysUntilDate(dateString);
+    if (days === null) return null;
 
     if (days <= 2) return 'urgent';
     if (days <= 7) return 'soon';

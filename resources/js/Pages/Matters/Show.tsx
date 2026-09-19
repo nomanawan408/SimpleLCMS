@@ -14,7 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
-import { cn, formatCurrency, formatDate, hasPermission, splitDateTime, MATTER_STATUS_LABELS, MATTER_PRIORITY_LABELS, MATTER_PRIORITY_STYLES, PRACTICE_AREA_LABELS } from '@/lib/utils';
+import { cn, daysUntilDate, formatCurrency, formatDate, formatTime, hasPermission, isOverdueDate, splitDateTime, MATTER_STATUS_LABELS, MATTER_PRIORITY_LABELS, MATTER_PRIORITY_STYLES, PRACTICE_AREA_LABELS } from '@/lib/utils';
 import { UserAvatar } from '@/components/ui/user-avatar';
 import {
     ArrowLeft, Clock, Receipt, Wallet, FileText, CheckSquare, Users, Edit, Plus, Download,
@@ -733,9 +733,10 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
         }
     })();
 
-    const daysUntil = matter.next_deadline
-        ? Math.ceil((new Date(matter.next_deadline).getTime() - Date.now()) / 86400000)
-        : null;
+    const daysUntil = daysUntilDate(matter.next_deadline);
+    // Same-day deadline whose time has already passed counts as missed.
+    // Date-only deadlines stay "today" all day.
+    const deadlinePassed = daysUntil === 0 && isOverdueDate(matter.next_deadline);
 
     // Cancelled invoices never carry money; written-off still count as invoiced but not outstanding.
     const activeInvoices = (matter.invoices ?? []).filter((i: any) => i.status !== 'cancelled');
@@ -906,9 +907,9 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                             </>
                         )}
                         {daysUntil !== null && daysUntil <= 14 && (
-                            <span className={cn('inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold leading-none shadow-sm', daysUntil < 0 ? 'bg-[#ff5757]/10 text-[#ff5757] border-[#ff5757]/20' : daysUntil === 0 ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-amber-50 text-amber-700 border-amber-200')}>
+                            <span className={cn('inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold leading-none shadow-sm', daysUntil < 0 || deadlinePassed ? 'bg-[#ff5757]/10 text-[#ff5757] border-[#ff5757]/20' : daysUntil === 0 ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-amber-50 text-amber-700 border-amber-200')}>
                                 <AlertTriangle className="h-3 w-3 shrink-0" />
-                                {daysUntil < 0 ? `Overdue ${Math.abs(daysUntil)}d` : daysUntil === 0 ? 'Due today' : `Due in ${daysUntil}d`}
+                                {daysUntil < 0 ? `Overdue ${Math.abs(daysUntil)}d` : deadlinePassed ? 'Overdue' : daysUntil === 0 ? 'Due today' : `Due in ${daysUntil}d`}
                             </span>
                         )}
                     </div>
@@ -937,16 +938,16 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                     </div>
 
                     {/* Deadline + Hearing + Court — slim inline pills */}
-                    {(matter.next_deadline && new Date(matter.next_deadline) <= new Date(Date.now() + 7 * 86400000)) || (matter as any).hearing_date || matter.court || matter.court_reference ? (
+                    {(daysUntil !== null && daysUntil <= 7) || (matter as any).hearing_date || matter.court || matter.court_reference ? (
                         <div className="mt-3 flex flex-wrap items-center gap-2">
-                            {matter.next_deadline && new Date(matter.next_deadline) <= new Date(Date.now() + 7 * 86400000) && (
+                            {daysUntil !== null && daysUntil <= 7 && (
                                 <div className="flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1">
                                     <CalendarClock className="h-3 w-3 text-amber-600 shrink-0" />
                                     <span className="text-xs font-medium tabular-nums text-amber-800">
                                         Deadline {formatDate(matter.next_deadline)}
                                         {splitDateTime(matter.next_deadline)[1] && ` · ${splitDateTime(matter.next_deadline)[1]}`}
                                     </span>
-                                    {daysUntil !== null && <span className="text-xs text-amber-700">{daysUntil < 0 ? `· overdue ${Math.abs(daysUntil)}d` : daysUntil === 0 ? '· today' : `· in ${daysUntil}d`}</span>}
+                                    {daysUntil !== null && <span className="text-xs text-amber-700">{daysUntil < 0 ? `· overdue ${Math.abs(daysUntil)}d` : deadlinePassed ? '· overdue' : daysUntil === 0 ? '· today' : `· in ${daysUntil}d`}</span>}
                                 </div>
                             )}
                             {(matter as any).hearing_date && (
@@ -1024,7 +1025,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                                     <UserAvatar user={note.user} fallbackClassName="bg-primary text-primary-foreground text-xs font-bold" />
                                                     <span className="text-sm font-semibold text-foreground">{note.user?.full_name || 'System'}</span>
                                                     <span className="text-xs text-muted-foreground">
-                                                        · {formatDate(note.logged_at ?? note.created_at)} {(() => { const d = note.logged_at ?? note.created_at; return d ? new Date(d).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''; })()}
+                                                        · {formatDate(note.logged_at ?? note.created_at)} {formatTime(note.logged_at ?? note.created_at)}
                                                     </span>
                                                     <Badge variant="secondary" className="text-xs capitalize ml-auto rounded-full font-medium">
                                                         {note.type?.replace(/_/g, ' ') || 'Note'}
@@ -1062,7 +1063,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                                 <div className="flex-1 min-w-0">
                                                     <p className="text-sm font-medium truncate">{task.title}</p>
                                                     {task.due_date && (
-                                                        <p className={cn('text-xs', new Date(task.due_date) < new Date() ? 'text-destructive font-medium' : 'text-muted-foreground')}>
+                                                        <p className={cn('text-xs', isOverdueDate(task.due_date) ? 'text-destructive font-medium' : 'text-muted-foreground')}>
                                                             Due {formatDate(task.due_date)}
                                                         </p>
                                                     )}
@@ -1120,7 +1121,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                                 {timerPaused ? 'Paused' : 'Recording'}
                                             </div>
                                             <span className="text-xs text-muted-foreground">
-                                                Started {new Date(timerSession.started_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                Started {formatTime(timerSession.started_at)}
                                             </span>
                                         </div>
 
@@ -1752,7 +1753,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                                         </p>
                                                         <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
                                                             {task.due_date && (
-                                                                <span className={cn(new Date(task.due_date) < new Date() && status !== 'done' ? 'text-destructive font-medium' : '')}>
+                                                                <span className={cn(isOverdueDate(task.due_date) && status !== 'done' ? 'text-destructive font-medium' : '')}>
                                                                     Due {formatDate(task.due_date)}
                                                                 </span>
                                                             )}
@@ -1853,7 +1854,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                             <TableRow key={inv.id}>
                                                 <TableCell className="font-medium">{inv.invoice_number}</TableCell>
                                                 <TableCell className="text-muted-foreground hidden md:table-cell">{formatDate(inv.created_at)}</TableCell>
-                                                <TableCell className={cn('hidden lg:table-cell', inv.status === 'sent' && inv.due_date && new Date(inv.due_date) < new Date() ? 'text-destructive font-medium' : 'text-muted-foreground')}>
+                                                <TableCell className={cn('hidden lg:table-cell', inv.status === 'sent' && isOverdueDate(inv.due_date) ? 'text-destructive font-medium' : 'text-muted-foreground')}>
                                                     {formatDate(inv.due_date)}
                                                 </TableCell>
                                                 <TableCell className="text-right font-semibold tabular-nums">{formatCurrency(Number(inv.total))}</TableCell>

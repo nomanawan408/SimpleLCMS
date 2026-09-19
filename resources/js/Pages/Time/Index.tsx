@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
-import { cn, formatCurrency, formatDate, hasPermission } from '@/lib/utils';
+import { cn, formatCurrency, formatDate, formatTime, hasPermission } from '@/lib/utils';
 import { Clock, LogIn, LogOut, Plus, Pencil, Trash2, Receipt, TrendingUp, AlertCircle, CheckCircle2, Timer, PoundSterling, X, CalendarDays, FileText, Search, SlidersHorizontal } from 'lucide-react';
 import type { PageProps, PaginatedData, TimeEntry } from '@/types';
 
@@ -477,7 +477,7 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
                                         {isPaused ? 'Paused' : 'Recording'}
                                     </div>
                                     <span className="text-xs text-muted-foreground font-medium">
-                                        Started {new Date(session.started_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        Started {formatTime(session.started_at)}
                                     </span>
                                 </div>
 
@@ -1350,7 +1350,7 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
                             </div>
                             <div className="flex justify-between">
                                 <span className="text-muted-foreground">Started</span>
-                                <span className="text-muted-foreground">{session ? new Date(session.started_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}</span>
+                                <span className="text-muted-foreground">{session ? formatTime(session.started_at) : '—'}</span>
                             </div>
                             <div className="flex justify-between">
                                 <span className="text-muted-foreground">Duration</span>

@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { formatCurrency, formatDate, cn } from '@/lib/utils';
+import { formatCurrency, formatDate, isOverdueDate, cn } from '@/lib/utils';
 import { Plus, Search, FileText, AlertCircle, CheckCircle, Clock, X, Filter, Calendar, Briefcase, User } from 'lucide-react';
 import type { Invoice, PaginatedData } from '@/types';
 
@@ -235,7 +235,7 @@ export default function BillingIndex({ invoices, stats, filters, filterOptions }
                                     {invoices.data.map((invoice: any) => {
                                         const paid = Number(invoice.amount_paid ?? 0);
                                         const outstanding = Math.max(0, Number(invoice.total) - paid);
-                                        const isOverdue = ['sent', 'partial'].includes(invoice.status) && invoice.due_date && new Date(invoice.due_date) < new Date();
+                                        const isOverdue = ['sent', 'partial'].includes(invoice.status) && isOverdueDate(invoice.due_date);
                                         return (
                                             <TableRow key={invoice.id} className="group cursor-pointer" onClick={() => router.visit(`/billing/${invoice.id}`)}>
                                                 <TableCell><p className="font-medium text-sm">{invoice.invoice_number}</p></TableCell>

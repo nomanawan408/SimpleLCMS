@@ -13,7 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, Mail, CreditCard, CheckCircle, Printer, XCircle, Send, Download, Trash2 } from 'lucide-react';
-import { cn, formatCurrency, formatDate } from '@/lib/utils';
+import { cn, formatCurrency, formatDate, isOverdueDate } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import type { Invoice } from '@/types';
 
@@ -99,7 +99,7 @@ export default function ShowInvoice({ invoice }: Props) {
 
     const totalPaid     = payments.reduce((s, p) => s + Number(p.amount), 0);
     const outstanding   = Math.max(0, Number(invoice.total) - totalPaid);
-    const isOverdue     = invoice.status === 'sent' && !!invoice.due_date && new Date(invoice.due_date) < new Date();
+    const isOverdue     = invoice.status === 'sent' && isOverdueDate(invoice.due_date);
     const canPayment    = !['paid', 'cancelled', 'written_off'].includes(invoice.status) && outstanding > 0;
     const hasDiscount   = Number(invoice.discount_amount) > 0;
     const hasVat        = Number(invoice.vat_rate) > 0;

@@ -15,18 +15,58 @@ export function formatDate(date: string | null | undefined, opts?: Intl.DateTime
         day: '2-digit',
         month: 'short',
         year: 'numeric',
+        // The whole app runs on UK time (APP_TIMEZONE=Europe/London), so pin
+        // formatting here too — otherwise a device in another zone would show
+        // a different day/time for the same stored instant.
+        timeZone: 'Europe/London',
         ...opts,
     }).format(new Date(date));
 }
 
-/** "14:30" — for hearing times and anywhere a clock time accompanies a date. */
+/** "14:30" UK time — for hearing times and anywhere a clock time accompanies a date. */
 export function formatTime(date: string | null | undefined): string {
     if (!date) return '—';
     return new Intl.DateTimeFormat('en-GB', {
         hour: '2-digit',
         minute: '2-digit',
         hour12: false,
+        timeZone: 'Europe/London',
     }).format(new Date(date));
+}
+
+/**
+ * Whole calendar days from today (UK) to the given date: 0 = today, 1 =
+ * tomorrow, negative = overdue. Compares calendar days in Europe/London,
+ * not 24h blocks — Math.ceil on a raw millisecond diff calls 09:31
+ * "tomorrow" when it is 08:00 the same morning.
+ */
+export function daysUntilDate(date: string | null | undefined): number | null {
+    if (!date) return null;
+    const d = new Date(date);
+    if (Number.isNaN(d.getTime())) return null;
+    const key = (x: Date) =>
+        new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'Europe/London',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+        }).format(x); // YYYY-MM-DD
+    return Math.round((Date.parse(key(d)) - Date.parse(key(new Date()))) / 86400000);
+}
+
+/**
+ * True when a due date/deadline has passed: a past calendar day, or today
+ * with a real clock time already behind us. Date-only values (midnight)
+ * are only overdue once their day is over — "due today" stays "today"
+ * all day.
+ */
+export function isOverdueDate(date: string | null | undefined): boolean {
+    const days = daysUntilDate(date);
+    if (days === null) return false;
+    if (days !== 0) return days < 0;
+    const [, time] = splitDateTime(date);
+    if (!time) return false;
+    return new Date(date as string).getTime() < Date.now();
 }
 
 /** Split "Y-m-d H:i:s" (or date-only) into [date, time] for date/time inputs. */
