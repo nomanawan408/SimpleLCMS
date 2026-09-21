@@ -62,7 +62,9 @@ class CalendarController extends Controller
                     'matter_id'     => $task->matter_id,
                     'title'         => $task->title,
                     'type'          => 'task_deadline',
-                    'start_at'      => $task->due_date->setTime(9, 0)->toIso8601String(),
+                    // due_date is a full datetime (deadlines carry a time) —
+                    // show the real stored time instead of a pinned hour.
+                    'start_at'      => $task->due_date->toIso8601String(),
                     'end_at'        => null,
                     'location'      => null,
                     'is_court_date' => false,

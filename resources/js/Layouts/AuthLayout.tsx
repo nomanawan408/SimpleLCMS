@@ -96,11 +96,7 @@ export default function AuthLayout({ children, title, description, split = false
                             <p className="mt-2 text-sm leading-relaxed text-white/90">
                                 {brandSubheadline ?? 'Your practice, organised — cases, clients, billing and time tracking in one secure place.'}
                             </p>
-                            <div className="mt-5 grid grid-cols-3 gap-3 text-center">
-                                <div className="rounded-xl bg-white/10 py-3 backdrop-blur">
-                                    <p className="text-xl font-bold text-white">500+</p>
-                                    <p className="text-xs text-white/70">Firms</p>
-                                </div>
+                            <div className="mt-5 grid grid-cols-2 gap-3 text-center">
                                 <div className="rounded-xl bg-white/10 py-3 backdrop-blur">
                                     <p className="text-xl font-bold text-white">24/7</p>
                                     <p className="text-xs text-white/70">Support</p>
@@ -111,9 +107,8 @@ export default function AuthLayout({ children, title, description, split = false
                                 </div>
                             </div>
                         </div>
-                        {/* Slideshow dots + caption */}
-                        <div className="mt-4 flex items-center justify-between">
-                            <p className="text-xs text-white/60">Images {slide + 1} / {slides.length} · Professional legal environment</p>
+                        {/* Slideshow dots */}
+                        <div className="mt-4 flex items-center justify-end">
                             <div className="flex gap-1.5">
                                 {slides.map((_, i) => (
                                     <button

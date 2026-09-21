@@ -171,7 +171,9 @@ class ContactController extends Controller
 
         activity()->causedBy($request->user())->performedOn($contact)->log('updated');
 
-        return back()->with('success', 'Contact updated.');
+        // Always land on the contact itself: back() from the edit form just
+        // redisplays the edit form (its own referer), stranding the user.
+        return redirect()->route('contacts.show', $contact)->with('success', 'Contact updated.');
     }
 
     public function destroy(Contact $contact, Request $request): RedirectResponse

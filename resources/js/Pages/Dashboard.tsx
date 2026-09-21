@@ -78,9 +78,9 @@ function KpiCard({ kpi }: { kpi: KpiCard }) {
     return (
         <Link href={kpi.href} className="group block">
             <Card className={`h-full rounded-[12px] border border-transparent shadow-none transition-all duration-200 group-hover:-translate-y-0.5 group-hover:border-white/80 group-hover:shadow-lg group-hover:ring-2 group-hover:ring-white/20 ${toneStyles}`}>
-                <CardContent className="flex min-h-[124px] flex-col justify-between p-5">
+                <CardContent className="flex min-h-[132px] flex-col justify-between p-5">
                     <div className="flex items-start justify-between gap-3">
-                        <p className="text-xs font-semibold tracking-tight text-white">
+                        <p className="text-base font-semibold tracking-tight text-white">
                             {kpi.label}
                         </p>
                         {kpi.tone === 'warning' ? (
@@ -97,7 +97,7 @@ function KpiCard({ kpi }: { kpi: KpiCard }) {
                             </span>
                         )}
                     </div>
-                    <p className="text-2xl font-semibold leading-none tracking-[-0.04em] tabular-nums">{kpi.value}</p>
+                    <p className="text-4xl font-bold leading-none tracking-[-0.04em] tabular-nums">{kpi.value}</p>
                 </CardContent>
             </Card>
         </Link>

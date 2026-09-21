@@ -18,10 +18,12 @@ import type { Matter, PaginatedData } from '@/types';
 
 interface Props {
     matters: PaginatedData<Matter>;
-    filters: { search?: string; status?: string; practice_area?: string; category?: string };
+    filters: { search?: string; status?: string; practice_area?: string; category?: string; per_page?: number | string };
     counts: { all: number; open: number; closed: number };
     tablePreferences?: TablePreferences | null;
 }
+
+const PER_PAGE_OPTIONS = [10, 20, 25, 50, 100];
 
 type MatterCategory = 'all' | 'open' | 'closed';
 
@@ -83,6 +85,10 @@ export default function MattersIndex({ matters, filters, counts, tablePreference
     const [category, setCategory] = useState<MatterCategory>(
         filters.category === 'open' || filters.category === 'closed' ? filters.category : 'all',
     );
+    const [perPage, setPerPage] = useState(() => {
+        const n = Number(filters.per_page ?? matters.per_page ?? 20);
+        return PER_PAGE_OPTIONS.includes(n) ? n : 20;
+    });
     const debouncedSearch       = useDebounce(search, 300);
     const isFirstRun            = useRef(true);
     const [editingHearing, setEditingHearing] = useState<Matter | null>(null);
@@ -357,8 +363,11 @@ export default function MattersIndex({ matters, filters, counts, tablePreference
             practice_area: area === '_all' ? undefined : area,
             priority:      priority === '_all' ? undefined : priority,
             category:      category === 'all' ? undefined : category,
+            // No `page` here on purpose, so changing rows-per-page (or any
+            // filter) restarts at page 1 instead of landing on an empty page.
+            per_page:      perPage === 20 ? undefined : perPage,
         }, { preserveState: true, replace: true });
-    }, [debouncedSearch, status, area, priority, category]);
+    }, [debouncedSearch, status, area, priority, category, perPage]);
 
     const hasFilters = search || status !== '_all' || area !== '_all' || priority !== '_all' || category !== 'all';
 
@@ -480,18 +489,34 @@ export default function MattersIndex({ matters, filters, counts, tablePreference
                     )}
 
                     {/* Pagination */}
-                    {matters.last_page > 1 && (
-                        <div className="flex items-center justify-between px-4 py-3 border-t">
-                            <p className="text-sm text-muted-foreground">
-                                Showing {matters.from}–{matters.to} of {matters.total}
-                            </p>
-                            <div className="flex gap-1">
-                                {matters.links.map((link, i) => (
-                                    <Button key={i} variant={link.active ? 'default' : 'outline'} size="sm" disabled={!link.url} onClick={() => link.url && router.visit(link.url)}
-                                        dangerouslySetInnerHTML={{ __html: link.label }}
-                                    />
-                                ))}
+                    {matters.total > 0 && (
+                        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t">
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                                <p className="text-sm text-muted-foreground">
+                                    Showing {matters.from}–{matters.to} of {matters.total}
+                                </p>
+                                <span className="hidden h-4 w-px bg-border sm:block" aria-hidden />
+                                <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                                    Rows per page
+                                    <Select value={String(perPage)} onValueChange={(v) => setPerPage(Number(v))}>
+                                        <SelectTrigger className="h-8 w-[76px] text-sm"><SelectValue /></SelectTrigger>
+                                        <SelectContent>
+                                            {PER_PAGE_OPTIONS.map((n) => (
+                                                <SelectItem key={n} value={String(n)}>{n}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </label>
                             </div>
+                            {matters.last_page > 1 && (
+                                <div className="flex gap-1">
+                                    {matters.links.map((link, i) => (
+                                        <Button key={i} variant={link.active ? 'default' : 'outline'} size="sm" disabled={!link.url} onClick={() => link.url && router.visit(link.url)}
+                                            dangerouslySetInnerHTML={{ __html: link.label }}
+                                        />
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     )}
                 </CardContent>

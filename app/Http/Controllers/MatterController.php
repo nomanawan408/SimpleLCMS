@@ -70,7 +70,14 @@ class MatterController extends Controller
             $query->closed();
         }
 
-        $matters = $query->paginate(20)->withQueryString();
+        // Rows-per-page selector in the table footer; allowlisted so a
+        // crafted value can't force a full-table scan into one page.
+        $perPage = (int) $request->input('per_page', 20);
+        if (! in_array($perPage, [10, 20, 25, 50, 100], true)) {
+            $perPage = 20;
+        }
+
+        $matters = $query->paginate($perPage)->withQueryString();
 
         $tablePreferences = TablePreference::where('user_id', $request->user()->id)
             ->where('table_key', 'matters.index')
@@ -78,7 +85,7 @@ class MatterController extends Controller
 
         return Inertia::render('Matters/Index', [
             'matters' => $matters,
-            'filters' => [...$request->only('status', 'practice_area', 'priority', 'search'), 'category' => $category],
+            'filters' => [...$request->only('status', 'practice_area', 'priority', 'search'), 'category' => $category, 'per_page' => $perPage],
             'counts' => $counts,
             'tablePreferences' => $tablePreferences,
         ]);
@@ -243,7 +250,9 @@ class MatterController extends Controller
 
         activity()->causedBy($request->user())->performedOn($matter)->log('updated');
 
-        return back()->with('success', 'Matter updated successfully.');
+        // Always land on the matter itself: back() from the edit form just
+        // redisplays the edit form (its own referer), stranding the user.
+        return redirect()->route('matters.show', $matter)->with('success', 'Matter updated successfully.');
     }
 
     public function destroy(Matter $matter, Request $request): RedirectResponse

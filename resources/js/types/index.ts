@@ -331,4 +331,16 @@ export interface PageProps {
     };
     unreadNotificationsCount: number;
     theme: string;
+    /** Running (or paused) timer, if any — shared on every response so the header pill follows it across pages. */
+    activeTimer: {
+        matter_id: string;
+        matter_name: string;
+        matter_number: string;
+        started_at: string;
+        activity_type: string;
+        description?: string;
+        paused_at?: string | null;
+        total_paused_seconds?: number;
+        rate?: number;
+    } | null;
 }

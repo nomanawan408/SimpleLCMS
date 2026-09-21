@@ -19,7 +19,7 @@ import { UserAvatar } from '@/components/ui/user-avatar';
 import {
     ArrowLeft, Clock, Receipt, Wallet, FileText, CheckSquare, Users, Edit, Plus, Download,
     Gavel, Calendar, TrendingUp, AlertTriangle, ChevronRight, ChevronDown, MessageSquare, Timer,
-    Paperclip, ExternalLink, DollarSign, PoundSterling, Eye, X, Pencil, Trash2,
+    Paperclip, ExternalLink, PoundSterling, Eye, X, Pencil, Trash2,
     Landmark, CalendarClock, Flag, Folder, FolderOpen, CircleCheck, RotateCcw, BookOpenText,
 } from 'lucide-react';
 import type { Matter, Expense, Document, TrustEntry, User, PageProps } from '@/types';
@@ -1589,7 +1589,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                             </div>
                         ) : (
                             <div className="px-6 py-10 text-center text-sm text-muted-foreground">
-                                <Receipt className="h-8 w-8 mx-auto mb-2 text-muted-foreground/30" />
+                                <PoundSterling className="h-8 w-8 mx-auto mb-2 text-muted-foreground/30" />
                                 No expenses yet.
                             </div>
                         )}
@@ -1878,7 +1878,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                             </div>
                         ) : (
                             <div className="px-6 py-10 text-center text-sm text-muted-foreground">
-                                <Receipt className="h-8 w-8 mx-auto mb-2 text-muted-foreground/30" />
+                                <PoundSterling className="h-8 w-8 mx-auto mb-2 text-muted-foreground/30" />
                                 No invoices yet.
                                 <div className="mt-3">
                                     <Button size="sm" asChild>
@@ -2161,7 +2161,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                         <CardContent className="p-0">
                             {!matter.invoices?.length ? (
                                 <div className="px-5 py-8 text-center">
-                                    <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-full bg-muted mb-2"><Receipt className="h-4 w-4 text-muted-foreground/40" /></div>
+                                    <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-full bg-muted mb-2"><PoundSterling className="h-4 w-4 text-muted-foreground/40" /></div>
                                     <p className="text-sm font-medium text-foreground">No invoices yet</p>
                                     <p className="text-xs text-muted-foreground mt-1">Create the first invoice</p>
                                 </div>

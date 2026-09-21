@@ -30,6 +30,38 @@ class TimeSession extends Model
         ];
     }
 
+    /**
+     * The user's currently running (or paused) timer, if any — session
+     * first, DB row as fallback (session lost, device switch). Shared on
+     * every Inertia response so the header pill can follow the timer
+     * across pages. Read-only: callers that need a live session write it
+     * themselves (see TimeController).
+     */
+    public static function currentFor(User $user): ?array
+    {
+        $session = session('active_timer_' . $user->id);
+        if ($session) {
+            return $session;
+        }
+
+        $db = static::where('user_id', $user->id)->first();
+        if (! $db) {
+            return null;
+        }
+
+        return [
+            'matter_id'            => $db->matter_id,
+            'matter_name'          => $db->matter_name,
+            'matter_number'        => $db->matter_number,
+            'started_at'           => $db->started_at->toIso8601String(),
+            'activity_type'        => $db->activity_type,
+            'description'          => $db->description ?? '',
+            'paused_at'            => $db->paused_at?->toIso8601String(),
+            'total_paused_seconds' => (int) $db->total_paused_seconds,
+            'rate'                 => (float) $db->rate,
+        ];
+    }
+
     public function firm(): BelongsTo { return $this->belongsTo(Firm::class); }
     public function user(): BelongsTo { return $this->belongsTo(User::class); }
     public function matter(): BelongsTo { return $this->belongsTo(Matter::class); }

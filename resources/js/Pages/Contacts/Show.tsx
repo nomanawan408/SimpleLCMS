@@ -13,7 +13,7 @@ import { cn, formatDate, formatCurrency, CONTACT_TYPE_LABELS, LEAD_STATUS_LABELS
 import {
     ArrowLeft, ChevronRight, Mail, Phone, MapPin, Edit, Briefcase, User, Building2,
     Receipt, CreditCard, Calendar, MessageSquare, Plus, Trash2, PhoneCall, Mails,
-    Users as UsersIcon, FileText, Wallet, TrendingUp, Paperclip, Download,
+    Users as UsersIcon, FileText, Wallet, TrendingUp, Paperclip, Download, PoundSterling,
 } from 'lucide-react';
 import type { Contact, Matter, Invoice } from '@/types';
 
@@ -623,7 +623,7 @@ export default function ShowContact({ contact, invoices = [], documents = [], ca
                     <CardContent className="p-0">
                         {invoices.length === 0 ? (
                             <div className="px-6 py-12 text-center">
-                                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-muted mb-3"><Receipt className="h-6 w-6 text-muted-foreground/50" /></div>
+                                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-muted mb-3"><PoundSterling className="h-6 w-6 text-muted-foreground/50" /></div>
                                 <p className="text-sm font-medium text-foreground">No invoices yet</p>
                                 <p className="text-xs text-muted-foreground mt-1">Invoices raised against this contact's matters appear here</p>
                             </div>

@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\TimeSession;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 use Tighten\Ziggy\Ziggy;
@@ -53,6 +54,9 @@ class HandleInertiaRequests extends Middleware
             // Active theme for the app shell (light/dark/system). The client
             // applies it to <html> on every navigation (see lib/theme.ts).
             'theme' => $user ? ($user->preferences['theme'] ?? 'light') : 'light',
+            // Running (or paused) timer, if any — the header pill follows it
+            // across pages. Page-specific `activeTimer` props win on merge.
+            'activeTimer' => $user ? TimeSession::currentFor($user) : null,
             'ziggy' => fn () => [
                 ...(new Ziggy)->toArray(),
                 'location' => $request->url(),

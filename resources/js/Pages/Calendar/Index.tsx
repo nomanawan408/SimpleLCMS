@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Head, router } from '@inertiajs/react';
+import { useEffect, useRef, useState } from 'react';
+import { Head, Link, router } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -7,8 +7,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { cn } from '@/lib/utils';
-import { ChevronLeft, ChevronRight, Plus, Trash2 } from 'lucide-react';
+import { cn, formatDate, splitDateTime } from '@/lib/utils';
+import { CalendarClock, ChevronLeft, ChevronRight, ExternalLink, Gavel, MapPin, Pencil, Plus, Trash2 } from 'lucide-react';
 
 interface CalendarEvent {
     id: string;
@@ -50,12 +50,48 @@ function getToken(): string {
     return (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement | null)?.content ?? '';
 }
 
+const TYPE_META: Record<string, { label: string; badge: string }> = {
+    court_date: { label: 'Court Hearing', badge: 'bg-destructive/15 text-destructive border-destructive/25' },
+    task_deadline: { label: 'Deadline', badge: 'bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-900/30 dark:text-violet-400 dark:border-violet-800' },
+    deadline: { label: 'Deadline', badge: 'bg-warning/15 text-warning border-warning/25' },
+    appointment: { label: 'Appointment', badge: 'bg-primary/15 text-primary border-primary/25' },
+    consultation: { label: 'Consultation', badge: 'bg-primary/15 text-primary border-primary/25' },
+    other: { label: 'Event', badge: 'bg-primary/15 text-primary border-primary/25' },
+};
+
 export default function CalendarIndex({ events, matters, year, month }: Props) {
     const [modalOpen, setModalOpen] = useState(false);
     const [editing, setEditing] = useState<CalendarEvent | null>(null);
     const [form, setForm] = useState({ ...emptyForm });
     const [saving, setSaving] = useState(false);
     const [selectedDay, setSelectedDay] = useState<number | null>(null);
+    // Read-only detail popup — every chip (hearing or deadline) lands here
+    // first, so nothing navigates away or jumps into edit by surprise.
+    const [viewing, setViewing] = useState<CalendarEvent | null>(null);
+    // Matter-name expand/collapse in the detail popup — long names clamp to
+    // 2 lines with a toggle that only appears when text actually overflows.
+    const [matterExpanded, setMatterExpanded] = useState(false);
+    const [matterOverflows, setMatterOverflows] = useState(false);
+    const matterNameRef = useRef<HTMLSpanElement>(null);
+
+    useEffect(() => {
+        setMatterExpanded(false);
+        setMatterOverflows(false);
+    }, [viewing?.id]);
+
+    useEffect(() => {
+        if (matterExpanded) return; // keep the toggle visible while expanded
+        const el = matterNameRef.current;
+        if (!el) return;
+        const check = () => setMatterOverflows(el.scrollHeight > el.clientHeight + 1);
+        check();
+        const t = setTimeout(check, 150);
+        window.addEventListener('resize', check);
+        return () => { clearTimeout(t); window.removeEventListener('resize', check); };
+    }, [viewing?.id, matterExpanded]);
+    // Overflow day list — cells show 3 chips; the "+N more" button opens the
+    // full day here instead of hiding events with no way to reach them.
+    const [dayList, setDayList] = useState<number | null>(null);
 
     const navigate = (dir: 1 | -1) => {
         let y = year;
@@ -220,11 +256,7 @@ export default function CalendarIndex({ events, matters, year, month }: Props) {
                                                     )}
                                                     onClick={(e) => {
                                                         e.stopPropagation();
-                                                        if (ev.source === 'task' && ev.matter_id) {
-                                                            window.location.href = `/matters/${ev.matter_id}`;
-                                                        } else {
-                                                            openEdit(ev);
-                                                        }
+                                                        setViewing(ev);
                                                     }}
                                                     title={ev.source === 'task' ? `Task: ${ev.title}${ev.status ? ` (${ev.status.replace(/_/g, ' ')})` : ''}` : ev.title}
                                                 >
@@ -236,7 +268,16 @@ export default function CalendarIndex({ events, matters, year, month }: Props) {
                                                 </div>
                                             ))}
                                             {dayEvents.length > 3 && (
-                                                <p className="text-sm text-muted-foreground pl-1">+{dayEvents.length - 3} more</p>
+                                                <button
+                                                    type="button"
+                                                    className="pl-1 text-left text-sm font-medium text-primary hover:underline"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setDayList(day);
+                                                    }}
+                                                >
+                                                    +{dayEvents.length - 3} more
+                                                </button>
                                             )}
                                         </div>
                                     </>
@@ -246,6 +287,164 @@ export default function CalendarIndex({ events, matters, year, month }: Props) {
                     })}
                 </div>
             </div>
+
+            {/* Day overflow list — every event on the day, each opening the detail popup */}
+            <Dialog open={dayList !== null} onOpenChange={(open) => { if (!open) setDayList(null); }}>
+                <DialogContent className="max-w-md overflow-hidden p-0">
+                    <div className="border-b px-6 pb-4 pt-5">
+                        <DialogTitle className="pr-6 text-lg font-semibold leading-snug">
+                            {dayList ? formatDate(`${year}-${String(month).padStart(2, '0')}-${String(dayList).padStart(2, '0')}`) : ''}
+                        </DialogTitle>
+                        <DialogDescription>
+                            {dayList ? `${eventsForDay(dayList).length} event${eventsForDay(dayList).length === 1 ? '' : 's'}` : ''}
+                        </DialogDescription>
+                    </div>
+                    <div className="max-h-[50vh] divide-y divide-border/50 overflow-y-auto px-3 py-2">
+                        {(dayList ? eventsForDay(dayList) : []).map((ev) => {
+                            const isHearing = ev.is_court_date || ev.type === 'court_date';
+                            const meta = isHearing ? TYPE_META.court_date : (TYPE_META[ev.type] ?? TYPE_META.other);
+                            const [, time] = splitDateTime(ev.start_at);
+                            const Icon = isHearing ? Gavel : CalendarClock;
+                            return (
+                                <button
+                                    key={ev.id}
+                                    type="button"
+                                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-muted/50"
+                                    onClick={() => { setDayList(null); setViewing(ev); }}
+                                >
+                                    <span className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border bg-card', meta.badge)}>
+                                        <Icon className="h-4 w-4" />
+                                    </span>
+                                    <span className="min-w-0 flex-1">
+                                        <span className="block truncate text-sm font-medium text-foreground" title={ev.title}>{ev.title}</span>
+                                        <span className="block truncate text-xs tabular-nums text-muted-foreground">
+                                            {time ? `${time} · ` : ''}{meta.label}
+                                            {ev.matter ? ` · ${ev.matter.matter_number}` : ''}
+                                        </span>
+                                    </span>
+                                </button>
+                            );
+                        })}
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Detail popup — information first, actions second; nothing navigates away unwarned */}
+            <Dialog open={!!viewing} onOpenChange={(open) => { if (!open) setViewing(null); }}>
+                <DialogContent className="max-w-md overflow-hidden p-0">
+                    {viewing && (() => {
+                        const isHearing = viewing.is_court_date || viewing.type === 'court_date';
+                        const meta = isHearing ? TYPE_META.court_date : (TYPE_META[viewing.type] ?? TYPE_META.other);
+                        const [, time] = splitDateTime(viewing.start_at);
+                        const [, endTime] = viewing.end_at ? splitDateTime(viewing.end_at) : (['', ''] as [string, string]);
+                        const Icon = isHearing ? Gavel : CalendarClock;
+                        const editHref = viewing.source === 'event'
+                            ? null
+                            : (viewing.matter_id ? `/matters/${viewing.matter_id}?tab=tasks` : null);
+                        return (
+                            <>
+                                <div className={cn('border-b px-6 pb-5 pt-6',
+                                    isHearing ? 'bg-red-50/70 dark:bg-red-950/20' : 'bg-violet-50/70 dark:bg-violet-950/20')}>
+                                    <div className="flex items-start gap-3.5 pr-6">
+                                        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-card shadow-sm ring-1 ring-border/60">
+                                            <Icon className={cn('h-6 w-6', isHearing ? 'text-destructive' : 'text-violet-600 dark:text-violet-400')} />
+                                        </span>
+                                        <div className="min-w-0">
+                                            <DialogTitle className="text-lg font-semibold leading-snug text-foreground" title={viewing.title}>
+                                                <span className="[display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden break-words">
+                                                    {viewing.title}
+                                                </span>
+                                            </DialogTitle>
+                                            <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+                                                <span className={cn('inline-flex items-center rounded border px-1.5 py-0.5 text-xs font-medium leading-none', meta.badge)}>
+                                                    {meta.label}
+                                                </span>
+                                                <span className="inline-flex items-center gap-1 tabular-nums text-muted-foreground">
+                                                    <CalendarClock className="h-3.5 w-3.5" />
+                                                    {formatDate(viewing.start_at)}{time ? ` · ${time}` : ''}
+                                                    {viewing.end_at ? ` – ${endTime || formatDate(viewing.end_at)}` : ''}
+                                                </span>
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="divide-y divide-border/50 px-6">
+                                    <div className="flex items-center gap-3 py-3">
+                                        <span className="w-16 shrink-0 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Matter</span>
+                                        {viewing.matter ? (
+                                            <span className="min-w-0 flex-1 text-sm">
+                                                <span
+                                                    ref={matterNameRef}
+                                                    title={viewing.matter.name}
+                                                    className={cn(
+                                                        'block font-medium text-foreground break-words',
+                                                        !matterExpanded && '[display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden',
+                                                    )}
+                                                >
+                                                    {viewing.matter.name}
+                                                </span>
+                                                <span className="block truncate font-mono text-xs tabular-nums text-muted-foreground">{viewing.matter.matter_number}</span>
+                                                {(matterOverflows || matterExpanded) && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setMatterExpanded((v) => !v)}
+                                                        className="mt-0.5 text-xs font-medium text-primary hover:underline"
+                                                    >
+                                                        {matterExpanded ? 'Show less' : 'Show more'}
+                                                    </button>
+                                                )}
+                                            </span>
+                                        ) : (
+                                            <span className="text-sm text-muted-foreground">No linked matter</span>
+                                        )}
+                                    </div>
+                                    {viewing.location && (
+                                        <div className="flex items-center gap-3 py-3">
+                                            <span className="w-16 shrink-0 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Where</span>
+                                            <span className="flex min-w-0 items-center gap-1.5 text-sm text-foreground">
+                                                <MapPin className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                                                <span className="truncate" title={viewing.location}>{viewing.location}</span>
+                                            </span>
+                                        </div>
+                                    )}
+                                    {viewing.source === 'task' && viewing.status && (
+                                        <div className="flex items-center gap-3 py-3">
+                                            <span className="w-16 shrink-0 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Status</span>
+                                            <Badge variant="secondary" className="text-xs capitalize">{viewing.status.replace(/_/g, ' ')}</Badge>
+                                        </div>
+                                    )}
+                                </div>
+                                <DialogFooter className="gap-2 border-t bg-muted/40 px-6 py-4 sm:justify-end">
+                                    {viewing.source === 'event' ? (
+                                        <Button
+                                            variant="outline"
+                                            onClick={() => { const ev = viewing; setViewing(null); openEdit(ev); }}
+                                        >
+                                            <Pencil className="h-4 w-4 mr-1.5" />
+                                            Edit
+                                        </Button>
+                                    ) : editHref ? (
+                                        <Button variant="outline" asChild>
+                                            <Link href={editHref}>
+                                                <Pencil className="h-4 w-4 mr-1.5" />
+                                                Edit task
+                                            </Link>
+                                        </Button>
+                                    ) : null}
+                                    {viewing.matter_id && (
+                                        <Button asChild>
+                                            <Link href={`/matters/${viewing.matter_id}`}>
+                                                <ExternalLink className="h-4 w-4 mr-1.5" />
+                                                Open matter
+                                            </Link>
+                                        </Button>
+                                    )}
+                                </DialogFooter>
+                            </>
+                        );
+                    })()}
+                </DialogContent>
+            </Dialog>
 
             {/* Event Modal */}
             <Dialog open={modalOpen} onOpenChange={setModalOpen}>

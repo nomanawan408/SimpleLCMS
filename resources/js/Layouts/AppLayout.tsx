@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, router, usePage } from '@inertiajs/react';
 import {
-    LayoutDashboard, Briefcase, Users, FileText, Clock, Receipt, PoundSterling,
+    LayoutDashboard, Briefcase, Users, FileText, Clock, PoundSterling,
     Calendar, CheckSquare, LogOut, Menu, Search, Radio, ChevronDown, UserRound,
     Building2, Shield, ShieldCheck, Activity, BarChart2, Landmark, CreditCard, Database, ScrollText, Scale, Settings, KeyRound,
 } from 'lucide-react';
@@ -11,7 +11,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Separator } from '@/components/ui/separator';
 import { GlobalSearch } from '@/components/GlobalSearch';
 import { NotificationBell } from '@/components/NotificationBell';
-import { cn, hasPermission, initials, ROLE_LABELS } from '@/lib/utils';
+import { TimerPill } from '@/components/TimerPill';
+import { cn, initials, ROLE_LABELS } from '@/lib/utils';
 import { applyTheme } from '@/lib/theme';
 import type { PageProps } from '@/types';
 
@@ -36,6 +37,9 @@ const navItems: NavItem[] = [
         ] },
     { label: 'Billing',      href: '/billing',      icon: PoundSterling, routeName: 'billing.index',    permission: 'view_invoices' },
     { label: 'Transactions', href: '/transactions', icon: CreditCard,  routeName: 'transactions.index', permission: 'view_invoices' },
+    { label: 'Accounts',           href: '/accounts',               icon: Landmark,   routeName: 'accounts.index',              permission: 'view_trust' },
+    { label: 'Client Cash Sheet',  href: '/ledger/cash-sheet',      icon: ScrollText, routeName: 'ledger.cash-sheet',         permission: 'view_ledger' },
+    { label: 'Reconciliation',     href: '/ledger/reconciliations', icon: Scale,      routeName: 'ledger.reconciliations.index', permission: 'view_ledger' },
     { label: 'Calendar',     href: '/calendar',     icon: Calendar,    routeName: 'calendar.index',   permission: 'view_calendar' },
     { label: 'Tasks',      href: '/tasks',        icon: CheckSquare,     routeName: 'tasks.index',     permission: 'view_tasks' },
     { label: 'Activities', href: '/activities',   icon: Activity,        routeName: 'activities.index' },
@@ -338,6 +342,7 @@ export default function AppLayout({ children, title }: AppLayoutProps) {
                     </div>
 
                     <div className="flex items-center gap-3">
+                        <TimerPill />
                         <Button
                             variant="outline"
                             size="sm"
@@ -394,44 +399,7 @@ export default function AppLayout({ children, title }: AppLayoutProps) {
                                         <UserRound className="h-4 w-4 shrink-0 text-muted-foreground" />
                                         Profile
                                     </Link>
-                                    <Link
-                                        href="/settings"
-                                        onClick={() => setUserMenuOpen(false)}
-                                        className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-muted"
-                                    >
-                                        <Settings className="h-4 w-4 shrink-0 text-muted-foreground" />
-                                        My Settings
-                                    </Link>
-                                    {hasPermission(user.permissions, 'view_trust') && (
-                                        <Link
-                                            href="/accounts"
-                                            onClick={() => setUserMenuOpen(false)}
-                                            className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-muted"
-                                        >
-                                            <Landmark className="h-4 w-4 shrink-0 text-muted-foreground" />
-                                            Accounts
-                                        </Link>
-                                    )}
-                                    {hasPermission(user.permissions, 'view_ledger') && (
-                                        <>
-                                            <Link
-                                                href="/ledger/cash-sheet"
-                                                onClick={() => setUserMenuOpen(false)}
-                                                className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-muted"
-                                            >
-                                                <ScrollText className="h-4 w-4 shrink-0 text-muted-foreground" />
-                                                Client Cash Sheet
-                                            </Link>
-                                            <Link
-                                                href="/ledger/reconciliations"
-                                                onClick={() => setUserMenuOpen(false)}
-                                                className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-muted"
-                                            >
-                                                <Scale className="h-4 w-4 shrink-0 text-muted-foreground" />
-                                                Reconciliation
-                                            </Link>
-                                        </>
-                                    )}
+
                                     <Link
                                         href="/two-factor/setup"
                                         onClick={() => setUserMenuOpen(false)}
