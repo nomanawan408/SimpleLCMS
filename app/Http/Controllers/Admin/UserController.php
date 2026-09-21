@@ -27,9 +27,11 @@ class UserController extends Controller
             ->get(['id', 'full_name', 'email', 'role', 'phone', 'rate_per_hour', 'is_active', 'totp_enabled', 'last_login_at', 'avatar_url', 'created_at']);
 
         // Get available roles for the firm (firm-specific + global)
+        // Platform roles (super_admin) are never offered for assignment here.
         $roles = Role::where(function ($q) use ($firmId) {
                 $q->where('firm_id', $firmId)->orWhereNull('firm_id');
             })
+            ->whereNotIn('name', \App\Rules\AssignableRole::PLATFORM_ROLES)
             ->orderByDesc('is_system')
             ->orderBy('name')
             ->get(['id', 'name', 'description', 'is_system']);

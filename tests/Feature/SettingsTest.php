@@ -106,6 +106,22 @@ class SettingsTest extends TestCase
         $this->assertTrue(Hash::check('NewStrongPassword123!', $admin->fresh()->password));
     }
 
+    public function test_platform_roles_are_hidden_in_firm_context(): void
+    {
+        [$firm, $admin] = $this->createFirmAndAdmin();
+
+        $this->actingAsUser($admin)->get('/settings')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('roles', fn ($roles) => collect($roles)->pluck('name')->doesntContain('super_admin'))
+                ->where('availableRoles', fn ($roles) => collect($roles)->pluck('name')->doesntContain('super_admin')));
+
+        $this->actingAsUser($admin)->get('/admin/roles')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('roles', fn ($roles) => collect($roles)->pluck('name')->doesntContain('super_admin')));
+    }
+
     public function test_removed_firm_endpoint_stays_gone(): void
     {
         // Firm edits live only in the embedded Company form (PUT /admin/firm);

@@ -44,9 +44,11 @@ class SettingsController extends Controller
                 'last_login_at' => $u->last_login_at, 'avatar_url' => $u->avatar_url,
                 'created_at' => $u->created_at,
             ]);
+            // Platform roles (super_admin) are never listed in a firm context.
             $team['availableRoles'] = \Spatie\Permission\Models\Role::where(function ($q) use ($firmId) {
                     $q->where('firm_id', $firmId)->orWhereNull('firm_id');
                 })
+                ->whereNotIn('name', \App\Rules\AssignableRole::PLATFORM_ROLES)
                 ->orderByDesc('is_system')
                 ->orderBy('name')
                 ->get(['id', 'name', 'description', 'is_system']);
@@ -54,6 +56,7 @@ class SettingsController extends Controller
             $roles = \Spatie\Permission\Models\Role::where(function ($q) use ($firmId) {
                     $q->where('firm_id', $firmId)->orWhereNull('firm_id');
                 })
+                ->whereNotIn('name', \App\Rules\AssignableRole::PLATFORM_ROLES)
                 ->withCount('permissions')
                 ->withCount('users')
                 ->orderByDesc('is_system')

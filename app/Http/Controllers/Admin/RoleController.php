@@ -22,9 +22,11 @@ class RoleController extends Controller
 
         $firmId = $request->user()->firm_id;
 
+        // The platform owner role is not manageable from a firm context.
         $roles = Role::where(function ($q) use ($firmId) {
                 $q->where('firm_id', $firmId)->orWhereNull('firm_id');
             })
+            ->whereNotIn('name', \App\Rules\AssignableRole::PLATFORM_ROLES)
             ->withCount('permissions')
             ->withCount('users')
             ->orderByDesc('is_system')
