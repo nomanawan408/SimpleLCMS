@@ -161,12 +161,11 @@
 
     /* Thick table scrollbar — for data tables where horizontal scroll is essential — themed to primary teal */
     .table-scrollbar {
-        scrollbar-width: thin;
-        scrollbar-color: hsl(var(--primary) / 0.85) hsl(var(--muted));
-        /* lift the bar 8px off the very bottom edge so it's not flush */
+        scrollbar-width: auto;
+        scrollbar-color: hsl(var(--primary) / 0.9) hsl(var(--muted));
         padding-bottom: 4px;
     }
-    .table-scrollbar::-webkit-scrollbar { width: 10px; height: 10px; }
+    .table-scrollbar::-webkit-scrollbar { width: 14px; height: 14px; }
     .table-scrollbar::-webkit-scrollbar-track {
         background: hsl(var(--muted));
         border-radius: 99px;
@@ -174,9 +173,9 @@
         border: 1px solid hsl(var(--border) / 0.5);
     }
     .table-scrollbar::-webkit-scrollbar-thumb {
-        background: hsl(var(--primary) / 0.85);
+        background: hsl(var(--primary) / 0.9);
         border-radius: 99px;
-        border: 2px solid hsl(var(--muted));
+        border: 3px solid hsl(var(--muted));
         min-width: 40px;
     }
     .table-scrollbar::-webkit-scrollbar-thumb:hover { background: hsl(var(--primary)); }

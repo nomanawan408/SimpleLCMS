@@ -6,13 +6,15 @@ import {
     Table, TableHeader, TableHeaderRow, TableBody, TableRow, TableHead, TableCell,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { TaskDueBadge } from '@/components/ui/task-due-badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Combobox } from '@/components/ui/combobox';
 import { Textarea } from '@/components/ui/textarea';
-import { formatDate, cn } from '@/lib/utils';
+import { formatDate, cn, matterComboboxOptions } from '@/lib/utils';
 import { Plus, Pencil, Trash2, Search, X, CheckSquare } from 'lucide-react';
 import type { Task, PaginatedData } from '@/types';
 
@@ -272,8 +274,8 @@ export default function TasksIndex({ tasks, users, matters, filters }: Props) {
                                             <TableCell className="text-muted-foreground">
                                                 {(task as any).assignee?.full_name ?? '—'}
                                             </TableCell>
-                                            <TableCell className="text-muted-foreground">
-                                                {formatDate(task.due_date)}
+                                            <TableCell>
+                                                <TaskDueBadge dueDate={task.due_date} done={task.status === 'done'} />
                                             </TableCell>
 <TableCell>
                                                 <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize ${PRIORITY_BADGE_STYLES[task.priority] ?? 'bg-muted text-muted-foreground border-border'}`}>
@@ -373,15 +375,14 @@ export default function TasksIndex({ tasks, users, matters, filters }: Props) {
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label>Matter</Label>
-                                <Select value={form.matter_id || '_none'} onValueChange={(v) => setForm((p) => ({ ...p, matter_id: v === '_none' ? '' : v }))}>
-                                    <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="_none">None</SelectItem>
-                                        {matters.map((m) => (
-                                            <SelectItem key={m.id} value={m.id}>{m.matter_number} — {m.name}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                <Combobox
+                                    options={[{ value: '_none', label: 'None', description: 'No matter' }, ...matterComboboxOptions(matters)]}
+                                    value={form.matter_id || '_none'}
+                                    onChange={(v) => setForm((p) => ({ ...p, matter_id: v === '_none' ? '' : v }))}
+                                    placeholder="Search matters…"
+                                    searchPlaceholder="Type matter name or ref…"
+                                    emptyText="No matters found."
+                                />
                             </div>
                             <div className="space-y-2">
                                 <Label>Assignee</Label>

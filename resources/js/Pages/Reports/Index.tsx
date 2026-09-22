@@ -8,7 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { formatCurrency, formatDuration, PRACTICE_AREA_LABELS, cn } from '@/lib/utils';
+import { Combobox } from '@/components/ui/combobox';
+import { formatCurrency, formatDuration, PRACTICE_AREA_LABELS, cn, matterComboboxOptions } from '@/lib/utils';
 import { Download, TrendingUp, Users, Briefcase, Calendar, Filter, X, PoundSterling, Clock, BarChart3, PieChart } from 'lucide-react';
 
 interface FinancialSummary {
@@ -148,13 +149,15 @@ export default function ReportsIndex({ financialSummary, timeByUser, mattersByPr
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                         <div className="space-y-1.5">
                             <Label className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Matter</Label>
-                            <Select value={matterId} onValueChange={setMatterId}>
-                                <SelectTrigger className="h-9 rounded-xl"><SelectValue placeholder="All matters" /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">All matters</SelectItem>
-                                    {filterOptions.matters.map(m => <SelectItem key={m.id} value={m.id}>{m.matter_number} — {m.name}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
+                            <Combobox
+                                options={[{ value: 'all', label: 'All matters', description: 'Show all' }, ...matterComboboxOptions(filterOptions.matters)]}
+                                value={matterId}
+                                onChange={setMatterId}
+                                placeholder="All matters"
+                                searchPlaceholder="Type matter name or ref…"
+                                emptyText="No matters found."
+                                className="h-9"
+                            />
                         </div>
                         <div className="space-y-1.5">
                             <Label className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Team Member</Label>

@@ -63,7 +63,7 @@ class AccountController extends Controller
             'summary'       => $summary,
             'firmAccount'   => $firmAccount,
             'clientAccounts'=> $clientAccounts,
-            'matters'       => Matter::where('firm_id', $firmId)->orderBy('name')->get(['id', 'name']),
+            'matters'       => Matter::where('firm_id', $firmId)->orderBy('name')->get(['id', 'name', 'matter_number']),
             'filters'       => $request->only('matter_id'),
         ]);
     }

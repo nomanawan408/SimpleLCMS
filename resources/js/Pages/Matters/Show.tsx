@@ -7,6 +7,7 @@ import {
     Table, TableHeader, TableHeaderRow, TableBody, TableFooter, TableRow, TableHead, TableCell,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { TaskDueBadge } from '@/components/ui/task-due-badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -19,7 +20,7 @@ import { UserAvatar } from '@/components/ui/user-avatar';
 import {
     ArrowLeft, Clock, Receipt, Wallet, FileText, CheckSquare, Users, Edit, Plus, Download,
     Gavel, Calendar, TrendingUp, AlertTriangle, ChevronRight, ChevronDown, MessageSquare, Timer,
-    Paperclip, ExternalLink, PoundSterling, Eye, X, Pencil, Trash2,
+    Paperclip, ExternalLink, PoundSterling, Eye, X, Pencil, Trash2, Upload,
     Landmark, CalendarClock, Flag, Folder, FolderOpen, CircleCheck, RotateCcw, BookOpenText,
 } from 'lucide-react';
 import type { Matter, Expense, Document, TrustEntry, User, PageProps } from '@/types';
@@ -81,7 +82,11 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
     const [expenses, setExpenses] = useState<any[]>(matter.expenses ?? []);
     const [tasks, setTasks] = useState<any[]>(matter.tasks ?? []);
     const [documents, setDocuments] = useState<any[]>(matter.documents ?? []);
-    const [activeDocFolder, setActiveDocFolder] = useState<string | null>(null);
+    // Folder tree collapse state (Windows-style explorer). Empty = all expanded.
+    const [collapsedFolders, setCollapsedFolders] = useState<string[]>([]);
+    const toggleFolder = (path: string) => setCollapsedFolders((prev) => (
+        prev.includes(path) ? prev.filter((p) => p !== path) : [...prev, path]
+    ));
     const [hearingDialogOpen, setHearingDialogOpen] = useState(false);
     const [hearingDate, setHearingDate] = useState('');
     const [hearingTime, setHearingTime] = useState('');
@@ -312,7 +317,14 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
     const [docClientVisible, setDocClientVisible] = useState(false);
     const [docFolder, setDocFolder] = useState(matter.matter_number || matter.name);
     const _baseFolder = (matter.matter_number || matter.name).trim();
-    const docExistingFolders = [...new Set([_baseFolder, ...documents.map((d: any) => { let f=d.folder; if (f==='General' || f==='GENERAL' || f==='GENERAL CASE DOCUMENTS') f=_baseFolder; return f; }).filter(Boolean) as string[]].filter(Boolean))] as string[];
+    // Direct child subfolders of the matter folder (not full paths)
+    const docExistingFolders = [...new Set(
+        documents
+            .map((d: any) => { let f = d.folder; if (f === 'General' || f === 'GENERAL' || f === 'GENERAL CASE DOCUMENTS') f = _baseFolder; return f; })
+            .filter((f: string) => f && f.startsWith(_baseFolder + '/'))
+            .map((f: string) => f.slice(_baseFolder.length + 1).split('/')[0])
+            .filter(Boolean)
+    )] as string[];
     const docFileRef = useRef<HTMLInputElement>(null);
 
     // One request per file, so each gets its own live progress bar and a bad
@@ -324,12 +336,21 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
             fd.append('file', file);
             fd.append('matter_id', matter.id);
             const baseFolder = (matter.matter_number || matter.name).trim();
-            let rawFolder = (docFolder || baseFolder).trim();
-            const isDefault = rawFolder === baseFolder || rawFolder.startsWith(baseFolder + '/');
-            if (!isDefault && rawFolder) {
-                rawFolder = `${baseFolder}/${rawFolder}`;
+            const userFolder = docFolder.trim();
+
+            // docFolder is always a subfolder name or the base folder itself
+            // (the UI ensures this by only listing direct children + base)
+            let rawFolder: string;
+            if (!userFolder || userFolder === baseFolder) {
+                rawFolder = baseFolder;
+            } else if (userFolder.startsWith(baseFolder + '/')) {
+                // User selected an existing full path from the list
+                rawFolder = userFolder;
+            } else {
+                // User typed a new subfolder name → nest it inside the matter
+                rawFolder = `${baseFolder}/${userFolder}`;
             }
-            if (!rawFolder) rawFolder = baseFolder;
+
             fd.append('folder', rawFolder);
             fd.append('is_client_visible', docClientVisible ? '1' : '0');
             return fd;
@@ -649,10 +670,10 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
         } catch {}
     };
 
-    const openDocModal = () => {
+    const openDocModal = (folder?: string) => {
         docUploadQueue.clearAll();
         setDocClientVisible(false);
-        setDocFolder(activeDocFolder || matter.matter_number || matter.name || 'General');
+        setDocFolder(folder ?? matter.matter_number ?? matter.name ?? 'General');
         if (docFileRef.current) docFileRef.current.value = '';
         setDocModalOpen(true);
     };
@@ -1063,8 +1084,8 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                                 <div className="flex-1 min-w-0">
                                                     <p className="text-sm font-medium truncate">{task.title}</p>
                                                     {task.due_date && (
-                                                        <p className={cn('text-xs', isOverdueDate(task.due_date) ? 'text-destructive font-medium' : 'text-muted-foreground')}>
-                                                            Due {formatDate(task.due_date)}
+                                                        <p className="mt-0.5">
+                                                            <TaskDueBadge dueDate={task.due_date} done={task.status === 'done'} />
                                                         </p>
                                                     )}
                                                 </div>
@@ -1603,7 +1624,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                         <CardTitle className="text-base tracking-tight flex items-center gap-2">
                             <FileText className="h-4 w-4" /> Documents
                         </CardTitle>
-                        <Button size="sm" variant="outline" type="button" onClick={openDocModal}>
+                        <Button size="sm" variant="outline" type="button" onClick={() => openDocModal()}>
                             <Plus className="h-3.5 w-3.5 mr-1" />
                             Upload
                         </Button>
@@ -1611,84 +1632,158 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                     <CardContent className="p-0">
                         {documents.length ? (
                             (() => {
-                                const groups = Object.entries(
-                                    documents.reduce((acc: Record<string, any[]>, doc: any) => {
-                                        let folder = doc.folder || _baseFolder;
-                                        if (folder === 'General' || folder === 'GENERAL' || folder === 'GENERAL CASE DOCUMENTS') folder = _baseFolder;
-                                        (acc[folder] = acc[folder] || []).push(doc);
-                                        return acc;
-                                    }, {} as Record<string, any[]>)
-                                );
-                                if (activeDocFolder) {
-                                    const docs = groups.find(([f]) => f === activeDocFolder)?.[1] as any[] | undefined;
-                                    if (!docs) {
-                                        return (
-                                            <div className="p-6 text-center text-sm text-muted-foreground">
-                                                Folder not found. <button className="text-primary hover:underline" onClick={() => setActiveDocFolder(null)}>Back to folders</button>
-                                            </div>
-                                        );
+                                // ── Folder tree (Windows-style explorer) ──
+                                // Forgiving matching (legacy numbers/names/General/whitespace);
+                                // orphans surface under "Other files" instead of vanishing.
+                                const allDocs = documents as any[];
+                                const normBase = _baseFolder.trim().toLowerCase();
+                                const normName = (matter.name || '').trim().toLowerCase();
+                                const normFolder = (folder: string | null | undefined): string => {
+                                    const v = (folder || '').trim();
+                                    const l = v.toLowerCase();
+                                    if (!v || l === 'general' || l === 'general case documents') return _baseFolder;
+                                    return v;
+                                };
+                                const withNf = allDocs.map((doc: any) => ({ doc, nf: normFolder(doc.folder) }));
+                                const isTopLevel = (nf: string): boolean => {
+                                    const l = nf.toLowerCase();
+                                    return l === normBase || (!!normName && l === normName);
+                                };
+
+                                interface DocFolderNode { name: string; fullPath: string; files: any[]; children: DocFolderNode[]; total: number; }
+                                const rootFiles: any[] = [];
+                                const rootNodes: DocFolderNode[] = [];
+                                withNf.forEach(({ doc, nf }) => {
+                                    if (isTopLevel(nf)) { rootFiles.push(doc); return; }
+                                    if (!nf.toLowerCase().startsWith(normBase + '/')) return; // orphans, handled below
+                                    const segs = nf.slice(normBase.length + 1).split('/').filter(Boolean);
+                                    let list = rootNodes;
+                                    let prefix = _baseFolder;
+                                    let node: DocFolderNode | undefined;
+                                    for (const seg of segs) {
+                                        prefix = `${prefix}/${seg}`;
+                                        let next = list.find((x) => x.name.toLowerCase() === seg.toLowerCase());
+                                        if (!next) {
+                                            next = { name: seg, fullPath: prefix, files: [], children: [], total: 0 };
+                                            list.push(next);
+                                        }
+                                        node = next;
+                                        list = next.children;
                                     }
-                                    return (
-                                        <div>
-                                            <div className="flex items-center gap-2 px-5 py-3 border-b border-border/60 bg-muted/20">
-                                                <Button variant="ghost" size="sm" onClick={() => setActiveDocFolder(null)} className="gap-1.5 h-8 rounded-full">
-                                                    <ArrowLeft className="h-4 w-4" /> Back to folders
+                                    node!.files.push(doc);
+                                });
+                                const sumTotals = (n: DocFolderNode): number => {
+                                    n.total = n.files.length + n.children.reduce((a, c) => a + sumTotals(c), 0);
+                                    return n.total;
+                                };
+                                rootNodes.forEach(sumTotals);
+                                rootNodes.sort((a, b) => a.name.localeCompare(b.name));
+
+                                // Filed nowhere recognizable — always surfaced, never hidden.
+                                const orphans = withNf
+                                    .filter(({ nf }) => !isTopLevel(nf) && !nf.toLowerCase().startsWith(normBase + '/'))
+                                    .map(({ doc }) => doc);
+
+                                const docRow = (doc: any, showFolderTag = false) => (
+                                    <div key={doc.id} className="px-5 py-3.5 flex items-center gap-3 hover:bg-muted/20 transition-colors">
+                                        <Paperclip className="h-4 w-4 text-muted-foreground shrink-0" />
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-medium truncate">{doc.name}</p>
+                                            <p className="text-xs text-muted-foreground">
+                                                {doc.uploadedBy?.full_name ? `${doc.uploadedBy.full_name} · ` : ''}
+                                                {doc.created_at ? formatDate(doc.created_at) : ''}
+                                                {doc.size ? ` · ${Math.round(doc.size / 1024)} KB` : ''}
+                                                {showFolderTag && doc.folder ? ` · ${doc.folder}` : ''}
+                                            </p>
+                                        </div>
+                                        <div className="flex items-center gap-2 shrink-0">
+                                            <Badge variant={doc.is_client_visible ? 'success' : 'secondary'} className="text-xs hidden sm:inline-flex">
+                                                {doc.is_client_visible ? 'Client' : 'Internal'}
+                                            </Badge>
+                                            <Button variant="ghost" size="icon" className="h-7 w-7" title="View" onClick={() => setViewerDoc(doc)}>
+                                                <Eye className="h-3.5 w-3.5" />
+                                            </Button>
+                                            <Button variant="ghost" size="icon" className="h-7 w-7" title="Download" asChild>
+                                                <a href={`/documents/${doc.id}/download`} download><Download className="h-3.5 w-3.5" /></a>
+                                            </Button>
+                                            {canDeleteDocuments && (
+                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" title="Delete" onClick={() => deleteDocument(doc)}>
+                                                    <Trash2 className="h-3.5 w-3.5" />
                                                 </Button>
-                                                <span className="text-muted-foreground">/</span>
-                                                <FolderOpen className="h-4 w-4 text-[#f59e0b]" />
-                                                <span className="text-sm font-semibold truncate">{activeDocFolder}</span>
-                                                <span className="text-xs bg-card border border-border/60 rounded-full px-2 py-0.5 tabular-nums">{docs.length} file{docs.length !== 1 ? 's' : ''}</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+
+                                const renderFolderNode = (node: DocFolderNode) => {
+                                    const collapsed = collapsedFolders.includes(node.fullPath);
+                                    return (
+                                        <div key={node.fullPath}>
+                                            <div className="group flex items-center gap-1.5 px-5 py-2 hover:bg-muted/20 transition-colors">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => toggleFolder(node.fullPath)}
+                                                    aria-label={collapsed ? `Expand ${node.name}` : `Collapse ${node.name}`}
+                                                    aria-expanded={!collapsed}
+                                                    className="rounded p-0.5 text-muted-foreground hover:text-foreground"
+                                                >
+                                                    <ChevronRight className={cn('h-4 w-4 transition-transform', !collapsed && 'rotate-90')} />
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => toggleFolder(node.fullPath)}
+                                                    className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                                                >
+                                                    {collapsed
+                                                        ? <Folder className="h-4 w-4 shrink-0 text-[#f59e0b]" />
+                                                        : <FolderOpen className="h-4 w-4 shrink-0 text-[#f59e0b]" />}
+                                                    <span className="truncate text-sm font-medium">{node.name}</span>
+                                                    <span className="text-xs tabular-nums text-muted-foreground">{node.total} file{node.total !== 1 ? 's' : ''}</span>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    title={`Upload to ${node.name}`}
+                                                    onClick={() => openDocModal(node.fullPath)}
+                                                    className="rounded-md p-1.5 text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-primary focus-visible:opacity-100 group-hover:opacity-100"
+                                                >
+                                                    <Plus className="h-3.5 w-3.5" />
+                                                </button>
                                             </div>
-                                            <div className="divide-y divide-border/40">
-                                                {docs.map((doc: any) => (
-                                                    <div key={doc.id} className="px-5 py-3.5 flex items-center gap-3 hover:bg-muted/20 transition-colors">
-                                                        <Paperclip className="h-4 w-4 text-muted-foreground shrink-0" />
-                                                        <div className="flex-1 min-w-0">
-                                                            <p className="text-sm font-medium truncate">{doc.name}</p>
-                                                            <p className="text-xs text-muted-foreground">
-                                                                {doc.uploadedBy?.full_name ? `${doc.uploadedBy.full_name} · ` : ''}
-                                                                {doc.created_at ? formatDate(doc.created_at) : ''}
-                                                                {doc.size ? ` · ${Math.round(doc.size / 1024)} KB` : ''}
-                                                            </p>
+                                            {!collapsed && (
+                                                <div className="ml-8 border-l border-border/50">
+                                                    {node.children.map((c) => renderFolderNode(c))}
+                                                    {node.files.length > 0 && (
+                                                        <div className="divide-y divide-border/40">
+                                                            {node.files.map((doc: any) => docRow(doc))}
                                                         </div>
-                                                        <div className="flex items-center gap-2 shrink-0">
-                                                            <Badge variant={doc.is_client_visible ? 'success' : 'secondary'} className="text-xs hidden sm:inline-flex">
-                                                                {doc.is_client_visible ? 'Client' : 'Internal'}
-                                                            </Badge>
-                                                            <Button variant="ghost" size="icon" className="h-7 w-7" title="View document" onClick={() => setViewerDoc(doc)}>
-                                                                <Eye className="h-3.5 w-3.5" />
-                                                            </Button>
-                                                            <Button variant="ghost" size="icon" className="h-7 w-7" title="Download document" asChild>
-                                                                <a href={`/documents/${doc.id}/download`} download>
-                                                                    <Download className="h-3.5 w-3.5" />
-                                                                </a>
-                                                            </Button>
-                                                            {canDeleteDocuments && (
-                                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10" title="Delete document" onClick={() => deleteDocument(doc)}>
-                                                                    <Trash2 className="h-3.5 w-3.5" />
-                                                                </Button>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
                                     );
-                                }
+                                };
+
                                 return (
-                                    <div className="p-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                                        {groups.map(([folder, docs]) => (
-                                            <button
-                                                key={folder}
-                                                type="button"
-                                                onClick={() => setActiveDocFolder(folder)}
-                                                className="group flex flex-col items-center gap-2 rounded-xl border border-border/60 bg-card hover:bg-muted/40 hover:border-[#f59e0b]/40 hover:shadow-sm p-5 text-center transition-all"
-                                            >
-                                                <Folder className="h-12 w-12 text-[#f59e0b] group-hover:text-[#d97706] transition-colors" />
-                                                <span className="text-sm font-semibold leading-tight line-clamp-2 break-words w-full">{folder}</span>
-                                                <span className="text-xs text-muted-foreground tabular-nums">{(docs as any[]).length} file{(docs as any[]).length !== 1 ? 's' : ''}</span>
-                                            </button>
-                                        ))}
+                                    <div>
+                                        {rootNodes.map((n) => renderFolderNode(n))}
+                                        {rootFiles.length > 0 && (
+                                            <div className="divide-y divide-border/40">
+                                                {rootFiles.map((doc: any) => docRow(doc))}
+                                            </div>
+                                        )}
+                                        {rootNodes.length === 0 && rootFiles.length === 0 && orphans.length === 0 ? (
+                                            <div className="p-6 text-center text-sm text-muted-foreground">No documents yet.</div>
+                                        ) : null}
+                                        {orphans.length > 0 && (
+                                            <div className="border-t border-border/40">
+                                                <p className="px-5 pt-4 pb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                                    Other files · {orphans.length}
+                                                </p>
+                                                <div className="divide-y divide-border/40">
+                                                    {orphans.map((doc: any) => docRow(doc, true))}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 );
                             })()
@@ -1753,9 +1848,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                                         </p>
                                                         <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
                                                             {task.due_date && (
-                                                                <span className={cn(isOverdueDate(task.due_date) && status !== 'done' ? 'text-destructive font-medium' : '')}>
-                                                                    Due {formatDate(task.due_date)}
-                                                                </span>
+                                                                <TaskDueBadge dueDate={task.due_date} done={status === 'done'} />
                                                             )}
                                                             {task.assignee?.full_name && (
                                                                 <span className="inline-flex items-center gap-1">
@@ -2409,53 +2502,72 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                 <DialogContent className="rounded-2xl p-0 gap-0 overflow-hidden flex flex-col max-h-[85vh] sm:max-w-lg">
                     <DialogHeader className="px-6 pt-6 pb-4 shrink-0">
                         <DialogTitle>Upload documents</DialogTitle>
-                        <DialogDescription>Default is this matter&apos;s folder. New folders are created as subfolders inside it and work like Windows.</DialogDescription>
+                        <DialogDescription>Files go into <span className="font-medium text-foreground">{_baseFolder}</span>. Type a name to create a subfolder.</DialogDescription>
                     </DialogHeader>
                     <div className="overflow-y-auto px-6 pb-4 space-y-4 max-h-[60vh]">
+                        {/* Styled drop-zone file input */}
                         <div className="space-y-2">
                             <Label className="text-sm font-medium">
                                 Files * <span className="text-muted-foreground font-normal">(max 20 MB each)</span>
                             </Label>
-                            <Input
-                                ref={docFileRef}
-                                type="file"
-                                multiple
-                                onChange={(e) => handleDocFilesChosen(e.target.files)}
-                            />
+                            <label className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-primary/30 bg-primary/[0.03] px-4 py-6 text-center transition-all cursor-pointer hover:border-primary/60 hover:bg-primary/[0.06]">
+                                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+                                    <Upload className="h-5 w-5 text-primary" />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-semibold text-foreground">
+                                        {docUploadQueue.total > 0 ? 'Add more files' : 'Click to browse files'}
+                                    </p>
+                                    <p className="mt-0.5 text-xs text-muted-foreground">or drag and drop</p>
+                                </div>
+                                <Input
+                                    ref={docFileRef}
+                                    type="file"
+                                    multiple
+                                    onChange={(e) => handleDocFilesChosen(e.target.files)}
+                                    className="hidden"
+                                />
+                            </label>
                         </div>
+
+                        {/* Folder */}
                         <div className="space-y-2">
-                            <Label className="text-sm font-medium">Folder <span className="text-muted-foreground font-normal">(default kept selected)</span></Label>
-                            <Select value={docExistingFolders.includes(docFolder) ? docFolder : '__custom'} onValueChange={(v) => { if (v !== '__custom') setDocFolder(v); }}>
-                                <SelectTrigger className="h-10">
-                                    <SelectValue placeholder="Select folder" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {docExistingFolders.map((f) => (
-                                        <SelectItem key={f} value={f}>{f}</SelectItem>
-                                    ))}
-                                    <SelectItem value="__custom">Create new subfolder…</SelectItem>
-                                </SelectContent>
-                            </Select>
+                            <Label className="text-sm font-medium">Folder</Label>
                             <Input
-                                placeholder={`${_baseFolder} (default) or ${_baseFolder}/NewFolder`}
+                                placeholder={`${_baseFolder} (default) or ${_baseFolder}/Subfolder`}
                                 value={docFolder}
                                 onChange={(e) => setDocFolder(e.target.value)}
                                 className="h-10"
                             />
                             {(() => {
-                                const base = _baseFolder;
                                 const raw = docFolder.trim();
-                                const isSub = raw !== base && !raw.startsWith(base + '/') && raw !== '';
-                                return isSub ? <p className="text-xs text-primary font-medium">Will be created as: <span className="font-mono">{base}/{raw}</span></p> : <p className="text-xs text-muted-foreground">New names become subfolders inside <span className="font-mono">{base}</span> (like Windows).</p>;
+                                if (!raw || raw === _baseFolder) return <p className="text-xs text-muted-foreground">Files will save to <span className="font-mono">{_baseFolder}</span>.</p>;
+                                const isNested = raw.startsWith(_baseFolder + '/');
+                                return isNested
+                                    ? <p className="text-xs text-muted-foreground">Will save inside <span className="font-mono">{raw}</span>.</p>
+                                    : <p className="text-xs text-primary font-medium">Will be created as: <span className="font-mono">{_baseFolder}/{raw}</span></p>;
                             })()}
                             {docExistingFolders.length > 0 && (
                                 <div className="flex flex-wrap gap-1.5 pt-1">
-                                    {docExistingFolders.slice(0, 6).map((f) => (
-                                        <button key={f} type="button" onClick={() => setDocFolder(f)} className={`px-2.5 py-1 rounded-full border text-xs font-medium transition-colors ${docFolder === f ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted hover:bg-muted/80 border-border/60'}`}>{f}</button>
+                                    {docExistingFolders.map((f) => (
+                                        <button
+                                            key={f}
+                                            type="button"
+                                            onClick={() => setDocFolder(f)}
+                                            className={cn(
+                                                'px-2.5 py-1 rounded-full border text-xs font-medium transition-colors',
+                                                docFolder === f
+                                                    ? 'bg-primary text-primary-foreground border-primary'
+                                                    : 'bg-muted hover:bg-muted/80 border-border/60',
+                                            )}
+                                        >
+                                            {f}
+                                        </button>
                                     ))}
                                 </div>
                             )}
                         </div>
+
                         <label className={cn('flex items-center gap-2', docUploadQueue.total > 0 ? 'cursor-not-allowed opacity-60' : 'cursor-pointer')}>
                             <input
                                 type="checkbox"

@@ -9,7 +9,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { cn, formatCurrency, formatDate } from '@/lib/utils';
+import { Combobox } from '@/components/ui/combobox';
+import { cn, formatCurrency, formatDate, matterComboboxOptions } from '@/lib/utils';
 import { ArrowLeft } from 'lucide-react';
 import type { LedgerPosting, PaginatedData } from '@/types';
 
@@ -75,15 +76,15 @@ export default function CashSheet({ postings, balance, matters, filters }: Props
                     </div>
                     <div className="space-y-1.5">
                         <Label>Matter</Label>
-                        <Select value={matterId} onValueChange={setMatterId}>
-                            <SelectTrigger className="h-9 w-56 text-sm"><SelectValue placeholder="All matters" /></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="_all">All matters</SelectItem>
-                                {matters.map((m) => (
-                                    <SelectItem key={m.id} value={m.id}>{m.matter_number} — {m.name}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <Combobox
+                            options={[{ value: '_all', label: 'All matters', description: 'Show all' }, ...matterComboboxOptions(matters)]}
+                            value={matterId}
+                            onChange={setMatterId}
+                            placeholder="All matters"
+                            searchPlaceholder="Type matter name or ref…"
+                            emptyText="No matters found."
+                            className="h-9 w-56"
+                        />
                     </div>
                     <div className="space-y-1.5">
                         <Label>From</Label>
@@ -122,11 +123,14 @@ export default function CashSheet({ postings, balance, matters, filters }: Props
                                     {postings.data.map((posting) => (
                                         <TableRow key={posting.id}>
                                             <TableCell className="whitespace-nowrap text-muted-foreground">{formatDate(posting.value_date)}</TableCell>
-                                            <TableCell className="max-w-[200px]">
+                                            <TableCell className="max-w-[220px]">
                                                 {posting.matter ? (
-                                                    <Link href={`/ledger/matters/${posting.matter.id}`} className="truncate text-sm font-medium text-foreground hover:text-primary" title={posting.matter.name}>
-                                                        {posting.matter.matter_number}
-                                                    </Link>
+                                                    <span className="block min-w-0">
+                                                        <Link href={`/ledger/matters/${posting.matter.id}`} className="block truncate text-sm font-medium text-foreground hover:text-primary" title={posting.matter.name}>
+                                                            {posting.matter.name}
+                                                        </Link>
+                                                        <span className="block truncate font-mono text-xs tabular-nums text-muted-foreground">{posting.matter.matter_number}</span>
+                                                    </span>
                                                 ) : (
                                                     <span className="text-sm text-muted-foreground">—</span>
                                                 )}

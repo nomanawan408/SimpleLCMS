@@ -59,8 +59,15 @@ class DashboardController extends Controller
             ->take(5)
             ->get();
 
+        // Widget window: overdue tasks stay listed only while within 3 days
+        // past due. Older overdues remain in the overdue count and the Tasks
+        // page — the widget stays actionable instead of clogging.
         $upcomingTasks = Task::where('firm_id', $firmId)
             ->where('status', '!=', 'done')
+            ->where(function ($q) use ($today) {
+                $q->whereNull('due_date')
+                    ->orWhereDate('due_date', '>=', $today->copy()->subDays(3));
+            })
             ->with('assignee')
             ->orderByRaw('due_date IS NULL, due_date ASC')
             ->take(5)

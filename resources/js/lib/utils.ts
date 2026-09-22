@@ -220,3 +220,20 @@ export const LEAD_STATUS_LABELS: Record<string, string> = {
     matter_opened: 'Matter Opened',
     declined: 'Declined',
 };
+
+/**
+ * Convert a matters array (from any controller) into ComboboxOption[] for the
+ * searchable matter Combobox.  Display shows the matter title first, reference
+ * second — so users see the human name before the file number.
+ *
+ * Usage: <Combobox options={matterComboboxOptions(matters)} ... />
+ */
+export function matterComboboxOptions(
+    matters: { id: string; name: string; matter_number: string }[],
+) {
+    return matters.map((m) => ({
+        value: m.id,
+        label: m.name,
+        description: m.matter_number,
+    }));
+}

@@ -699,4 +699,32 @@ class SecurityRegressionTest extends TestCase
             ->assertStatus(422);
         $this->assertDatabaseMissing('payments', ['invoice_id' => $foreignInvoice->id]);
     }
+
+    /** SL-31: the superadmin console lists firm admins only — firm end-users stay invisible, including via direct URLs */
+    public function test_superadmin_user_console_excludes_firm_end_users(): void
+    {
+        [$firmA, $adminA] = $this->createFirmAndAdmin();
+        [$firmB, $adminB] = $this->createFirmAndAdmin();
+        $solicitor = User::factory()->forFirm($firmA)->create(['role' => 'solicitor']);
+        $solicitor->assignRole('solicitor');
+
+        $superadmin = User::factory()->create(['role' => 'super_admin', 'firm_id' => null]);
+        $superadmin->assignRole('super_admin');
+
+        $this->actingAsUser($superadmin)->get('/superadmin/users')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('users.total', 3)
+                ->where('users.data', fn ($data) => collect($data)->pluck('id')->contains($solicitor->id) === false));
+
+        // Direct object URLs fail closed without confirming the account exists.
+        $this->actingAsUser($superadmin)->put("/superadmin/users/{$solicitor->id}", ['full_name' => 'X'])->assertNotFound();
+        $this->actingAsUser($superadmin)->delete("/superadmin/users/{$solicitor->id}")->assertNotFound();
+        $this->actingAsUser($superadmin)->put("/superadmin/users/{$solicitor->id}/reset-password")->assertNotFound();
+
+        // Firm admins remain fully manageable.
+        $this->actingAsUser($superadmin)->put("/superadmin/users/{$adminA->id}", ['full_name' => 'Renamed Admin'])
+            ->assertRedirect();
+        $this->assertSame('Renamed Admin', $adminA->fresh()->full_name);
+    }
 }

@@ -63,6 +63,59 @@ class MatterTest extends TestCase
         );
     }
 
+    public function test_can_add_multiple_hearing_dates(): void
+    {
+        [$firm, $admin] = $this->createFirmAndAdmin();
+        $matter = Matter::factory()->forFirm($firm, $admin)->create();
+
+        $this->actingAsUser($admin)->put("/matters/{$matter->id}/hearing-date", [
+            'hearing_date' => now()->addDays(10)->toDateString(),
+        ])->assertRedirect();
+
+        $this->actingAsUser($admin)->post("/matters/{$matter->id}/hearing-dates", [
+            'hearing_date' => now()->addDays(20)->toDateString(),
+            'hearing_time' => '14:30',
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        // Both exist: the add never overwrites, earliest stays the headline.
+        $this->assertSame(2, \App\Models\CalendarEvent::where('matter_id', $matter->id)->where('is_court_date', true)->count());
+        $this->assertSame(now()->addDays(10)->toDateString(), substr($matter->fresh()->hearing_date, 0, 10));
+
+        $second = \App\Models\CalendarEvent::where('matter_id', $matter->id)->orderBy('start_at', 'desc')->first();
+        $this->assertSame('14:30', $second->start_at->format('H:i'));
+    }
+
+    public function test_hearing_dates_are_scoped_to_the_matter(): void
+    {
+        [$firmA, $adminA] = $this->createFirmAndAdmin();
+        [$firmB, $adminB] = $this->createFirmAndAdmin();
+        $matterA = Matter::factory()->forFirm($firmA, $adminA)->create();
+        $matterB = Matter::factory()->forFirm($firmB, $adminB)->create();
+        $foreign = \App\Models\CalendarEvent::factory()->forFirm($firmB, $adminB)->create([
+            'matter_id' => $matterB->id, 'is_court_date' => true, 'start_at' => now()->addDays(5),
+        ]);
+
+        // Tenant-scoped binding 404s before authorization even runs.
+        $this->actingAsUser($adminA)->get("/matters/{$matterB->id}/hearing-dates")->assertNotFound();
+        $this->actingAsUser($adminA)->delete("/matters/{$matterA->id}/hearing-dates/{$foreign->id}")->assertNotFound();
+        $this->assertDatabaseHas('calendar_events', ['id' => $foreign->id]);
+    }
+
+    public function test_deadline_defaults_to_16_00_without_time(): void
+    {
+        [$firm, $admin] = $this->createFirmAndAdmin();
+        $matter = Matter::factory()->forFirm($firm, $admin)->create();
+        \App\Models\Task::factory()->forFirm($firm, $admin)->create([
+            'matter_id' => $matter->id, 'status' => 'todo', 'due_date' => null,
+        ]);
+
+        $this->actingAsUser($admin)->put("/matters/{$matter->id}/deadline", [
+            'deadline' => '2026-10-01',
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $this->assertSame('2026-10-01 16:00:00', \App\Models\Task::where('matter_id', $matter->id)->value('due_date')->format('Y-m-d H:i:s'));
+    }
+
     public function test_reformat_command_rewrites_old_numbers_keeping_serial(): void
     {
         [$firm, $admin] = $this->createFirmAndAdmin();

@@ -11,8 +11,9 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Combobox } from '@/components/ui/combobox';
 import { Separator } from '@/components/ui/separator';
-import { cn, formatCurrency, formatDate } from '@/lib/utils';
+import { cn, formatCurrency, formatDate, matterComboboxOptions } from '@/lib/utils';
 import { PoundSterling, TrendingUp, Clock, AlertCircle, Plus, CreditCard } from 'lucide-react';
 import type { PaginatedData } from '@/types';
 
@@ -144,15 +145,15 @@ export default function TransactionsIndex({ transactions, stats, matters, openIn
 
             {/* Filters */}
             <div className="flex flex-wrap items-center gap-3 mb-4">
-                <Select value={filters.matter_id || '_all'} onValueChange={(v) => setFilter('matter_id', v)}>
-                    <SelectTrigger className="w-52 h-9"><SelectValue placeholder="All matters" /></SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="_all">All matters</SelectItem>
-                        {matters.map((m) => (
-                            <SelectItem key={m.id} value={m.id}>{m.matter_number} — {m.name}</SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
+                <Combobox
+                    options={[{ value: '_all', label: 'All matters', description: 'Show all' }, ...matterComboboxOptions(matters)]}
+                    value={filters.matter_id || '_all'}
+                    onChange={(v) => setFilter('matter_id', v)}
+                    placeholder="All matters"
+                    searchPlaceholder="Type matter name or ref…"
+                    emptyText="No matters found."
+                    className="w-52 h-9"
+                />
 
                 <Select value={filters.method || '_all'} onValueChange={(v) => setFilter('method', v)}>
                     <SelectTrigger className="w-44 h-9"><SelectValue placeholder="All methods" /></SelectTrigger>

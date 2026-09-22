@@ -7,7 +7,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { cn, formatDate, splitDateTime } from '@/lib/utils';
+import { Combobox } from '@/components/ui/combobox';
+import { cn, formatDate, splitDateTime, matterComboboxOptions } from '@/lib/utils';
 import { CalendarClock, ChevronLeft, ChevronRight, ExternalLink, Gavel, MapPin, Pencil, Plus, Trash2 } from 'lucide-react';
 
 interface CalendarEvent {
@@ -448,7 +449,7 @@ export default function CalendarIndex({ events, matters, year, month }: Props) {
 
             {/* Event Modal */}
             <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-                <DialogContent className="max-w-md">
+                <DialogContent className="max-w-xl">
                     <DialogHeader>
                         <DialogTitle>{editing ? 'Edit Event' : 'New Event'}</DialogTitle>
                         <DialogDescription>{editing ? 'Update event details.' : 'Add an event to the calendar.'}</DialogDescription>
@@ -474,15 +475,14 @@ export default function CalendarIndex({ events, matters, year, month }: Props) {
                             </div>
                             <div className="space-y-2">
                                 <Label>Matter</Label>
-                                <Select value={form.matter_id || '_none'} onValueChange={(v) => setForm((p) => ({ ...p, matter_id: v === '_none' ? '' : v }))}>
-                                    <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="_none">None</SelectItem>
-                                        {matters.map((m) => (
-                                            <SelectItem key={m.id} value={m.id}>{m.matter_number}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                <Combobox
+                                    options={[{ value: '_none', label: 'None', description: 'No matter' }, ...matterComboboxOptions(matters)]}
+                                    value={form.matter_id || '_none'}
+                                    onChange={(v) => setForm((p) => ({ ...p, matter_id: v === '_none' ? '' : v }))}
+                                    placeholder="Search matters…"
+                                    searchPlaceholder="Type matter name or ref…"
+                                    emptyText="No matters found."
+                                />
                             </div>
                         </div>
                         <div className="grid grid-cols-2 gap-4">

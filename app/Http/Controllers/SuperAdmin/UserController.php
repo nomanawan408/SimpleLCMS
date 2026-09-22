@@ -14,11 +14,21 @@ use Inertia\Response;
 
 class UserController extends Controller
 {
+    /**
+     * Roles the platform console may see and manage. Firm end-users
+     * (solicitors, secretaries, …) are managed by their own firm admins —
+     * listing them here would expose every firm's staff directory to
+     * platform operators. Fellow super_admins stay visible so platform
+     * ownership remains auditable.
+     */
+    private const MANAGEABLE_ROLES = ['firm_admin', 'super_admin'];
+
     public function index(Request $request): Response
     {
         abort_unless($request->user()->hasRole('super_admin'), 403);
 
-        $query = User::with('firm')
+        $query = User::role(self::MANAGEABLE_ROLES)
+            ->with('firm')
             ->orderBy('created_at', 'desc');
 
         if ($request->filled('firm_id')) {
@@ -47,9 +57,19 @@ class UserController extends Controller
         ]);
     }
 
+    /**
+     * Filtering the list alone would be theater — direct URLs must fail
+     * closed too, without confirming the account exists.
+     */
+    private function ensureManageable(User $user): void
+    {
+        abort_unless($user->hasAnyRole(self::MANAGEABLE_ROLES), 404);
+    }
+
     public function update(Request $request, User $user): RedirectResponse
     {
         abort_unless($request->user()->hasRole('super_admin'), 403);
+        $this->ensureManageable($user);
 
         $validated = $request->validate([
             'full_name' => ['sometimes', 'string', 'max:255'],
@@ -73,6 +93,7 @@ class UserController extends Controller
     public function destroy(Request $request, User $user): RedirectResponse
     {
         abort_unless($request->user()->hasRole('super_admin'), 403);
+        $this->ensureManageable($user);
 
         if ($user->id === $request->user()->id) {
             return back()->with('error', 'You cannot delete your own account.');
@@ -89,6 +110,7 @@ class UserController extends Controller
     public function resetPassword(Request $request, User $user): RedirectResponse
     {
         abort_unless($request->user()->hasRole('super_admin'), 403);
+        $this->ensureManageable($user);
 
         // Never mint a plaintext password and echo it back -- a flash message
         // travels through the session into the page payload and any log or APM

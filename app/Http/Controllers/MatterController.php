@@ -317,6 +317,80 @@ class MatterController extends Controller
         return back()->with('success', 'Hearing date updated.');
     }
 
+    /**
+     * Upcoming court hearings for the date manager (JSON). The matter
+     * payload only carries the single next hearing_date, so the dialog
+     * fetches the full list here.
+     */
+    public function hearingDates(Matter $matter, Request $request)
+    {
+        $this->authorize('view', $matter);
+
+        return response()->json([
+            'hearings' => CalendarEvent::where('matter_id', $matter->id)
+                ->where('firm_id', $request->user()->firm_id)
+                ->where('is_court_date', true)
+                ->where('start_at', '>=', now())
+                ->orderBy('start_at')
+                ->get(['id', 'title', 'start_at', 'end_at']),
+        ]);
+    }
+
+    /**
+     * Add another hearing date. Unlike updateHearingDate (which edits the
+     * single next hearing), this always creates a new court event so matters
+     * can hold several upcoming hearings.
+     */
+    public function storeHearingDate(Matter $matter, Request $request): RedirectResponse
+    {
+        $this->authorize('update', $matter);
+
+        $validated = $request->validate([
+            'hearing_date' => ['required', 'date'],
+            'hearing_time' => ['nullable', 'date_format:H:i'],
+        ]);
+
+        $time = $validated['hearing_time'] ?? null;
+        if ($time === null && preg_match('/(\d{1,2}):(\d{2})/', (string) $validated['hearing_date'], $m)) {
+            $time = sprintf('%02d:%02d', (int) $m[1], (int) $m[2]);
+        }
+        $time ??= '10:00';
+
+        $start = \Carbon\Carbon::parse(substr((string) $validated['hearing_date'], 0, 10) . ' ' . $time);
+
+        CalendarEvent::create([
+            'firm_id'       => $matter->firm_id,
+            'matter_id'     => $matter->id,
+            'created_by_id' => $request->user()->id,
+            'title'         => 'Court Hearing — ' . $matter->name,
+            'type'          => 'court_date',
+            'start_at'      => $start,
+            'end_at'        => (clone $start)->addHour(),
+            'is_court_date' => true,
+        ]);
+
+        return back()->with('success', 'Hearing date added.');
+    }
+
+    /**
+     * Remove one hearing from the list. Scoped to the matter (and firm via
+     * policy) so one matter's dates can't delete another's.
+     */
+    public function destroyHearingDate(Matter $matter, Request $request, string $event): RedirectResponse
+    {
+        $this->authorize('update', $matter);
+
+        $hearing = CalendarEvent::where('id', $event)
+            ->where('matter_id', $matter->id)
+            ->where('firm_id', $request->user()->firm_id)
+            ->where('is_court_date', true)
+            ->firstOrFail();
+
+        $hearing->delete();
+
+        return back()->with('success', 'Hearing date removed.');
+    }
+
     public function updateDeadline(Matter $matter, Request $request): RedirectResponse
     {
         $this->authorize('update', $matter);
@@ -329,15 +403,15 @@ class MatterController extends Controller
         $date = $validated['deadline'] ?? null;
 
         // Time comes from its own field; fall back to any time embedded in
-        // the date string, then to 17:00 (close of business) so old
-        // date-only submissions keep working.
+        // the date string, then to 16:00 so old date-only submissions keep
+        // working.
         $dueAt = null;
         if ($date) {
             $time = $validated['deadline_time'] ?? null;
             if ($time === null && preg_match('/(\d{1,2}):(\d{2})/', (string) $date, $m)) {
                 $time = sprintf('%02d:%02d', (int) $m[1], (int) $m[2]);
             }
-            $time ??= '17:00';
+            $time ??= '16:00';
             $dueAt = \Carbon\Carbon::parse(substr((string) $date, 0, 10) . ' ' . $time);
         }
 

@@ -129,6 +129,9 @@ Route::middleware(['auth', 'verified', 'set.tenant', 'requires.two.factor', 'red
     // Matters
     Route::resource('matters', MatterController::class);
     Route::put('/matters/{matter}/hearing-date', [MatterController::class, 'updateHearingDate'])->name('matters.hearing-date');
+    Route::get('/matters/{matter}/hearing-dates', [MatterController::class, 'hearingDates'])->name('matters.hearing-dates.index');
+    Route::post('/matters/{matter}/hearing-dates', [MatterController::class, 'storeHearingDate'])->name('matters.hearing-dates.store');
+    Route::delete('/matters/{matter}/hearing-dates/{event}', [MatterController::class, 'destroyHearingDate'])->name('matters.hearing-dates.destroy');
     Route::put('/matters/{matter}/deadline', [MatterController::class, 'updateDeadline'])->name('matters.deadline');
     Route::post('/matters/{matter}/notes', [MatterNoteController::class, 'store'])->name('matters.notes.store');
     Route::post('/matters/{matter}/time-entries', [MatterTimeEntryController::class, 'store'])->name('matters.time-entries.store');

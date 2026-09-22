@@ -11,7 +11,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { formatDate, cn } from '@/lib/utils';
+import { Combobox } from '@/components/ui/combobox';
+import { formatDate, cn, matterComboboxOptions } from '@/lib/utils';
 import { ArrowLeft, ChevronDown, Download, Eye, FileText, Folder, FolderOpen, Paperclip, Trash2, Upload, X } from 'lucide-react';
 import type { Document, PaginatedData } from '@/types';
 import { useUploadQueue } from '@/hooks/useUploadQueue';
@@ -19,7 +20,7 @@ import { UploadQueueList } from '@/components/documents/UploadQueueList';
 
 interface Props {
     documents: PaginatedData<Document & { matter?: { id: string; name: string }; uploadedBy?: { full_name: string } }>;
-    matters: { id: string; name: string }[];
+    matters: { id: string; name: string; matter_number: string }[];
     filters: { matter_id?: string };
 }
 
@@ -57,15 +58,28 @@ export default function DocumentsIndex({ documents, matters, filters }: Props) {
             fd.append('file', file);
             fd.append('matter_id', uploadMatterId);
             const baseFromMatter = matters.find((m) => m.id === uploadMatterId)?.name?.trim() || '';
-            let rawFolder = (uploadFolder || activeFolder || baseFromMatter).trim();
-            if (!rawFolder) rawFolder = baseFromMatter;
-            if (uploadMatterId && baseFromMatter) {
-                const isDefault = rawFolder === baseFromMatter || rawFolder.startsWith(baseFromMatter + '/');
-                if (!isDefault && rawFolder) {
-                    rawFolder = `${baseFromMatter}/${rawFolder}`;
-                }
+            const userFolder = uploadFolder.trim();
+
+            // Build the full folder path — Windows-style nesting:
+            //   activeFolder = "Smith v Jones/Correspondence"
+            //   user types "Letters"  → "Smith v Jones/Correspondence/Letters"
+            //   user types nothing    → "Smith v Jones/Correspondence" (stay in current)
+            //   no activeFolder + user types "Letters" → "Smith v Jones/Letters"
+            let rawFolder: string;
+            if (activeFolder && userFolder && !userFolder.includes('/')) {
+                // Inside a folder + simple subfolder name → nest it
+                rawFolder = `${activeFolder}/${userFolder}`;
+            } else if (userFolder) {
+                // Full path provided — use as-is (must already include matter name)
+                rawFolder = userFolder;
+            } else if (activeFolder) {
+                // No subfolder typed — stay in the current folder
+                rawFolder = activeFolder;
+            } else {
+                // No active folder, no input — use matter root
+                rawFolder = baseFromMatter || 'General';
             }
-            if (!rawFolder) rawFolder = baseFromMatter || 'General';
+
             fd.append('folder', rawFolder);
             fd.append('is_client_visible', uploadClientVisible ? '1' : '0');
             return fd;
@@ -115,7 +129,7 @@ export default function DocumentsIndex({ documents, matters, filters }: Props) {
                     <h1 className="text-2xl font-extrabold tracking-tight">Documents</h1>
                     <p className="text-sm text-muted-foreground mt-1">All matters share a dedicated folder — uploads from a matter go to its own folder automatically.</p>
                 </div>
-                <Button onClick={openUploadModal} className="rounded-xl gap-2 bg-primary shadow-sm">
+                <Button onClick={openUploadModal} className="rounded-xl gap-2 bg-primary shadow-md hover:bg-primary-hover hover:shadow-lg transition-all">
                     <Upload className="h-4 w-4" />
                     Upload
                 </Button>
@@ -127,17 +141,15 @@ export default function DocumentsIndex({ documents, matters, filters }: Props) {
                     <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                         <FileText className="h-4 w-4" /> Filter by matter
                     </div>
-                    <Select value={filters.matter_id || '_all'} onValueChange={(v) => setFilter('matter_id', v)}>
-                        <SelectTrigger className="w-64 h-9 rounded-xl">
-                            <SelectValue placeholder="All matters" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="_all">All matters</SelectItem>
-                            {matters.map((m) => (
-                                <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                    <Combobox
+                        options={[{ value: '_all', label: 'All matters', description: 'Show all' }, ...matterComboboxOptions(matters)]}
+                        value={filters.matter_id || '_all'}
+                        onChange={(v) => setFilter('matter_id', v)}
+                        placeholder="All matters"
+                        searchPlaceholder="Type matter name or ref…"
+                        emptyText="No matters found."
+                        className="w-64 h-9"
+                    />
                 </CardContent>
             </Card>
 
@@ -151,87 +163,172 @@ export default function DocumentsIndex({ documents, matters, filters }: Props) {
                         </div>
                     ) : (
                         (() => {
-                            const groups = Object.entries(
-                                documents.data.reduce((acc: Record<string, any[]>, doc: any) => {
-                                    let folder = (doc as any).folder || (doc as any).matter?.name || '';
-                                    if (folder === 'General' || folder === 'GENERAL' || folder === 'GENERAL CASE DOCUMENTS') folder = (doc as any).matter?.name || folder;
-                                    if (!folder) return acc;
-                                    (acc[folder] = acc[folder] || []).push(doc);
-                                    return acc;
-                                }, {} as Record<string, any[]>)
-                            );
-                            if (activeFolder) {
-                                const docs = groups.find(([f]) => f === activeFolder)?.[1] as any[] | undefined;
-                                if (!docs) {
-                                    return (
-                                        <div className="p-6 text-center text-sm text-muted-foreground">
-                                            Folder not found. <button className="text-primary hover:underline" onClick={() => setActiveFolder(null)}>Back to folders</button>
-                                        </div>
-                                    );
+                            // ── Build folder tree from documents ──
+                            // Every doc has a `folder` like "Smith v Jones/Correspondence/Letters"
+                            // We need: top-level = matter folders, then subfolders nested inside.
+                            const allDocs = documents.data as any[];
+
+                            // Collect every unique full folder path
+                            const folderSet = new Set<string>();
+                            allDocs.forEach((doc) => {
+                                const f = doc.folder || doc.matter?.name || '';
+                                if (f && f !== 'General' && f !== 'GENERAL' && f !== 'GENERAL CASE DOCUMENTS') folderSet.add(f);
+                            });
+
+                            // Active path segments
+                            const activeSegments = activeFolder ? activeFolder.split('/') : [];
+
+                            // Documents that live directly in the active folder (not in subfolders)
+                            const docsInFolder = allDocs.filter((doc: any) => {
+                                const f = doc.folder || doc.matter?.name || '';
+                                const normalized = (f === 'General' || f === 'GENERAL' || f === 'GENERAL CASE DOCUMENTS') ? (doc.matter?.name || '') : f;
+                                if (!activeFolder) {
+                                    // Top level: show docs whose folder IS a top-level folder (no nesting)
+                                    return normalized && !normalized.includes('/');
                                 }
+                                return normalized === activeFolder;
+                            });
+
+                            // Direct subfolders of the active folder
+                            const subfolders: { name: string; fullPath: string; count: number }[] = [];
+                            folderSet.forEach((fullPath) => {
+                                if (!activeFolder) {
+                                    // Top level: first segment = top-level folder
+                                    const seg = fullPath.split('/')[0];
+                                    if (seg && fullPath === seg || fullPath.startsWith(seg + '/')) {
+                                        const existing = subfolders.find((s) => s.name === seg);
+                                        if (existing) {
+                                            existing.count++;
+                                        } else {
+                                            subfolders.push({ name: seg, fullPath: seg, count: 1 });
+                                        }
+                                    }
+                                } else {
+                                    // Inside a folder: find direct children
+                                    if (fullPath.startsWith(activeFolder + '/')) {
+                                        const remainder = fullPath.slice(activeFolder.length + 1);
+                                        const childName = remainder.split('/')[0];
+                                        if (childName) {
+                                            const existing = subfolders.find((s) => s.name === childName);
+                                            if (existing) {
+                                                existing.count++;
+                                            } else {
+                                                subfolders.push({ name: childName, fullPath: `${activeFolder}/${childName}`, count: 1 });
+                                            }
+                                        }
+                                    }
+                                }
+                            });
+
+                            // Breadcrumb segments
+                            const breadcrumbs = activeSegments.map((seg, i) => ({
+                                label: seg,
+                                path: activeSegments.slice(0, i + 1).join('/'),
+                            }));
+
+                            if (activeFolder) {
                                 return (
                                     <div>
+                                        {/* Breadcrumb */}
                                         <div className="flex items-center gap-2 px-5 py-3 border-b border-border/60 bg-muted/20 sticky top-0 z-10">
                                             <Button variant="ghost" size="sm" onClick={() => setActiveFolder(null)} className="gap-1.5 h-8 rounded-full">
-                                                <ArrowLeft className="h-4 w-4" /> Back to folders
+                                                <ArrowLeft className="h-4 w-4" /> All matters
                                             </Button>
-                                            <span className="text-muted-foreground">/</span>
-                                            <FolderOpen className="h-4 w-4 text-[#f59e0b]" />
-                                            <span className="text-sm font-semibold truncate">{activeFolder}</span>
-                                            <span className="text-xs bg-card border border-border/60 rounded-full px-2 py-0.5 tabular-nums">{docs.length} file{docs.length !== 1 ? 's' : ''}</span>
-                                        </div>
-                                        <div className="divide-y divide-border/40">
-                                            {docs.map((doc) => (
-                                                <div key={doc.id} className="px-5 py-3.5 flex items-center gap-3 hover:bg-muted/20 transition-colors">
-                                                    <Paperclip className="h-4 w-4 text-muted-foreground shrink-0" />
-                                                    <div className="flex-1 min-w-0">
-                                                        <p className="text-sm font-medium truncate">{doc.name}</p>
-                                                        <p className="text-xs text-muted-foreground truncate">
-                                                            {doc.matter ? (
-                                                                <Link href={`/matters/${doc.matter.id}`} className="hover:text-primary font-medium" onClick={(e) => e.stopPropagation()}>
-                                                                    {doc.matter.name}
-                                                                </Link>
-                                                            ) : (
-                                                                '—'
-                                                            )}
-                                                            {' · '}
-                                                            {(doc as any).uploadedBy?.full_name ?? '—'} · {formatDate(doc.created_at)} · {formatBytes((doc as any).size_bytes ?? (doc as any).size)}
-                                                        </p>
-                                                    </div>
-                                                    <span className={`hidden sm:inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium shrink-0 ${visibilityBadgeStyles[doc.is_client_visible ? 'success' : 'secondary']}`}>
-                                                        {doc.is_client_visible ? 'Client' : 'Internal'}
-                                                    </span>
-                                                    <div className="flex items-center gap-1 shrink-0">
-                                                        <Button variant="ghost" size="icon" className="h-7 w-7" title="View" onClick={() => setViewerDoc(doc as any)}>
-                                                            <Eye className="h-3.5 w-3.5" />
-                                                        </Button>
-                                                        <Button variant="ghost" size="icon" className="h-7 w-7" title="Download" asChild>
-                                                            <a href={`/documents/${doc.id}/download`} download>
-                                                                <Download className="h-3.5 w-3.5" />
-                                                            </a>
-                                                        </Button>
-                                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => handleDelete(doc.id)}>
-                                                            <Trash2 className="h-3.5 w-3.5" />
-                                                        </Button>
-                                                    </div>
-                                                </div>
+                                            {breadcrumbs.map((crumb, i) => (
+                                                <span key={crumb.path} className="flex items-center gap-2">
+                                                    <span className="text-muted-foreground">/</span>
+                                                    <button
+                                                        onClick={() => i === breadcrumbs.length - 1 ? undefined : setActiveFolder(crumb.path)}
+                                                        className={cn(
+                                                            'flex items-center gap-1.5 text-sm font-medium truncate',
+                                                            i === breadcrumbs.length - 1 ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
+                                                        )}
+                                                    >
+                                                        {i === breadcrumbs.length - 1 ? <FolderOpen className="h-4 w-4 text-[#f59e0b]" /> : <Folder className="h-3.5 w-3.5" />}
+                                                        {crumb.label}
+                                                    </button>
+                                                </span>
                                             ))}
+                                            <span className="text-xs bg-card border border-border/60 rounded-full px-2 py-0.5 tabular-nums ml-1">{docsInFolder.length} file{docsInFolder.length !== 1 ? 's' : ''}</span>
                                         </div>
+
+                                        {/* Subfolders */}
+                                        {subfolders.length > 0 && (
+                                            <div className="p-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 border-b border-border/40">
+                                                {subfolders.map((sf) => (
+                                                    <button
+                                                        key={sf.fullPath}
+                                                        type="button"
+                                                        onClick={() => setActiveFolder(sf.fullPath)}
+                                                        className="group flex flex-col items-center gap-2 rounded-xl border border-border/60 bg-card hover:bg-muted/40 hover:border-[#f59e0b]/40 hover:shadow-sm p-5 text-center transition-all"
+                                                    >
+                                                        <Folder className="h-12 w-12 text-[#f59e0b] group-hover:text-[#d97706] transition-colors" />
+                                                        <span className="text-sm font-semibold leading-tight line-clamp-2 break-words w-full">{sf.name}</span>
+                                                        <span className="text-xs text-muted-foreground tabular-nums">{sf.count} folder{sf.count !== 1 ? 's' : ''}</span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        {/* Files in this folder */}
+                                        {docsInFolder.length === 0 && subfolders.length === 0 ? (
+                                            <div className="p-6 text-center text-sm text-muted-foreground">This folder is empty.</div>
+                                        ) : (
+                                            <div className="divide-y divide-border/40">
+                                                {docsInFolder.map((doc: any) => (
+                                                    <div key={doc.id} className="px-5 py-3.5 flex items-center gap-3 hover:bg-muted/20 transition-colors">
+                                                        <Paperclip className="h-4 w-4 text-muted-foreground shrink-0" />
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="text-sm font-medium truncate">{doc.name}</p>
+                                                            <p className="text-xs text-muted-foreground truncate">
+                                                                {doc.matter ? (
+                                                                    <Link href={`/matters/${doc.matter.id}`} className="hover:text-primary font-medium" onClick={(e) => e.stopPropagation()}>
+                                                                        {doc.matter.name}
+                                                                    </Link>
+                                                                ) : (
+                                                                    '—'
+                                                                )}
+                                                                {' · '}
+                                                                {doc.uploadedBy?.full_name ?? '—'} · {formatDate(doc.created_at)} · {formatBytes(doc.size_bytes ?? doc.size)}
+                                                            </p>
+                                                        </div>
+                                                        <span className={`hidden sm:inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium shrink-0 ${visibilityBadgeStyles[doc.is_client_visible ? 'success' : 'secondary']}`}>
+                                                            {doc.is_client_visible ? 'Client' : 'Internal'}
+                                                        </span>
+                                                        <div className="flex items-center gap-1 shrink-0">
+                                                            <Button variant="ghost" size="icon" className="h-7 w-7" title="View" onClick={() => setViewerDoc(doc)}>
+                                                                <Eye className="h-3.5 w-3.5" />
+                                                            </Button>
+                                                            <Button variant="ghost" size="icon" className="h-7 w-7" title="Download" asChild>
+                                                                <a href={`/documents/${doc.id}/download`} download>
+                                                                    <Download className="h-3.5 w-3.5" />
+                                                                </a>
+                                                            </Button>
+                                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => handleDelete(doc.id)}>
+                                                                <Trash2 className="h-3.5 w-3.5" />
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
                                 );
                             }
+
+                            // ── Top-level: show only matter folders ──
                             return (
                                 <div className="p-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                                    {groups.map(([folder, docs]) => (
+                                    {subfolders.map((sf) => (
                                         <button
-                                            key={folder}
+                                            key={sf.fullPath}
                                             type="button"
-                                            onClick={() => setActiveFolder(folder)}
+                                            onClick={() => setActiveFolder(sf.fullPath)}
                                             className="group flex flex-col items-center gap-2 rounded-xl border border-border/60 bg-card hover:bg-muted/40 hover:border-[#f59e0b]/40 hover:shadow-sm p-5 text-center transition-all"
                                         >
                                             <Folder className="h-12 w-12 text-[#f59e0b] group-hover:text-[#d97706] transition-colors" />
-                                            <span className="text-sm font-semibold leading-tight line-clamp-2 break-words w-full">{folder}</span>
-                                            <span className="text-xs text-muted-foreground tabular-nums">{(docs as any[]).length} file{(docs as any[]).length !== 1 ? 's' : ''}</span>
+                                            <span className="text-sm font-semibold leading-tight line-clamp-2 break-words w-full">{sf.name}</span>
+                                            <span className="text-xs text-muted-foreground tabular-nums">{sf.count} file{sf.count !== 1 ? 's' : ''}</span>
                                         </button>
                                     ))}
                                 </div>
@@ -282,34 +379,40 @@ export default function DocumentsIndex({ documents, matters, filters }: Props) {
                     <div className="space-y-4 min-w-0">
                         <div className="space-y-2 min-w-0">
                             <Label>Matter *</Label>
-                            <Select
+                            <Combobox
+                                options={matterComboboxOptions(matters)}
                                 value={uploadMatterId}
-                                onValueChange={setUploadMatterId}
+                                onChange={setUploadMatterId}
+                                placeholder="Search matters…"
+                                searchPlaceholder="Type matter name or ref…"
+                                emptyText="No matters found."
                                 disabled={uploadQueue.total > 0}
-                            >
-                                <SelectTrigger className="w-full min-w-0 [&>span]:truncate"><SelectValue placeholder="Select a matter…" /></SelectTrigger>
-                                <SelectContent className="max-w-[90vw] sm:max-w-lg">
-                                    {matters.map((m) => (
-                                        <SelectItem key={m.id} value={m.id} className="whitespace-normal break-words line-clamp-2" title={m.name}>{m.name}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            />
                         </div>
                         <div className="space-y-2 min-w-0">
                             <Label>Folder</Label>
                             <div className="rounded-lg bg-muted/30 border border-border/40 px-3 py-2.5 flex items-start gap-2 text-sm min-w-0">
                                 <Folder className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-                                <span className="min-w-0 flex-1 break-words line-clamp-2" title={uploadMatterId ? (matters.find((m) => m.id === uploadMatterId)?.name || 'General') : 'Select a matter first'}>Default: <span className="font-mono font-medium break-all">{uploadMatterId ? (matters.find((m) => m.id === uploadMatterId)?.name || 'General') : 'Select a matter first'}</span></span>
+                                <span className="min-w-0 flex-1 break-words line-clamp-2" title={activeFolder || (uploadMatterId ? (matters.find((m) => m.id === uploadMatterId)?.name || 'General') : 'Select a matter first')}>Default: <span className="font-mono font-medium break-all">{activeFolder || (uploadMatterId ? (matters.find((m) => m.id === uploadMatterId)?.name || 'General') : 'Select a matter first')}</span></span>
                             </div>
                             <Input className="truncate" placeholder="Create subfolder (optional) — e.g. Correspondence" value={uploadFolder} onChange={(e) => setUploadFolder(e.target.value)} disabled={!uploadMatterId || uploadQueue.total > 0} />
                             {(() => {
                                 if (!uploadMatterId) return <p className="text-xs text-muted-foreground">Choose a matter to see default folder.</p>;
-                                if (!uploadFolder.trim()) return <p className="text-xs text-muted-foreground">Leave empty to use default. New names become subfolders inside the matter.</p>;
-                                const base = matters.find((m) => m.id === uploadMatterId)?.name?.trim() || uploadFolder.split('/')[0];
-                                const raw = uploadFolder.trim();
-                                const isDefault = raw === base || raw === 'General' || raw === 'GENERAL' || raw === 'GENERAL CASE DOCUMENTS' || raw.startsWith(base + '/');
-                                const display = isDefault ? raw || base : `${base}/${raw}`;
-                                return isDefault ? <p className="text-xs text-muted-foreground break-all whitespace-normal line-clamp-2" title={display}>Will save inside <span className="font-mono break-all">{display}</span>.</p> : <p className="text-xs text-primary font-medium break-all whitespace-normal line-clamp-2" title={display}>Will be created as: <span className="font-mono break-all">{display}</span></p>;
+                                const matterName = matters.find((m) => m.id === uploadMatterId)?.name?.trim() || '';
+                                const userFolder = uploadFolder.trim();
+                                if (!userFolder && !activeFolder) return <p className="text-xs text-muted-foreground">Leave empty to use default. New names become subfolders inside the matter.</p>;
+                                let fullPath: string;
+                                if (activeFolder && userFolder && !userFolder.includes('/')) {
+                                    fullPath = `${activeFolder}/${userFolder}`;
+                                } else if (userFolder) {
+                                    fullPath = userFolder;
+                                } else {
+                                    fullPath = activeFolder || matterName;
+                                }
+                                const isNew = fullPath !== activeFolder;
+                                return isNew
+                                    ? <p className="text-xs text-primary font-medium break-all whitespace-normal line-clamp-2" title={fullPath}>Will be created as: <span className="font-mono break-all">{fullPath}</span></p>
+                                    : <p className="text-xs text-muted-foreground break-all whitespace-normal line-clamp-2" title={fullPath}>Will save inside <span className="font-mono break-all">{fullPath}</span>.</p>;
                             })()}
                         </div>
                         <label className={cn('flex items-center gap-2', uploadQueue.total > 0 ? 'cursor-not-allowed opacity-60' : 'cursor-pointer')}>
@@ -326,13 +429,32 @@ export default function DocumentsIndex({ documents, matters, filters }: Props) {
                             <Label>
                                 Files * <span className="text-muted-foreground font-normal">(max 20 MB each)</span>
                             </Label>
-                            <Input
-                                ref={fileRef}
-                                type="file"
-                                multiple
-                                disabled={!uploadMatterId}
-                                onChange={(e) => handleFilesChosen(e.target.files)}
-                            />
+                            <label
+                                className={cn(
+                                    'flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-6 text-center transition-all',
+                                    !uploadMatterId
+                                        ? 'cursor-not-allowed border-border/40 bg-muted/30 opacity-50'
+                                        : 'cursor-pointer border-primary/30 bg-primary/[0.03] hover:border-primary/60 hover:bg-primary/[0.06]',
+                                )}
+                            >
+                                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+                                    <Upload className="h-5 w-5 text-primary" />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-semibold text-foreground">
+                                        {uploadQueue.total > 0 ? 'Add more files' : 'Click to browse files'}
+                                    </p>
+                                    <p className="mt-0.5 text-xs text-muted-foreground">or drag and drop</p>
+                                </div>
+                                <Input
+                                    ref={fileRef}
+                                    type="file"
+                                    multiple
+                                    disabled={!uploadMatterId}
+                                    onChange={(e) => handleFilesChosen(e.target.files)}
+                                    className="hidden"
+                                />
+                            </label>
                             {!uploadMatterId && (
                                 <p className="text-xs text-muted-foreground">Choose a matter first.</p>
                             )}

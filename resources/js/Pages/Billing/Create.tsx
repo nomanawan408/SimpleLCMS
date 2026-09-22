@@ -67,8 +67,8 @@ export default function CreateInvoice({ matters, unbilledTime, unbilledExpenses,
         const labelClient = clients.length ? clients.map(c => (c as any).full_name || c.name).join(', ') : ((m.contacts?.[0] as any)?.full_name ?? m.contacts?.[0]?.name ?? '');
         return {
             value: m.id,
-            label: `${m.matter_number} — ${m.name}`,
-            description: labelClient || m.matter_number,
+            label: m.name,
+            description: labelClient ? `${m.matter_number} · ${labelClient}` : m.matter_number,
         };
     }), [matters]);
 

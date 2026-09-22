@@ -11,9 +11,10 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Combobox } from '@/components/ui/combobox';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
-import { cn, formatCurrency, formatDate, formatTime, hasPermission } from '@/lib/utils';
+import { cn, formatCurrency, formatDate, formatTime, hasPermission, matterComboboxOptions } from '@/lib/utils';
 import { Clock, LogIn, LogOut, Plus, Pencil, Trash2, Receipt, TrendingUp, AlertCircle, CheckCircle2, Timer, PoundSterling, X, CalendarDays, FileText, Search, SlidersHorizontal } from 'lucide-react';
 import type { PageProps, PaginatedData, TimeEntry } from '@/types';
 
@@ -586,22 +587,24 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-x-6">
                             <div className="flex-1 min-w-0 sm:max-w-[320px] flex flex-col">
                                 <Label className="block text-xs font-semibold text-foreground mb-1.5 tracking-wide">Matter *</Label>
-                                <Select value={checkInForm.matter_id || '_none'} onValueChange={(v) => {
-                                    const id = v === '_none' ? '' : v;
-                                    const rate = id ? getMatterRate(matters, id, defaultRate) : defaultRate;
-                                    setCheckInForm((p) => ({ ...p, matter_id: id, rate: String(rate) }));
-                                }}>
-                                    <SelectTrigger className="h-11 rounded-lg border-border/60 bg-background w-full"><SelectValue placeholder="Select matter..." /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="_none">Select matter...</SelectItem>
-                                        {matters.map((m) => (
-                                            <SelectItem key={m.id} value={m.id}>
-                                                {m.matter_number} — {m.name}
-                                                {m.custom_fields?.hourly_rate && ` · £${m.custom_fields.hourly_rate}/h`}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                <Combobox
+                                    options={matters.map((m) => ({
+                                        value: m.id,
+                                        label: m.name,
+                                        description: m.custom_fields?.hourly_rate
+                                            ? `${m.matter_number} · £${m.custom_fields.hourly_rate}/h`
+                                            : m.matter_number,
+                                    }))}
+                                    value={checkInForm.matter_id}
+                                    onChange={(v) => {
+                                        const rate = v ? getMatterRate(matters, v, defaultRate) : defaultRate;
+                                        setCheckInForm((p) => ({ ...p, matter_id: v, rate: String(rate) }));
+                                    }}
+                                    placeholder="Search matters…"
+                                    searchPlaceholder="Type matter name or ref…"
+                                    emptyText="No matters found."
+                                    className="h-11"
+                                />
                                 {checkInForm.matter_id && (() => {
                                     const m = matters.find((x) => x.id === checkInForm.matter_id);
                                     return m?.fee_arrangement ? (
@@ -703,13 +706,15 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
                         </div>
                         <div className="min-w-[165px] space-y-1">
                             <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Matter</Label>
-                            <Select value={filters.matter_id || '_all'} onValueChange={(v) => setFilter('matter_id', v)}>
-                                <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="All matters" /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="_all">All matters</SelectItem>
-                                    {matters.map((m) => <SelectItem key={m.id} value={m.id}>{m.matter_number} — {m.name}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
+                            <Combobox
+                                options={[{ value: '_all', label: 'All matters', description: 'Show all' }, ...matterComboboxOptions(matters)]}
+                                value={filters.matter_id || '_all'}
+                                onChange={(v) => setFilter('matter_id', v)}
+                                placeholder="All matters"
+                                searchPlaceholder="Type matter name or ref…"
+                                emptyText="No matters found."
+                                className="h-8 text-sm"
+                            />
                         </div>
                         <div className="min-w-[145px] space-y-1">
                             <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Activity</Label>
@@ -1055,20 +1060,23 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
                         <div className="grid grid-cols-2 gap-4">
                             <div className="col-span-2 space-y-2">
                                 <Label>Matter *</Label>
-                                <Select value={form.matter_id} onValueChange={(v) => {
-                                    const rate = v ? getMatterRate(matters, v, defaultRate) : defaultRate;
-                                    setForm((p) => ({ ...p, matter_id: v, rate: String(rate) }));
-                                }}>
-                                    <SelectTrigger className="h-10"><SelectValue placeholder="Select matter" /></SelectTrigger>
-                                    <SelectContent>
-                                        {matters.map((m) => (
-                                            <SelectItem key={m.id} value={m.id}>
-                                                {m.matter_number} — {m.name}
-                                                {m.custom_fields?.hourly_rate && ` · £${m.custom_fields.hourly_rate}/h`}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                <Combobox
+                                    options={matters.map((m) => ({
+                                        value: m.id,
+                                        label: m.name,
+                                        description: m.custom_fields?.hourly_rate
+                                            ? `${m.matter_number} · £${m.custom_fields.hourly_rate}/h`
+                                            : m.matter_number,
+                                    }))}
+                                    value={form.matter_id}
+                                    onChange={(v) => {
+                                        const rate = v ? getMatterRate(matters, v, defaultRate) : defaultRate;
+                                        setForm((p) => ({ ...p, matter_id: v, rate: String(rate) }));
+                                    }}
+                                    placeholder="Search matters…"
+                                    searchPlaceholder="Type matter name or ref…"
+                                    emptyText="No matters found."
+                                />
                                 {form.matter_id && (() => {
                                     const m = matters.find((x) => x.id === form.matter_id);
                                     return m?.fee_arrangement ? (

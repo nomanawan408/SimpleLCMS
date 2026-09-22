@@ -8,7 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { formatCurrency, formatDate, isOverdueDate, cn } from '@/lib/utils';
+import { Combobox } from '@/components/ui/combobox';
+import { formatCurrency, formatDate, isOverdueDate, cn, matterComboboxOptions } from '@/lib/utils';
 import { Plus, Search, FileText, AlertCircle, CheckCircle, Clock, X, Filter, Calendar, Briefcase, User } from 'lucide-react';
 import type { Invoice, PaginatedData } from '@/types';
 
@@ -183,13 +184,15 @@ export default function BillingIndex({ invoices, stats, filters, filterOptions }
                                 <SelectItem value="paid">Paid</SelectItem><SelectItem value="written_off">Written Off</SelectItem><SelectItem value="cancelled">Cancelled</SelectItem>
                             </SelectContent>
                         </Select>
-                        <Select value={matterId} onValueChange={handleMatterChange}>
-                            <SelectTrigger className="h-9 rounded-xl"><span className="flex items-center gap-1.5"><Briefcase className="h-3.5 w-3.5 text-muted-foreground" /> <SelectValue placeholder="All matters" /></span></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">All matters</SelectItem>
-                                {filterOptions.matters.map(m => <SelectItem key={m.id} value={m.id}>{m.matter_number} — {m.name}</SelectItem>)}
-                            </SelectContent>
-                        </Select>
+                        <Combobox
+                            options={[{ value: 'all', label: 'All matters', description: 'Show all' }, ...matterComboboxOptions(filterOptions.matters)]}
+                            value={matterId}
+                            onChange={handleMatterChange}
+                            placeholder="All matters"
+                            searchPlaceholder="Type matter name or ref…"
+                            emptyText="No matters found."
+                            className="h-9 w-52"
+                        />
                         <Select value={userId} onValueChange={handleUserChange}>
                             <SelectTrigger className="h-9 rounded-xl"><span className="flex items-center gap-1.5"><User className="h-3.5 w-3.5 text-muted-foreground" /> <SelectValue placeholder="All users" /></span></SelectTrigger>
                             <SelectContent>

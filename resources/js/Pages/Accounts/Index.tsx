@@ -8,7 +8,8 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { cn, formatCurrency, formatDate } from '@/lib/utils';
+import { Combobox } from '@/components/ui/combobox';
+import { cn, formatCurrency, formatDate, matterComboboxOptions } from '@/lib/utils';
 import {
     ArrowDownCircle, ArrowUpCircle, Wallet, Landmark, Users, BookOpen,
     Building2, CreditCard, Hash, Globe, FileText, Mail, Phone, UserCircle,
@@ -42,7 +43,7 @@ interface Props {
     summary: { total_receipts: number; total_disbursements: number; balance: number };
     firmAccount: FirmAccount;
     clientAccounts: ClientAccount[];
-    matters: { id: string; name: string }[];
+    matters: { id: string; name: string; matter_number: string }[];
     filters: { matter_id?: string };
 }
 
@@ -331,17 +332,15 @@ export default function AccountsIndex({ entries, summary, firmAccount, clientAcc
 
                     {/* Filter */}
                     <div className="flex items-center gap-3">
-                        <Select value={filters.matter_id || '_all'} onValueChange={(v) => setFilter('matter_id', v)}>
-                            <SelectTrigger className="w-52 h-9">
-                                <SelectValue placeholder="All matters" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="_all">All matters</SelectItem>
-                                {matters.map((m) => (
-                                    <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <Combobox
+                            options={[{ value: '_all', label: 'All matters', description: 'Show all' }, ...matterComboboxOptions(matters)]}
+                            value={filters.matter_id || '_all'}
+                            onChange={(v) => setFilter('matter_id', v)}
+                            placeholder="All matters"
+                            searchPlaceholder="Type matter name or ref…"
+                            emptyText="No matters found."
+                            className="w-52 h-9"
+                        />
                     </div>
 
                     <Card>

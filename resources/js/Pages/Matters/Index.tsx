@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { getDateUrgency } from '@/components/ui/urgency-dot';
 import { daysUntilDate, formatDate, isOverdueDate, splitDateTime, MATTER_STATUS_LABELS, MATTER_PRIORITY_LABELS, MATTER_PRIORITY_STYLES, PRACTICE_AREA_LABELS } from '@/lib/utils';
 import { UserAvatar } from '@/components/ui/user-avatar';
-import { Plus, Search, X, Calendar, Clock, ListTodo, Briefcase, Flag } from 'lucide-react';
+import { Plus, Search, X, Calendar, Clock, ListTodo, Briefcase, Flag, Trash2 } from 'lucide-react';
 import type { Matter, PaginatedData } from '@/types';
 
 interface Props {
@@ -95,6 +95,30 @@ export default function MattersIndex({ matters, filters, counts, tablePreference
     const [hearingDate, setHearingDate] = useState('');
     const [hearingTime, setHearingTime] = useState('');
     const [hearingSaving, setHearingSaving] = useState(false);
+    const [hearingList, setHearingList] = useState<{ id: string; title: string; start_at: string; end_at: string | null }[]>([]);
+    const [hearingLoading, setHearingLoading] = useState(false);
+
+    // A matter can hold several upcoming hearings: the dialog lists them
+    // all (with per-item delete) and the form below always ADDS a new one.
+    function openHearingManager(matter: Matter) {
+        setEditingHearing(matter);
+        setHearingDate('');
+        setHearingTime('');
+        setHearingList([]);
+        setHearingLoading(true);
+        fetch(`/matters/${matter.id}/hearing-dates`, { headers: { Accept: 'application/json' } })
+            .then((res) => res.json())
+            .then((data) => setHearingList(data.hearings ?? []))
+            .catch(() => setHearingList([]))
+            .finally(() => setHearingLoading(false));
+    }
+
+    function refreshHearingList(matter: Matter) {
+        fetch(`/matters/${matter.id}/hearing-dates`, { headers: { Accept: 'application/json' } })
+            .then((res) => res.json())
+            .then((data) => setHearingList(data.hearings ?? []))
+            .catch(() => {});
+    }
     const [editingDeadline, setEditingDeadline] = useState<Matter | null>(null);
     const [deadlineDate, setDeadlineDate] = useState('');
     const [deadlineTime, setDeadlineTime] = useState('');
@@ -261,16 +285,14 @@ export default function MattersIndex({ matters, filters, counts, tablePreference
             id: 'hearing_date', header: 'Hearing Date', defaultWidth: 170, minWidth: 140, maxWidth: 240,
             cell: (matter) => {
                 const [, time] = splitDateTime(matter.hearing_date);
+                const extraCount = Math.max(0, ((matter as any).calendar_events?.length ?? 0) - 1);
                 return (
                     <button
                         className="inline-flex items-center gap-1.5 whitespace-nowrap text-sm text-muted-foreground transition-colors hover:text-primary"
-                        title={matter.hearing_date ? `${formatDate(matter.hearing_date)}${time ? ` · ${time}` : ''} — click to edit` : 'Set hearing date and time'}
+                        title={matter.hearing_date ? `${formatDate(matter.hearing_date)}${time ? ` · ${time}` : ''}${extraCount > 0 ? ` (+${extraCount} more)` : ''} — click to manage` : 'Set hearing date and time'}
                         onClick={(e) => {
                             e.stopPropagation();
-                            setEditingHearing(matter);
-                            const [d, t] = splitDateTime(matter.hearing_date);
-                            setHearingDate(d);
-                            setHearingTime(t);
+                            openHearingManager(matter);
                         }}
                     >
                         <Calendar className="h-3.5 w-3.5 shrink-0" />
@@ -278,6 +300,9 @@ export default function MattersIndex({ matters, filters, counts, tablePreference
                             <span className="font-medium tabular-nums text-foreground">
                                 {formatDate(matter.hearing_date)}
                                 {time && <span className="ml-1.5 font-normal text-muted-foreground">{time}</span>}
+                                {extraCount > 0 && (
+                                    <span className="ml-1.5 rounded-full bg-primary/10 px-1.5 py-0.5 text-[11px] font-semibold text-primary">+{extraCount}</span>
+                                )}
                             </span>
                         ) : 'Set date'}
                     </button>
@@ -555,7 +580,7 @@ export default function MattersIndex({ matters, filters, counts, tablePreference
                             </div>
                         </div>
                         <p className="text-xs text-muted-foreground">
-                            This updates the due date on the next open task for this matter. Time defaults to 17:00 when left empty.
+                            This updates the due date on the next open task for this matter. Time defaults to 16:00 when left empty.
                         </p>
                     </div>
                     <DialogFooter className="gap-2">
@@ -598,17 +623,61 @@ export default function MattersIndex({ matters, filters, counts, tablePreference
 
             {/* Hearing Date Dialog */}
             <Dialog open={!!editingHearing} onOpenChange={(open) => { if (!open) setEditingHearing(null); }}>
-                <DialogContent className="max-w-sm">
+                <DialogContent className="max-w-md">
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
                             <Calendar className="h-5 w-5 text-primary" />
-                            Hearing Date
+                            Hearing Dates
                         </DialogTitle>
                         <DialogDescription>
-                            {editingHearing?.name}
+                            {editingHearing?.name} — a matter can hold several upcoming hearings.
                         </DialogDescription>
                     </DialogHeader>
-                    <div className="space-y-3 py-2">
+                    <div className="space-y-2 py-2">
+                        {hearingLoading ? (
+                            <p className="py-4 text-center text-sm text-muted-foreground">Loading hearings…</p>
+                        ) : hearingList.length === 0 ? (
+                            <p className="rounded-lg border border-dashed border-border bg-muted/30 px-3 py-4 text-center text-sm text-muted-foreground">
+                                No upcoming hearings. Add the first one below.
+                            </p>
+                        ) : (
+                            hearingList.map((h) => {
+                                const [d, t] = splitDateTime(h.start_at);
+                                return (
+                                    <div key={h.id} className="flex items-center gap-3 rounded-lg border border-border/60 px-3 py-2">
+                                        <Calendar className="h-4 w-4 shrink-0 text-primary" />
+                                        <div className="min-w-0 flex-1">
+                                            <p className="text-sm font-medium tabular-nums text-foreground">
+                                                {formatDate(d)}{t && <span className="ml-1.5 font-normal text-muted-foreground">{t}</span>}
+                                            </p>
+                                        </div>
+                                        <Button
+                                            variant="ghost" size="sm"
+                                            className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                                            title="Remove this hearing"
+                                            disabled={hearingSaving}
+                                            onClick={() => {
+                                                if (!editingHearing) return;
+                                                setHearingSaving(true);
+                                                router.delete(`/matters/${editingHearing.id}/hearing-dates/${h.id}`, {
+                                                    preserveScroll: true,
+                                                    preserveState: true,
+                                                    onFinish: () => {
+                                                        setHearingSaving(false);
+                                                        refreshHearingList(editingHearing);
+                                                    },
+                                                });
+                                            }}
+                                        >
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                        </Button>
+                                    </div>
+                                );
+                            })
+                        )}
+                    </div>
+                    <div className="space-y-3 border-t border-border/60 pt-4">
+                        <p className="text-sm font-semibold text-foreground">Add another hearing</p>
                         <div className="grid grid-cols-2 gap-3">
                             <div className="space-y-1.5">
                                 <Label htmlFor="hearing_date">Date</Label>
@@ -634,38 +703,28 @@ export default function MattersIndex({ matters, filters, counts, tablePreference
                         </p>
                     </div>
                     <DialogFooter className="gap-2">
-                        {editingHearing?.hearing_date && (
-                            <Button variant="outline" className="text-destructive hover:text-destructive" disabled={hearingSaving} onClick={() => {
-                                    setHearingSaving(true);
-                                    router.put(`/matters/${editingHearing.id}/hearing-date`, {
-                                        hearing_date: null,
-                                    }, {
-                                        preserveScroll: true,
-                                        preserveState: true,
-                                        onFinish: () => { setHearingSaving(false); setEditingHearing(null); },
-                                    });
-                                }}
-                            >
-                                Clear Date
-                            </Button>
-                        )}
                         <Button variant="outline" onClick={() => setEditingHearing(null)} disabled={hearingSaving}>
-                            Cancel
+                            Done
                         </Button>
                         <Button disabled={!hearingDate || hearingSaving} onClick={() => {
                                 if (!editingHearing) return;
                                 setHearingSaving(true);
-                                router.put(`/matters/${editingHearing.id}/hearing-date`, {
+                                router.post(`/matters/${editingHearing.id}/hearing-dates`, {
                                     hearing_date: hearingDate,
                                     hearing_time: hearingTime || undefined,
                                 }, {
                                     preserveScroll: true,
                                     preserveState: true,
-                                    onFinish: () => { setHearingSaving(false); setEditingHearing(null); },
+                                    onFinish: () => {
+                                        setHearingSaving(false);
+                                        setHearingDate('');
+                                        setHearingTime('');
+                                        refreshHearingList(editingHearing);
+                                    },
                                 });
                             }}
                         >
-                            {hearingSaving ? 'Saving…' : 'Save'}
+                            {hearingSaving ? 'Adding…' : 'Add Hearing'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
