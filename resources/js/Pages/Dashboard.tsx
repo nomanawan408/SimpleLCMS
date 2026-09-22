@@ -96,29 +96,29 @@ function KpiCard({ kpi }: { kpi: KpiCard }) {
 
     return (
         <Link href={kpi.href} className="group block">
-            <div className={`relative h-full overflow-hidden rounded-2xl border border-border/40 bg-white transition-all duration-300 ${cfg.hoverBorder} hover:shadow-[0_8px_30px_-8px_rgba(0,0,0,0.08)]`}>
+            <div className={`relative h-full overflow-hidden rounded-xl border border-border/40 bg-white transition-all duration-300 ${cfg.hoverBorder} hover:shadow-[0_8px_30px_-8px_rgba(0,0,0,0.08)]`}>
                 {/* Left accent strip */}
-                <div className={`absolute left-0 top-0 h-full w-1 ${cfg.strip} rounded-l-2xl`} />
+                <div className={`absolute left-0 top-0 h-full w-1 ${cfg.strip} rounded-l-xl`} />
 
                 {/* Subtle background glow */}
-                <div className={`absolute -right-6 -top-6 h-24 w-24 rounded-full ${cfg.valueGlow} blur-2xl transition-opacity duration-300 opacity-0 group-hover:opacity-100`} />
+                <div className={`absolute -right-6 -top-6 h-20 w-20 rounded-full ${cfg.valueGlow} blur-2xl transition-opacity duration-300 opacity-0 group-hover:opacity-100`} />
 
-                <div className="relative flex items-center gap-4 pl-5 pr-5 py-5">
+                <div className="relative flex items-center gap-3 pl-4 pr-4 py-3.5">
                     {/* Icon */}
-                    <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${cfg.iconBg} transition-transform duration-300 group-hover:scale-105`}>
+                    <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${cfg.iconBg} transition-transform duration-300 group-hover:scale-105`}>
                         {kpi.tone === 'warning' ? (
-                            <AlertTriangle className={`h-5 w-5 ${cfg.iconText}`} />
+                            <AlertTriangle className={`h-4 w-4 ${cfg.iconText}`} />
                         ) : (
-                            <kpi.icon className={`h-5 w-5 ${cfg.iconText}`} />
+                            <kpi.icon className={`h-4 w-4 ${cfg.iconText}`} />
                         )}
                     </div>
 
                     {/* Value & label */}
                     <div className="min-w-0">
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground/70">{kpi.label}</p>
-                        <p className="mt-1.5 text-[1.75rem] font-bold leading-none tracking-[-0.03em] tabular-nums text-foreground">{kpi.value}</p>
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.07em] text-muted-foreground">{kpi.label}</p>
+                        <p className="mt-1 text-xl font-bold leading-none tracking-[-0.03em] tabular-nums text-foreground">{kpi.value}</p>
                         {kpi.sublabel && (
-                            <p className="mt-1 text-[11px] text-muted-foreground/60">{kpi.sublabel}</p>
+                            <p className="mt-0.5 text-[10px] text-muted-foreground/70">{kpi.sublabel}</p>
                         )}
                     </div>
                 </div>
@@ -141,15 +141,15 @@ function FinancialCard({ href, icon: Icon, label, value, color }: {
     }[color];
 
     return (
-        <Link href={href} className={`group relative overflow-hidden rounded-2xl border border-border/40 bg-white p-4 transition-all duration-300 ${colors.hover} hover:shadow-[0_8px_30px_-8px_rgba(0,0,0,0.08)]`}>
-            <div className={`absolute left-0 top-0 h-full w-1 ${colors.strip} rounded-l-2xl`} />
-            <div className="flex items-center gap-3.5 pl-3">
-                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${colors.iconBg} transition-transform duration-300 group-hover:scale-105`}>
-                    <Icon className={`h-[18px] w-[18px] ${colors.iconText}`} />
+        <Link href={href} className={`group relative overflow-hidden rounded-xl border border-border/40 bg-white p-3.5 transition-all duration-300 ${colors.hover} hover:shadow-[0_8px_30px_-8px_rgba(0,0,0,0.08)]`}>
+            <div className={`absolute left-0 top-0 h-full w-1 ${colors.strip} rounded-l-xl`} />
+            <div className="flex items-center gap-3 pl-3">
+                <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${colors.iconBg} transition-transform duration-300 group-hover:scale-105`}>
+                    <Icon className={`h-4 w-4 ${colors.iconText}`} />
                 </div>
                 <div className="min-w-0">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground/70">{label}</p>
-                    <p className="mt-1 text-xl font-bold tracking-[-0.03em] tabular-nums text-foreground">{value}</p>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.07em] text-muted-foreground">{label}</p>
+                    <p className="mt-1 text-lg font-bold tracking-[-0.03em] tabular-nums text-foreground">{value}</p>
                 </div>
             </div>
         </Link>
@@ -266,7 +266,12 @@ export default function Dashboard({ stats, viewFinancial, recentMatters, upcomin
                         ) : (
                             <div className="divide-y divide-border/40">
                                 {upcomingTasks.map((task) => (
-                                    <div key={task.id} className="group flex items-center gap-3 px-6 py-4 transition-all duration-200 hover:bg-primary/[0.02]">
+                                    <Link
+                                        key={task.id}
+                                        href={task.matter_id ? `/matters/${task.matter_id}?tab=tasks&task=${task.id}` : '/tasks'}
+                                        title={task.matter_id ? `Open in matter tasks: ${task.title}` : 'Open tasks'}
+                                        className="group flex cursor-pointer items-center gap-3 px-6 py-4 transition-all duration-200 hover:bg-primary/[0.02]"
+                                    >
                                         <span className={`h-2.5 w-2.5 shrink-0 rounded-full transition-transform duration-200 group-hover:scale-125 ${task.priority === 'high' ? 'bg-destructive' : task.priority === 'medium' ? 'bg-amber-400' : 'bg-muted-foreground/30'}`} />
                                         <div className="min-w-0 flex-1">
                                             <p className="truncate text-sm font-semibold text-foreground">{task.title}</p>
@@ -276,7 +281,7 @@ export default function Dashboard({ stats, viewFinancial, recentMatters, upcomin
                                             </div>
                                         </div>
                                         <Badge variant={task.priority === 'high' ? 'destructive' : task.priority === 'medium' ? 'warning' : 'secondary'} className="shrink-0 rounded-md text-[11px] font-semibold capitalize">{task.priority}</Badge>
-                                    </div>
+                                    </Link>
                                 ))}
                             </div>
                         )}

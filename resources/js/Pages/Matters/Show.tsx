@@ -372,6 +372,26 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
 
     const [tab, setTabState] = useState<string>(getTabFromLocation);
 
+    // Deep link from dashboard widgets etc: ?tab=tasks&task=<id> scrolls
+    // straight to the task row and flashes it so it can't be missed.
+    const highlightTaskId = typeof window !== 'undefined'
+        ? new URL(window.location.href).searchParams.get('task')
+        : null;
+
+    // Temporary flash: highlights the deep-linked task for a few seconds,
+    // then fades so the list returns to normal.
+    const [flashTaskId, setFlashTaskId] = useState<string | null>(highlightTaskId);
+
+    useEffect(() => {
+        if (tab !== 'tasks' || !highlightTaskId) return;
+        setFlashTaskId(highlightTaskId);
+        const scroll = setTimeout(() => {
+            document.getElementById(`task-row-${highlightTaskId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 120);
+        const hide = setTimeout(() => setFlashTaskId(null), 4000);
+        return () => { clearTimeout(scroll); clearTimeout(hide); };
+    }, [tab, highlightTaskId]);
+
     useEffect(() => {
         const onPopState = () => setTabState(getTabFromLocation());
         window.addEventListener('popstate', onPopState);
@@ -1836,7 +1856,14 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                     <CardContent className="p-0">
                                         <div className="divide-y divide-border/50">
                                             {group.map((task: any) => (
-                                                <div key={task.id} className="px-5 py-3 flex items-center gap-3 hover:bg-muted/20 transition-colors">
+                                                <div
+                                                    key={task.id}
+                                                    id={`task-row-${task.id}`}
+                                                    className={cn(
+                                                        'px-5 py-3 flex items-center gap-3 hover:bg-muted/20 transition-all duration-500 scroll-mt-24',
+                                                        flashTaskId === task.id && 'rounded-lg ring-2 ring-primary bg-primary/5',
+                                                    )}
+                                                >
                                                     <span className={cn('h-2 w-2 rounded-full shrink-0', {
                                                         'bg-destructive': task.priority === 'high',
                                                         'bg-warning': task.priority === 'medium',
