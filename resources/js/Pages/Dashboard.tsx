@@ -41,7 +41,7 @@ interface KpiCard {
     value: string;
     href: string;
     icon: React.ComponentType<{ className?: string }>;
-    tone: 'primary' | 'ink' | 'violet' | 'warning';
+    tone: 'primary' | 'ink' | 'violet' | 'warning' | 'blue' | 'lime';
     sublabel?: string;
 }
 
@@ -67,31 +67,45 @@ const statusColors: Record<string, 'default' | 'success' | 'warning' | 'destruct
 const toneConfig = {
     primary: {
         strip: 'bg-primary',
-        iconBg: 'bg-primary/8',
+        iconBg: 'bg-primary/15',
         iconText: 'text-primary',
         valueGlow: 'bg-primary/5',
         hoverBorder: 'hover:border-primary/25',
     },
     ink: {
         strip: 'bg-slate-500',
-        iconBg: 'bg-slate-500/8',
+        iconBg: 'bg-slate-500/15',
         iconText: 'text-slate-600',
         valueGlow: 'bg-slate-500/5',
         hoverBorder: 'hover:border-slate-300',
     },
     violet: {
         strip: 'bg-violet-500',
-        iconBg: 'bg-violet-500/8',
+        iconBg: 'bg-violet-500/15',
         iconText: 'text-violet-600',
         valueGlow: 'bg-violet-500/5',
         hoverBorder: 'hover:border-violet-300',
     },
     warning: {
         strip: 'bg-amber-500',
-        iconBg: 'bg-amber-500/8',
+        iconBg: 'bg-amber-500/15',
         iconText: 'text-amber-600',
         valueGlow: 'bg-amber-500/5',
         hoverBorder: 'hover:border-amber-300',
+    },
+    blue: {
+        strip: 'bg-blue-500',
+        iconBg: 'bg-blue-500/15',
+        iconText: 'text-blue-600',
+        valueGlow: 'bg-blue-500/5',
+        hoverBorder: 'hover:border-blue-300',
+    },
+    lime: {
+        strip: 'bg-lime-400',
+        iconBg: 'bg-lime-400/15',
+        iconText: 'text-lime-600',
+        valueGlow: 'bg-lime-400/5',
+        hoverBorder: 'hover:border-lime-400',
     },
 } as const;
 
@@ -107,23 +121,21 @@ function KpiCard({ kpi }: { kpi: KpiCard }) {
                 {/* Subtle background glow */}
                 <div className={`absolute -right-6 -top-6 h-20 w-20 rounded-full ${cfg.valueGlow} blur-2xl transition-opacity duration-300 opacity-0 group-hover:opacity-100`} />
 
-                <div className="relative flex items-center gap-3 pl-4 pr-4 py-3.5">
+                <div className="relative flex items-center gap-3 pl-4 pr-4 py-[18px]">
                     {/* Icon */}
                     <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${cfg.iconBg} transition-transform duration-300 group-hover:scale-105`}>
-                        {kpi.tone === 'warning' ? (
-                            <AlertTriangle className={`h-4 w-4 ${cfg.iconText}`} />
-                        ) : (
-                            <kpi.icon className={`h-4 w-4 ${cfg.iconText}`} />
-                        )}
+                        <kpi.icon className={`h-4 w-4 ${cfg.iconText}`} />
                     </div>
 
-                    {/* Value & label */}
+                    {/* Value & label — sublabel stays inline so every card keeps the same two-line height */}
                     <div className="min-w-0">
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.07em] text-muted-foreground">{kpi.label}</p>
-                        <p className="mt-1 text-xl font-bold leading-none tracking-[-0.03em] tabular-nums text-foreground">{kpi.value}</p>
-                        {kpi.sublabel && (
-                            <p className="mt-0.5 text-[10px] text-muted-foreground/70">{kpi.sublabel}</p>
-                        )}
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.07em] text-foreground/70">{kpi.label}</p>
+                        <p className="mt-1 text-xl font-bold leading-none tracking-[-0.03em] tabular-nums text-foreground">
+                            {kpi.value}
+                            {kpi.sublabel && (
+                                <span className="ml-1.5 align-middle text-[10px] font-medium normal-case tracking-normal text-muted-foreground/70">{kpi.sublabel}</span>
+                            )}
+                        </p>
                     </div>
                 </div>
             </div>
@@ -158,17 +170,17 @@ function getGreeting(): string {
 export default function Dashboard({ stats, viewFinancial, recentMatters, upcomingTasks }: Props) {
     const greeting = getGreeting();
     const matterKpis: KpiCard[] = [
-        { label: 'Opened Matters', value: String(stats.opened_matters), href: '/matters?category=open', icon: Briefcase, tone: 'primary' },
-        { label: 'In Progress Matters', value: String(stats.in_progress_matters), href: '/matters?status=in_progress', icon: Loader, tone: 'ink' },
-        { label: 'On Hold Matters', value: String(stats.on_hold_matters), href: '/matters?status=on_hold', icon: Pause, tone: 'ink' },
-        { label: 'Closed Matters', value: String(stats.closed_matters), href: '/matters?category=closed', icon: Archive, tone: 'violet' },
+        { label: 'Opened Matters', value: String(stats.opened_matters), href: '/matters?category=open', icon: Briefcase, tone: 'violet' },
+        { label: 'In Progress Matters', value: String(stats.in_progress_matters), href: '/matters?status=in_progress', icon: Loader, tone: 'lime' },
+        { label: 'On Hold Matters', value: String(stats.on_hold_matters), href: '/matters?status=on_hold', icon: Pause, tone: 'blue' },
+        { label: 'Closed Matters', value: String(stats.closed_matters), href: '/matters?category=closed', icon: Archive, tone: 'primary' },
     ];
     const workKpis: KpiCard[] = [
-        { label: 'Hours Today', value: `${stats.hours_today}h`, href: '/time', icon: Clock, tone: 'primary', sublabel: `${stats.hours_week}h this week` },
+        { label: 'Hours Today', value: `${stats.hours_today}h`, href: '/time', icon: Clock, tone: 'blue', sublabel: `${stats.hours_week}h this week` },
         { label: 'Overdue Tasks', value: String(stats.overdue_tasks), href: '/tasks', icon: AlertTriangle, tone: 'warning' },
         ...(viewFinancial ? [
-            { label: 'Total Received', value: formatCurrency(stats.total_received), href: '/transactions', icon: ArrowDownLeft, tone: 'ink' },
-            { label: 'Outstanding Invoices', value: formatCurrency(stats.outstanding_invoices), href: '/billing', icon: PoundSterling, tone: 'violet' },
+            { label: 'Total Received', value: formatCurrency(stats.total_received), href: '/transactions', icon: ArrowDownLeft, tone: 'violet' },
+            { label: 'Outstanding Invoices', value: formatCurrency(stats.outstanding_invoices), href: '/billing', icon: PoundSterling, tone: 'lime' },
         ] as KpiCard[] : [
             { label: 'Hours This Week', value: `${stats.hours_week}h`, href: '/time', icon: TrendingUp, tone: 'violet' },
         ] as KpiCard[]),
@@ -190,12 +202,12 @@ export default function Dashboard({ stats, viewFinancial, recentMatters, upcomin
             </div>
 
             {/* Matter states */}
-            <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="mb-3.5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 {matterKpis.map((kpi) => <KpiCard key={kpi.label} kpi={kpi} />)}
             </div>
 
             {/* Work + money */}
-            <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="mb-3.5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 {workKpis.map((kpi) => <KpiCard key={kpi.label} kpi={kpi} />)}
             </div>
 
