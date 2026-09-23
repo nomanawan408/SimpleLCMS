@@ -48,6 +48,14 @@ class DashboardController extends Controller
             ->open()
             ->count();
 
+        // Dashboard matter-state row. The four buckets partition every
+        // status, so the cards always add up to the firm's total matters.
+        $matterBase = Matter::where('firm_id', $firmId);
+        $openedMattersCount     = (clone $matterBase)->whereIn('status', Matter::OPENED_STATUSES)->count();
+        $inProgressMattersCount = (clone $matterBase)->whereIn('status', Matter::PROGRESS_STATUSES)->count();
+        $onHoldMattersCount     = (clone $matterBase)->where('status', 'on_hold')->count();
+        $closedMattersCount     = (clone $matterBase)->closed()->count();
+
         $overdueTasks = Task::where('firm_id', $firmId)
             ->where('status', '!=', 'done')
             ->whereDate('due_date', '<', $today)
@@ -83,6 +91,10 @@ class DashboardController extends Controller
             'hours_week'          => round($hoursWeek, 1),
             'hours_month'         => round($hoursMonth, 1),
             'open_matters'        => $openMattersCount,
+            'opened_matters'      => $openedMattersCount,
+            'in_progress_matters' => $inProgressMattersCount,
+            'on_hold_matters'     => $onHoldMattersCount,
+            'closed_matters'      => $closedMattersCount,
             'overdue_tasks'       => $overdueTasks,
         ];
 

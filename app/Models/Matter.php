@@ -62,6 +62,24 @@ class Matter extends Model
         'closed', 'archived',
     ];
 
+    /**
+     * Dashboard buckets. Together with PROGRESS_STATUSES, on_hold and
+     * CLOSED_STATUSES they partition ALL_STATUSES with nothing left over:
+     * opened = received but not yet actively worked (fresh opens, court
+     * dates pending, and every awaiting_* wait state).
+     */
+    public const OPENED_STATUSES = [
+        'open', 'pending_court_date',
+        'awaiting_client', 'awaiting_opponent', 'awaiting_response',
+        'awaiting_third_party', 'awaiting_respondent_solicitors',
+        'awaiting_claimant_solicitors',
+    ];
+
+    public const PROGRESS_STATUSES = [
+        'actively_progressing', 'reviewing', 'being_worked',
+        'in_progress', 'in_review',
+    ];
+
     public function isClosed(): bool
     {
         return in_array($this->status, self::CLOSED_STATUSES, true);

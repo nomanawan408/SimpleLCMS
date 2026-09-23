@@ -688,7 +688,6 @@ export default function MattersIndex({ matters, filters, counts, tablePreference
                         )}
                     </div>
                     <div className="space-y-3 border-t border-border/60 pt-4">
-                        <p className="text-sm font-semibold text-foreground">Add Another Hearing</p>
                         <div className="grid grid-cols-2 gap-3">
                             <div className="space-y-1.5">
                                 <Label htmlFor="hearing_date">Start date</Label>

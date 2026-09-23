@@ -6,8 +6,8 @@ import { TaskDueBadge } from '@/components/ui/task-due-badge';
 import { Button } from '@/components/ui/button';
 import { formatCurrency, formatDate, MATTER_STATUS_LABELS } from '@/lib/utils';
 import {
-    AlertTriangle, ArrowDownLeft, ArrowRight, Briefcase, CheckSquare,
-    Clock, Plus, PoundSterling, Receipt, TrendingUp, Wallet,
+    AlertTriangle, Archive, ArrowDownLeft, ArrowRight, Briefcase, CheckSquare,
+    Clock, Loader, Pause, Plus, PoundSterling, TrendingUp,
 } from 'lucide-react';
 import type { Matter, Task } from '@/types';
 
@@ -22,6 +22,10 @@ interface Stats {
     pending_amount: number;
     trust_balance: number;
     open_matters: number;
+    opened_matters: number;
+    in_progress_matters: number;
+    on_hold_matters: number;
+    closed_matters: number;
     overdue_tasks: number;
 }
 
@@ -127,34 +131,6 @@ function KpiCard({ kpi }: { kpi: KpiCard }) {
     );
 }
 
-function FinancialCard({ href, icon: Icon, label, value, color }: {
-    href: string;
-    icon: React.ComponentType<{ className?: string }>;
-    label: string;
-    value: string;
-    color: 'emerald' | 'amber' | 'violet';
-}) {
-    const colors = {
-        emerald: { strip: 'bg-emerald-500', iconBg: 'bg-emerald-500/8', iconText: 'text-emerald-600', hover: 'hover:border-emerald-300' },
-        amber: { strip: 'bg-amber-500', iconBg: 'bg-amber-500/8', iconText: 'text-amber-600', hover: 'hover:border-amber-300' },
-        violet: { strip: 'bg-violet-500', iconBg: 'bg-violet-500/8', iconText: 'text-violet-600', hover: 'hover:border-violet-300' },
-    }[color];
-
-    return (
-        <Link href={href} className={`group relative overflow-hidden rounded-xl border border-border/40 bg-white p-3.5 transition-all duration-300 ${colors.hover} hover:shadow-[0_8px_30px_-8px_rgba(0,0,0,0.08)]`}>
-            <div className={`absolute left-0 top-0 h-full w-1 ${colors.strip} rounded-l-xl`} />
-            <div className="flex items-center gap-3 pl-3">
-                <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${colors.iconBg} transition-transform duration-300 group-hover:scale-105`}>
-                    <Icon className={`h-4 w-4 ${colors.iconText}`} />
-                </div>
-                <div className="min-w-0">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.07em] text-muted-foreground">{label}</p>
-                    <p className="mt-1 text-lg font-bold tracking-[-0.03em] tabular-nums text-foreground">{value}</p>
-                </div>
-            </div>
-        </Link>
-    );
-}
 
 function SectionHeading({ title, href, action, icon: Icon }: { title: string; href: string; action: string; icon: React.ComponentType<{ className?: string }> }) {
     return (
@@ -181,11 +157,21 @@ function getGreeting(): string {
 
 export default function Dashboard({ stats, viewFinancial, recentMatters, upcomingTasks }: Props) {
     const greeting = getGreeting();
-    const kpis: KpiCard[] = [
+    const matterKpis: KpiCard[] = [
+        { label: 'Opened Matters', value: String(stats.opened_matters), href: '/matters?category=open', icon: Briefcase, tone: 'primary' },
+        { label: 'In Progress Matters', value: String(stats.in_progress_matters), href: '/matters?status=in_progress', icon: Loader, tone: 'ink' },
+        { label: 'On Hold Matters', value: String(stats.on_hold_matters), href: '/matters?status=on_hold', icon: Pause, tone: 'ink' },
+        { label: 'Closed Matters', value: String(stats.closed_matters), href: '/matters?category=closed', icon: Archive, tone: 'violet' },
+    ];
+    const workKpis: KpiCard[] = [
         { label: 'Hours Today', value: `${stats.hours_today}h`, href: '/time', icon: Clock, tone: 'primary', sublabel: `${stats.hours_week}h this week` },
-        { label: 'Open Matters', value: String(stats.open_matters), href: '/matters', icon: Briefcase, tone: 'ink' },
-        { label: viewFinancial ? 'Outstanding Invoices' : 'Hours This Week', value: viewFinancial ? formatCurrency(stats.outstanding_invoices) : `${stats.hours_week}h`, href: viewFinancial ? '/billing' : '/time', icon: viewFinancial ? PoundSterling : TrendingUp, tone: 'violet' },
         { label: 'Overdue Tasks', value: String(stats.overdue_tasks), href: '/tasks', icon: AlertTriangle, tone: 'warning' },
+        ...(viewFinancial ? [
+            { label: 'Total Received', value: formatCurrency(stats.total_received), href: '/transactions', icon: ArrowDownLeft, tone: 'ink' },
+            { label: 'Outstanding Invoices', value: formatCurrency(stats.outstanding_invoices), href: '/billing', icon: PoundSterling, tone: 'violet' },
+        ] as KpiCard[] : [
+            { label: 'Hours This Week', value: `${stats.hours_week}h`, href: '/time', icon: TrendingUp, tone: 'violet' },
+        ] as KpiCard[]),
     ];
 
     return (
@@ -203,19 +189,15 @@ export default function Dashboard({ stats, viewFinancial, recentMatters, upcomin
                 </Button>
             </div>
 
-            {/* KPI Row */}
+            {/* Matter states */}
             <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                {kpis.map((kpi) => <KpiCard key={kpi.label} kpi={kpi} />)}
+                {matterKpis.map((kpi) => <KpiCard key={kpi.label} kpi={kpi} />)}
             </div>
 
-            {/* Financial Row */}
-            {viewFinancial && (
-                <div className="mb-5 grid grid-cols-1 gap-3 md:grid-cols-3">
-                    <FinancialCard href="/transactions" icon={ArrowDownLeft} label="Total received" value={formatCurrency(stats.total_received)} color="emerald" />
-                    <FinancialCard href="/billing" icon={Receipt} label="Pending invoices" value={formatCurrency(stats.pending_amount)} color="amber" />
-                    <FinancialCard href="/accounts" icon={Wallet} label="Trust balance" value={formatCurrency(stats.trust_balance)} color="violet" />
-                </div>
-            )}
+            {/* Work + money */}
+            <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                {workKpis.map((kpi) => <KpiCard key={kpi.label} kpi={kpi} />)}
+            </div>
 
             {/* Lists */}
             <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-[1.45fr_1fr]">
