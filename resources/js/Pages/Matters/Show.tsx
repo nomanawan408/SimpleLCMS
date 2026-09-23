@@ -90,12 +90,16 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
     const [hearingDialogOpen, setHearingDialogOpen] = useState(false);
     const [hearingDate, setHearingDate] = useState('');
     const [hearingTime, setHearingTime] = useState('');
+    const [hearingEndDate, setHearingEndDate] = useState('');
+    const [hearingEndTime, setHearingEndTime] = useState('');
     const [hearingSaving, setHearingSaving] = useState(false);
 
     function openHearingDialog() {
         const [d, t] = splitDateTime((matter as any).hearing_date);
         setHearingDate(d);
         setHearingTime(t);
+        setHearingEndDate('');
+        setHearingEndTime('');
         setHearingDialogOpen(true);
     }
 
@@ -105,6 +109,8 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
         router.put(`/matters/${matter.id}/hearing-date`, {
             hearing_date: hearingDate,
             hearing_time: hearingTime || undefined,
+            hearing_end_date: hearingEndDate || undefined,
+            hearing_end_time: hearingEndTime || undefined,
         }, {
             preserveScroll: true,
             onFinish: () => { setHearingSaving(false); setHearingDialogOpen(false); },
@@ -388,7 +394,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
         const scroll = setTimeout(() => {
             document.getElementById(`task-row-${highlightTaskId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }, 120);
-        const hide = setTimeout(() => setFlashTaskId(null), 4000);
+        const hide = setTimeout(() => setFlashTaskId(null), 3000);
         return () => { clearTimeout(scroll); clearTimeout(hide); };
     }, [tab, highlightTaskId]);
 
@@ -2626,7 +2632,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
 
             {/* ── Hearing Date & Time Dialog ── */}
             <Dialog open={hearingDialogOpen} onOpenChange={setHearingDialogOpen}>
-                <DialogContent className="max-w-sm">
+                <DialogContent className="max-w-md">
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
                             <Gavel className="h-5 w-5 text-primary" />
@@ -2637,7 +2643,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                     <div className="space-y-3 py-2">
                         <div className="grid grid-cols-2 gap-3">
                             <div className="space-y-1.5">
-                                <Label htmlFor="show_hearing_date">Date</Label>
+                                <Label htmlFor="show_hearing_date">Start date</Label>
                                 <Input
                                     id="show_hearing_date"
                                     type="date"
@@ -2646,7 +2652,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                 />
                             </div>
                             <div className="space-y-1.5">
-                                <Label htmlFor="show_hearing_time">Time</Label>
+                                <Label htmlFor="show_hearing_time">Start time</Label>
                                 <Input
                                     id="show_hearing_time"
                                     type="time"
@@ -2654,9 +2660,28 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                     onChange={(e) => setHearingTime(e.target.value)}
                                 />
                             </div>
+                            <div className="space-y-1.5">
+                                <Label htmlFor="show_hearing_end_date">End date</Label>
+                                <Input
+                                    id="show_hearing_end_date"
+                                    type="date"
+                                    min={hearingDate || undefined}
+                                    value={hearingEndDate}
+                                    onChange={(e) => setHearingEndDate(e.target.value)}
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label htmlFor="show_hearing_end_time">End time</Label>
+                                <Input
+                                    id="show_hearing_end_time"
+                                    type="time"
+                                    value={hearingEndTime}
+                                    onChange={(e) => setHearingEndTime(e.target.value)}
+                                />
+                            </div>
                         </div>
                         <p className="text-xs text-muted-foreground">
-                            Time defaults to 10:00 when left empty.
+                            Start time defaults to 10:00 when left empty. Leave the end empty for a one-hour hearing.
                         </p>
                     </div>
                     <DialogFooter className="gap-2">

@@ -94,6 +94,8 @@ export default function MattersIndex({ matters, filters, counts, tablePreference
     const [editingHearing, setEditingHearing] = useState<Matter | null>(null);
     const [hearingDate, setHearingDate] = useState('');
     const [hearingTime, setHearingTime] = useState('');
+    const [hearingEndDate, setHearingEndDate] = useState('');
+    const [hearingEndTime, setHearingEndTime] = useState('');
     const [hearingSaving, setHearingSaving] = useState(false);
     const [hearingList, setHearingList] = useState<{ id: string; title: string; start_at: string; end_at: string | null }[]>([]);
     const [hearingLoading, setHearingLoading] = useState(false);
@@ -104,6 +106,8 @@ export default function MattersIndex({ matters, filters, counts, tablePreference
         setEditingHearing(matter);
         setHearingDate('');
         setHearingTime('');
+        setHearingEndDate('');
+        setHearingEndTime('');
         setHearingList([]);
         setHearingLoading(true);
         fetch(`/matters/${matter.id}/hearing-dates`, { headers: { Accept: 'application/json' } })
@@ -643,12 +647,19 @@ export default function MattersIndex({ matters, filters, counts, tablePreference
                         ) : (
                             hearingList.map((h) => {
                                 const [d, t] = splitDateTime(h.start_at);
+                                const [ed, et] = h.end_at ? splitDateTime(h.end_at) : ['', ''];
+                                const sameDay = ed !== '' && ed === d;
                                 return (
                                     <div key={h.id} className="flex items-center gap-3 rounded-lg border border-border/60 px-3 py-2">
                                         <Calendar className="h-4 w-4 shrink-0 text-primary" />
                                         <div className="min-w-0 flex-1">
                                             <p className="text-sm font-medium tabular-nums text-foreground">
-                                                {formatDate(d)}{t && <span className="ml-1.5 font-normal text-muted-foreground">{t}</span>}
+                                                {formatDate(d)}{t && <span className="font-normal"> {t}</span>}
+                                                {ed !== '' && (
+                                                    <span className="font-normal text-muted-foreground">
+                                                        {' → '}{sameDay ? (et || '') : `${formatDate(ed)}${et ? ` ${et}` : ''}`}
+                                                    </span>
+                                                )}
                                             </p>
                                         </div>
                                         <Button
@@ -677,10 +688,10 @@ export default function MattersIndex({ matters, filters, counts, tablePreference
                         )}
                     </div>
                     <div className="space-y-3 border-t border-border/60 pt-4">
-                        <p className="text-sm font-semibold text-foreground">Add another hearing</p>
+                        <p className="text-sm font-semibold text-foreground">Add Another Hearing</p>
                         <div className="grid grid-cols-2 gap-3">
                             <div className="space-y-1.5">
-                                <Label htmlFor="hearing_date">Date</Label>
+                                <Label htmlFor="hearing_date">Start date</Label>
                                 <Input
                                     id="hearing_date"
                                     type="date"
@@ -689,7 +700,7 @@ export default function MattersIndex({ matters, filters, counts, tablePreference
                                 />
                             </div>
                             <div className="space-y-1.5">
-                                <Label htmlFor="hearing_time">Time</Label>
+                                <Label htmlFor="hearing_time">Start time</Label>
                                 <Input
                                     id="hearing_time"
                                     type="time"
@@ -697,9 +708,28 @@ export default function MattersIndex({ matters, filters, counts, tablePreference
                                     onChange={(e) => setHearingTime(e.target.value)}
                                 />
                             </div>
+                            <div className="space-y-1.5">
+                                <Label htmlFor="hearing_end_date">End date</Label>
+                                <Input
+                                    id="hearing_end_date"
+                                    type="date"
+                                    min={hearingDate || undefined}
+                                    value={hearingEndDate}
+                                    onChange={(e) => setHearingEndDate(e.target.value)}
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label htmlFor="hearing_end_time">End time</Label>
+                                <Input
+                                    id="hearing_end_time"
+                                    type="time"
+                                    value={hearingEndTime}
+                                    onChange={(e) => setHearingEndTime(e.target.value)}
+                                />
+                            </div>
                         </div>
                         <p className="text-xs text-muted-foreground">
-                            Time defaults to 10:00 when left empty.
+                            Start time defaults to 10:00 when left empty. Leave the end empty for a one-hour hearing.
                         </p>
                     </div>
                     <DialogFooter className="gap-2">
@@ -712,6 +742,8 @@ export default function MattersIndex({ matters, filters, counts, tablePreference
                                 router.post(`/matters/${editingHearing.id}/hearing-dates`, {
                                     hearing_date: hearingDate,
                                     hearing_time: hearingTime || undefined,
+                                    hearing_end_date: hearingEndDate || undefined,
+                                    hearing_end_time: hearingEndTime || undefined,
                                 }, {
                                     preserveScroll: true,
                                     preserveState: true,
@@ -719,6 +751,8 @@ export default function MattersIndex({ matters, filters, counts, tablePreference
                                         setHearingSaving(false);
                                         setHearingDate('');
                                         setHearingTime('');
+                                        setHearingEndDate('');
+                                        setHearingEndTime('');
                                         refreshHearingList(editingHearing);
                                     },
                                 });

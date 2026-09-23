@@ -271,8 +271,10 @@ class MatterController extends Controller
         $this->authorize('update', $matter);
 
         $validated = $request->validate([
-            'hearing_date' => ['nullable', 'date'],
-            'hearing_time' => ['nullable', 'date_format:H:i'],
+            'hearing_date'     => ['nullable', 'date'],
+            'hearing_time'     => ['nullable', 'date_format:H:i'],
+            'hearing_end_date' => ['nullable', 'date'],
+            'hearing_end_time' => ['nullable', 'date_format:H:i'],
         ]);
 
         $date = $validated['hearing_date'] ?? null;
@@ -284,17 +286,7 @@ class MatterController extends Controller
             ->first();
 
         if ($date) {
-            // Time comes from its own field; fall back to any time embedded
-            // in the date string, then to the historic 10:00 default so old
-            // date-only submissions keep working.
-            $time = $validated['hearing_time'] ?? null;
-            if ($time === null && preg_match('/(\d{1,2}):(\d{2})/', (string) $date, $m)) {
-                $time = sprintf('%02d:%02d', (int) $m[1], (int) $m[2]);
-            }
-            $time ??= '10:00';
-
-            $start = \Carbon\Carbon::parse(substr((string) $date, 0, 10) . ' ' . $time);
-            $end = (clone $start)->addHour();
+            [$start, $end] = $this->resolveHearingRange($validated);
 
             if ($existing) {
                 $existing->update(['start_at' => $start, 'end_at' => $end]);
@@ -337,6 +329,41 @@ class MatterController extends Controller
     }
 
     /**
+     * Resolve a hearing start/end range from date (+optional time) inputs.
+     * End defaults to one hour after start; an end before the start is a
+     * validation error, not a silent swap.
+     *
+     * @return array{0: \Carbon\Carbon, 1: \Carbon\Carbon}
+     */
+    private function resolveHearingRange(array $validated): array
+    {
+        $time = $validated['hearing_time'] ?? null;
+        if ($time === null && preg_match('/(\d{1,2}):(\d{2})/', (string) $validated['hearing_date'], $m)) {
+            $time = sprintf('%02d:%02d', (int) $m[1], (int) $m[2]);
+        }
+        $time ??= '10:00';
+
+        $start = \Carbon\Carbon::parse(substr((string) $validated['hearing_date'], 0, 10) . ' ' . $time);
+
+        $end = (clone $start)->addHour();
+        if (! empty($validated['hearing_end_date'])) {
+            $endTime = $validated['hearing_end_time'] ?? null;
+            if ($endTime === null && preg_match('/(\d{1,2}):(\d{2})/', (string) $validated['hearing_end_date'], $m)) {
+                $endTime = sprintf('%02d:%02d', (int) $m[1], (int) $m[2]);
+            }
+            $end = \Carbon\Carbon::parse(substr((string) $validated['hearing_end_date'], 0, 10) . ' ' . ($endTime ?? $time));
+        }
+
+        if ($end->lt($start)) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'hearing_end_date' => 'The hearing end must be after the start.',
+            ]);
+        }
+
+        return [$start, $end];
+    }
+
+    /**
      * Add another hearing date. Unlike updateHearingDate (which edits the
      * single next hearing), this always creates a new court event so matters
      * can hold several upcoming hearings.
@@ -346,17 +373,13 @@ class MatterController extends Controller
         $this->authorize('update', $matter);
 
         $validated = $request->validate([
-            'hearing_date' => ['required', 'date'],
-            'hearing_time' => ['nullable', 'date_format:H:i'],
+            'hearing_date'       => ['required', 'date'],
+            'hearing_time'       => ['nullable', 'date_format:H:i'],
+            'hearing_end_date'   => ['nullable', 'date'],
+            'hearing_end_time'   => ['nullable', 'date_format:H:i'],
         ]);
 
-        $time = $validated['hearing_time'] ?? null;
-        if ($time === null && preg_match('/(\d{1,2}):(\d{2})/', (string) $validated['hearing_date'], $m)) {
-            $time = sprintf('%02d:%02d', (int) $m[1], (int) $m[2]);
-        }
-        $time ??= '10:00';
-
-        $start = \Carbon\Carbon::parse(substr((string) $validated['hearing_date'], 0, 10) . ' ' . $time);
+        [$start, $end] = $this->resolveHearingRange($validated);
 
         CalendarEvent::create([
             'firm_id'       => $matter->firm_id,
@@ -365,7 +388,7 @@ class MatterController extends Controller
             'title'         => 'Court Hearing — ' . $matter->name,
             'type'          => 'court_date',
             'start_at'      => $start,
-            'end_at'        => (clone $start)->addHour(),
+            'end_at'        => $end,
             'is_court_date' => true,
         ]);
 

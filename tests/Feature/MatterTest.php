@@ -85,6 +85,47 @@ class MatterTest extends TestCase
         $this->assertSame('14:30', $second->start_at->format('H:i'));
     }
 
+    public function test_hearing_accepts_start_and_end_range(): void
+    {
+        [$firm, $admin] = $this->createFirmAndAdmin();
+        $matter = Matter::factory()->forFirm($firm, $admin)->create();
+
+        // No end given → historic one-hour default preserved.
+        $this->actingAsUser($admin)->post("/matters/{$matter->id}/hearing-dates", [
+            'hearing_date' => now()->addDays(10)->toDateString(),
+            'hearing_time' => '10:00',
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $first = \App\Models\CalendarEvent::where('matter_id', $matter->id)->first();
+        $this->assertSame('11:00', $first->end_at->format('H:i'));
+
+        $this->actingAsUser($admin)->post("/matters/{$matter->id}/hearing-dates", [
+            'hearing_date' => now()->addDays(20)->toDateString(),
+            'hearing_time' => '14:00',
+            'hearing_end_date' => now()->addDays(21)->toDateString(),
+            'hearing_end_time' => '16:30',
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $second = \App\Models\CalendarEvent::where('matter_id', $matter->id)->orderBy('start_at', 'desc')->first();
+        $this->assertSame('14:00', $second->start_at->format('H:i'));
+        $this->assertSame(now()->addDays(21)->toDateString(), $second->end_at->toDateString());
+        $this->assertSame('16:30', $second->end_at->format('H:i'));
+    }
+
+    public function test_hearing_end_before_start_is_rejected(): void
+    {
+        [$firm, $admin] = $this->createFirmAndAdmin();
+        $matter = Matter::factory()->forFirm($firm, $admin)->create();
+
+        $this->actingAsUser($admin)->post("/matters/{$matter->id}/hearing-dates", [
+            'hearing_date' => now()->addDays(10)->toDateString(),
+            'hearing_time' => '10:00',
+            'hearing_end_date' => now()->addDays(9)->toDateString(),
+        ])->assertSessionHasErrors('hearing_end_date');
+
+        $this->assertSame(0, \App\Models\CalendarEvent::where('matter_id', $matter->id)->count());
+    }
+
     public function test_hearing_dates_are_scoped_to_the_matter(): void
     {
         [$firmA, $adminA] = $this->createFirmAndAdmin();
