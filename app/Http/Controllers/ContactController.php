@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Contact;
 use App\Models\Document;
 use App\Models\Invoice;
+use App\Models\Matter;
 use App\Models\TablePreference;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -19,6 +20,7 @@ class ContactController extends Controller
         $this->authorize('viewAny', Contact::class);
 
         $contacts = Contact::where('firm_id', $request->user()->firm_id)
+            ->when(! $request->user()->isFirmAdmin(), fn ($q) => $q->whereHas('matters', fn ($qq) => $qq->visibleTo($request->user())))
             ->when($request->search, fn ($q, $search) => $q->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
                   ->orWhere('first_name', 'like', "%{$search}%")
@@ -109,19 +111,24 @@ class ContactController extends Controller
             'notes.user:id,full_name',
         ]);
 
-        // Load invoices for this contact's matters
+        // Load invoices for this contact's matters (financial eyes only,
+        // and only on matters the viewer can see).
         $matterIds = $contact->matters->pluck('id');
-        $invoices = Invoice::whereIn('matter_id', $matterIds)
+        $visibleIds = Matter::where('firm_id', $request->user()->firm_id)
+            ->visibleTo($request->user())
+            ->pluck('id');
+        $invoices = $request->user()->canViewFinances() && $matterIds->isNotEmpty()
+            ? Invoice::whereIn('matter_id', $matterIds->intersect($visibleIds))
             ->with(['matter', 'payments'])
             ->orderBy('created_at', 'desc')
-            ->get();
+            ->get()
+            : collect();
 
         // Documents belong to matters, so a contact's documents are those on
-        // the matters they are party to.
-        $canViewDocuments = $request->user()->hasPermissionTo('view_documents');
-
-        $documents = $canViewDocuments && $matterIds->isNotEmpty()
-            ? Document::whereIn('matter_id', $matterIds)
+        // the matters they are party to — intersected with what the viewer
+        // may see, so unassigned matters never leak through a shared contact.
+        $documents = $matterIds->isNotEmpty()
+            ? Document::whereIn('matter_id', $matterIds->intersect($visibleIds))
                 ->with(['matter:id,name,matter_number', 'uploadedBy:id,full_name'])
                 ->orderBy('created_at', 'desc')
                 ->get(['id', 'matter_id', 'uploaded_by_id', 'name', 'original_name', 'mime_type', 'size_bytes', 'created_at'])
@@ -132,7 +139,9 @@ class ContactController extends Controller
             'invoices' => $invoices,
             'documents' => $documents,
             'canEditContact' => $request->user()->can('update', $contact),
-            'canViewDocuments' => $canViewDocuments,
+            // Anyone viewing the contact sees the tab; the rows above are
+            // already scoped to matters they can see.
+            'canViewDocuments' => true,
         ]);
     }
 

@@ -32,6 +32,8 @@ export interface UserItem {
     phone: string | null;
     rate_per_hour: string | null;
     is_active: boolean;
+    can_view_finances: boolean;
+    can_manage_finances: boolean;
     totp_enabled: boolean;
     last_login_at: string | null;
     avatar_url: string | null;
@@ -60,6 +62,8 @@ export default function UsersManager({ users, availableRoles }: UsersManagerProp
         role: availableRoles[0]?.name ?? '',
         phone: '',
         rate_per_hour: '',
+        can_view_finances: false,
+        can_manage_finances: false,
     });
 
     const submitCreate = (e: React.FormEvent) => {
@@ -77,6 +81,8 @@ export default function UsersManager({ users, availableRoles }: UsersManagerProp
         is_active: true,
         phone: '',
         rate_per_hour: '',
+        can_view_finances: false,
+        can_manage_finances: false,
     });
 
     const openEdit = (user: UserItem) => {
@@ -88,6 +94,8 @@ export default function UsersManager({ users, availableRoles }: UsersManagerProp
             is_active: user.is_active,
             phone: user.phone || '',
             rate_per_hour: user.rate_per_hour || '',
+            can_view_finances: user.can_view_finances ?? false,
+            can_manage_finances: user.can_manage_finances ?? false,
         });
         setEditOpen(true);
     };
@@ -208,6 +216,11 @@ export default function UsersManager({ users, availableRoles }: UsersManagerProp
                                                     {user.totp_enabled && (
                                                         <Badge variant="info" className="ml-1 text-xs">2FA</Badge>
                                                     )}
+                                                    {user.can_manage_finances ? (
+                                                        <Badge variant="outline" className="ml-1 text-xs" title="Can manage firm finances">£ Manage</Badge>
+                                                    ) : user.can_view_finances ? (
+                                                        <Badge variant="outline" className="ml-1 text-xs" title="Can view firm finances">£ View</Badge>
+                                                    ) : null}
                                                 </TableCell>
                                                 <TableCell className="hidden lg:table-cell text-muted-foreground">
                                                     {user.last_login_at ? formatDate(user.last_login_at) : 'Never'}
@@ -298,6 +311,17 @@ export default function UsersManager({ users, availableRoles }: UsersManagerProp
                                 <Input id="create_rate" type="number" step="0.01" min="0" value={createForm.data.rate_per_hour} onChange={(e) => createForm.setData('rate_per_hour', e.target.value)} placeholder="150.00" />
                             </div>
                         </div>
+                        <div className="space-y-2 rounded-lg border border-border/60 bg-muted/30 p-3">
+                            <p className="text-xs font-semibold text-foreground">Financial access</p>
+                            <label className="flex cursor-pointer items-center gap-2 text-sm">
+                                <input type="checkbox" className="h-4 w-4 rounded accent-primary" checked={createForm.data.can_view_finances} onChange={(e) => createForm.setData('can_view_finances', e.target.checked)} />
+                                View finances <span className="text-xs text-muted-foreground">(invoices, payments, trust on assigned matters)</span>
+                            </label>
+                            <label className="flex cursor-pointer items-center gap-2 text-sm">
+                                <input type="checkbox" className="h-4 w-4 rounded accent-primary" checked={createForm.data.can_manage_finances} onChange={(e) => createForm.setData('can_manage_finances', e.target.checked)} />
+                                Manage finances <span className="text-xs text-muted-foreground">(invoice, reconcile, transfer)</span>
+                            </label>
+                        </div>
                         <DialogFooter>
                             <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
                             <Button type="submit" disabled={createForm.processing}>{createForm.processing ? 'Creating…' : 'Create User'}</Button>
@@ -364,6 +388,17 @@ export default function UsersManager({ users, availableRoles }: UsersManagerProp
                                 <Label htmlFor="edit_rate">Hourly Rate (£)</Label>
                                 <Input id="edit_rate" type="number" step="0.01" min="0" value={editForm.data.rate_per_hour} onChange={(e) => editForm.setData('rate_per_hour', e.target.value)} placeholder="150.00" />
                             </div>
+                        </div>
+                        <div className="space-y-2 rounded-lg border border-border/60 bg-muted/30 p-3">
+                            <p className="text-xs font-semibold text-foreground">Financial access</p>
+                            <label className="flex cursor-pointer items-center gap-2 text-sm">
+                                <input type="checkbox" className="h-4 w-4 rounded accent-primary" checked={editForm.data.can_view_finances} onChange={(e) => editForm.setData('can_view_finances', e.target.checked)} />
+                                View finances <span className="text-xs text-muted-foreground">(invoices, payments, trust on assigned matters)</span>
+                            </label>
+                            <label className="flex cursor-pointer items-center gap-2 text-sm">
+                                <input type="checkbox" className="h-4 w-4 rounded accent-primary" checked={editForm.data.can_manage_finances} onChange={(e) => editForm.setData('can_manage_finances', e.target.checked)} />
+                                Manage finances <span className="text-xs text-muted-foreground">(invoice, reconcile, transfer)</span>
+                            </label>
                         </div>
                         <DialogFooter>
                             <Button type="button" variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>

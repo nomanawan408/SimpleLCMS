@@ -20,11 +20,11 @@ class TimeController extends Controller
 {
     public function index(Request $request): Response
     {
-        abort_unless($request->user()->hasPermissionTo('view_time_entries'), 403);
+        abort_unless($request->user()->is_active, 403);
 
         $user   = $request->user();
         $firmId = $user->firm_id;
-        $canManageAll = $user->hasPermissionTo('manage_time_entries');
+        $canManageAll = $user->isFirmAdmin();
 
         $query = TimeEntry::where('firm_id', $firmId)
             ->with(['matter', 'user'])
@@ -32,7 +32,11 @@ class TimeController extends Controller
             ->orderBy('created_at', 'desc');
 
         if (!$canManageAll) {
-            $query->where('user_id', $user->id);
+            // Staff see their own entries plus entries on assigned matters.
+            $query->where(function ($q) use ($user) {
+                $q->where('user_id', $user->id)
+                    ->orWhereHas('matter', fn ($qq) => $qq->visibleTo($user));
+            });
         }
 
         if ($request->filled('matter_id'))    $query->where('matter_id', $request->matter_id);
@@ -57,7 +61,10 @@ class TimeController extends Controller
 
         $statsBase = TimeEntry::where('firm_id', $firmId);
         if (!$canManageAll) {
-            $statsBase->where('user_id', $user->id);
+            $statsBase->where(function ($q) use ($user) {
+                $q->where('user_id', $user->id)
+                    ->orWhereHas('matter', fn ($qq) => $qq->visibleTo($user));
+            });
         }
 
         $todayMinutes    = (int) (clone $statsBase)->whereDate('date', today())->sum('duration_minutes');
@@ -128,7 +135,7 @@ class TimeController extends Controller
             'entries'     => $entries,
             'stats'       => $stats,
             'users'       => User::where('firm_id', $firmId)->where('is_active', true)->get(['id', 'full_name', 'rate_per_hour']),
-            'matters'     => Matter::where('firm_id', $firmId)->whereNotIn('status', ['closed', 'archived'])->orderBy('name')->get(['id', 'name', 'matter_number', 'custom_fields', 'fee_arrangement'])->each(fn ($m) => $m->setAppends([])),
+            'matters'     => Matter::where('firm_id', $firmId)->visibleTo($user)->whereNotIn('status', ['closed', 'archived'])->orderBy('name')->get(['id', 'name', 'matter_number', 'custom_fields', 'fee_arrangement'])->each(fn ($m) => $m->setAppends([])),
             'filters'     => $request->only('matter_id', 'user_id', 'billable', 'billed', 'date_from', 'date_to', 'activity_type', 'search'),
             'activeTimer' => $activeTimer,
             'defaultRate' => (float) ($user->rate_per_hour ?? $user->firm->default_hourly_rate ?? 0),
@@ -139,7 +146,7 @@ class TimeController extends Controller
 
     public function store(Request $request): SymfonyResponse
     {
-        abort_unless($request->user()->hasPermissionTo('create_time_entries'), 403);
+        abort_unless($request->user()->is_active, 403);
 
         $user = $request->user();
 
@@ -153,7 +160,10 @@ class TimeController extends Controller
             'description'      => ['nullable', 'string', 'max:1000'],
         ]);
 
-        $matter = Matter::where('id', $validated['matter_id'])->where('firm_id', $user->firm_id)->firstOrFail();
+        // Staff may only bill time to matters they can see — and never to
+        // a closed archive.
+        $matter = Matter::where('id', $validated['matter_id'])->where('firm_id', $user->firm_id)->visibleTo($user)->firstOrFail();
+        $matter->ensureMutableBy($user);
 
         $matterRate = is_array($matter->custom_fields) ? ($matter->custom_fields['hourly_rate'] ?? null) : null;
         $rate       = $validated['rate'] ?? ($matterRate !== null && $matterRate !== '' ? (float) $matterRate : ($user->rate_per_hour ?? $user->firm->default_hourly_rate ?? 0));
@@ -186,9 +196,10 @@ class TimeController extends Controller
 
     public function update(Request $request, TimeEntry $entry): SymfonyResponse
     {
-        abort_unless($request->user()->hasPermissionTo('edit_time_entries'), 403);
+        abort_unless($request->user()->is_active, 403);
 
-        if ($entry->firm_id !== $request->user()->firm_id) abort(403);
+        if ($entry->firm_id !== $request->user()->firm_id) abort(404);
+        abort_unless($request->user()->isFirmAdmin() || $entry->user_id === $request->user()->id, 403);
 
         if ($entry->is_locked || $entry->billed) {
             if ($request->expectsJson()) {
@@ -223,9 +234,10 @@ class TimeController extends Controller
 
     public function destroy(Request $request, TimeEntry $entry): SymfonyResponse
     {
-        abort_unless($request->user()->hasPermissionTo('delete_time_entries'), 403);
+        abort_unless($request->user()->is_active, 403);
 
-        if ($entry->firm_id !== $request->user()->firm_id) abort(403);
+        if ($entry->firm_id !== $request->user()->firm_id) abort(404);
+        abort_unless($request->user()->isFirmAdmin() || $entry->user_id === $request->user()->id, 403);
 
         if ($entry->is_locked || $entry->billed) {
             if ($request->expectsJson()) {
@@ -246,7 +258,7 @@ class TimeController extends Controller
 
     public function checkIn(Request $request): JsonResponse
     {
-        abort_unless($request->user()->hasPermissionTo('create_time_entries'), 403);
+        abort_unless($request->user()->is_active, 403);
         $user = $request->user();
         $key  = 'active_timer_' . $user->id;
 
@@ -265,9 +277,13 @@ class TimeController extends Controller
             'description'   => ['nullable', 'string', 'max:500'],
         ]);
 
+        // Staff may only start timers on matters they can see — and never
+        // on a closed archive.
         $matter = Matter::where('id', $validated['matter_id'])
             ->where('firm_id', $user->firm_id)
+            ->visibleTo($user)
             ->firstOrFail();
+        $matter->ensureMutableBy($user);
 
         $session = [
             'matter_id'     => $matter->id,
@@ -311,7 +327,7 @@ class TimeController extends Controller
 
     public function checkOut(Request $request): SymfonyResponse
     {
-        abort_unless($request->user()->hasPermissionTo('create_time_entries'), 403);
+        abort_unless($request->user()->is_active, 403);
         $user = $request->user();
         $key  = 'active_timer_' . $user->id;
         $sess = session($key);
@@ -349,6 +365,7 @@ class TimeController extends Controller
         $matter = Matter::where('id', $sess['matter_id'])
             ->where('firm_id', $user->firm_id)
             ->firstOrFail();
+        $matter->ensureMutableBy($user);
 
         $matterRateField = is_array($matter->custom_fields) ? ($matter->custom_fields['hourly_rate'] ?? null) : null;
         $matterRate      = ($matterRateField !== null && $matterRateField !== '') ? (float) $matterRateField : null;
@@ -390,7 +407,7 @@ class TimeController extends Controller
 
     public function discardSession(Request $request): JsonResponse
     {
-        abort_unless($request->user()->hasPermissionTo('create_time_entries'), 403);
+        abort_unless($request->user()->is_active, 403);
         $key  = 'active_timer_' . $request->user()->id;
         $sess = session($key) ?? $this->restoreSessionFromDb($request->user());
         $dbExists = TimeSession::where('user_id', $request->user()->id)->exists();
@@ -406,7 +423,7 @@ class TimeController extends Controller
 
     public function pauseSession(Request $request): JsonResponse
     {
-        abort_unless($request->user()->hasPermissionTo('create_time_entries'), 403);
+        abort_unless($request->user()->is_active, 403);
         $key  = 'active_timer_' . $request->user()->id;
         $sess = session($key);
 
@@ -435,7 +452,7 @@ class TimeController extends Controller
 
     public function resumeSession(Request $request): JsonResponse
     {
-        abort_unless($request->user()->hasPermissionTo('create_time_entries'), 403);
+        abort_unless($request->user()->is_active, 403);
         $key  = 'active_timer_' . $request->user()->id;
         $sess = session($key);
 
@@ -468,14 +485,16 @@ class TimeController extends Controller
 
     public function startTimer(Request $request): JsonResponse
     {
-        abort_unless($request->user()->hasPermissionTo('create_time_entries'), 403);
+        abort_unless($request->user()->is_active, 403);
         $validated = $request->validate([
             'matter_id' => ['required', 'uuid', Rule::exists('matters', 'id')->where(fn ($q) => $q->where('firm_id', $request->user()->firm_id))],
         ]);
 
         $matter = Matter::where('id', $validated['matter_id'])
             ->where('firm_id', $request->user()->firm_id)
+            ->visibleTo($request->user())
             ->firstOrFail();
+        $matter->ensureMutableBy($request->user());
 
         $timer = [
             'matter_id'     => $matter->id,
@@ -510,7 +529,7 @@ class TimeController extends Controller
 
     public function stopTimer(Request $request): JsonResponse
     {
-        abort_unless($request->user()->hasPermissionTo('create_time_entries'), 403);
+        abort_unless($request->user()->is_active, 403);
         $key   = 'active_timer_' . $request->user()->id;
         $timer = session($key);
 
@@ -541,7 +560,7 @@ class TimeController extends Controller
      */
     public function sessions(Request $request): Response
     {
-        abort_unless($request->user()->hasPermissionTo('manage_time_entries'), 403);
+        abort_unless($request->user()->is_active && $request->user()->isFirmAdmin(), 403);
 
         $firmId = $request->user()->firm_id;
 
@@ -585,7 +604,7 @@ class TimeController extends Controller
 
     public function createInvoice(Request $request): SymfonyResponse
     {
-        abort_unless($request->user()->hasPermissionTo('create_invoices'), 403);
+        abort_unless($request->user()->canManageFinances(), 403);
 
         $user   = $request->user();
         $firmId = $user->firm_id;

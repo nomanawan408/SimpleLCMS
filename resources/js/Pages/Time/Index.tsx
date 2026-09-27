@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Combobox } from '@/components/ui/combobox';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
-import { cn, formatCurrency, formatDate, formatTime, hasPermission, matterComboboxOptions } from '@/lib/utils';
+import { cn, formatCurrency, formatDate, formatTime, matterComboboxOptions } from '@/lib/utils';
 import { Clock, LogIn, LogOut, Plus, Pencil, Trash2, Receipt, TrendingUp, AlertCircle, CheckCircle2, Timer, PoundSterling, X, CalendarDays, FileText, Search, SlidersHorizontal } from 'lucide-react';
 import type { PageProps, PaginatedData, TimeEntry } from '@/types';
 
@@ -127,7 +127,7 @@ function getMatterRate(matters: Props['matters'], matterId: string, fallback: nu
 export default function TimeIndex({ entries, stats, users, matters, filters, activeTimer: serverSession, defaultRate, firmVatRate, isAdmin }: Props) {
     const { auth } = usePage<PageProps>().props;
     // Timer + manual entry write to time entries server-side (403 without it).
-    const canCreateTime = hasPermission(auth.user?.permissions, 'create_time_entries');
+    const canCreateTime = !!auth.user;
     const [session, setSession] = useState<ActiveSession | null>(serverSession);
     const [elapsed, setElapsed] = useState(0);
     const [isPaused, setIsPaused] = useState(!!serverSession?.paused_at);

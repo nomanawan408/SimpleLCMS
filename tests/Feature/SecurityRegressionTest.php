@@ -52,31 +52,19 @@ class SecurityRegressionTest extends TestCase
     public function test_firm_admin_cannot_edit_a_platform_wide_role(): void
     {
         [$firmA, $adminA] = $this->createFirmAndAdmin();
-        [$firmB, $userB] = $this->createFirmAndUser(['role' => 'paralegal']);
-        $userB->syncRoles(['paralegal']);
 
-        $global = Role::where('name', 'paralegal')->where('guard_name', 'web')->firstOrFail();
-        $this->assertNull($global->firm_id, 'precondition: paralegal is a shared role');
+        // Custom roles are gone: the endpoints must not exist at all.
+        $this->actingAsUser($adminA)->put('/admin/roles/1', ['name' => 'x'])->assertNotFound();
 
-        $this->actingAsUser($adminA)
-            ->put("/admin/roles/{$global->id}", [
-                'name' => 'paralegal',
-                'permissions' => ['view_invoices', 'view_trust', 'manage_users'],
-            ])
-            ->assertStatus(403);
-
-        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
-        $this->assertFalse(User::find($userB->id)->hasPermissionTo('view_invoices'));
     }
 
     /** SL-02 */
     public function test_firm_admin_cannot_delete_a_platform_wide_role(): void
     {
         [$firmA, $adminA] = $this->createFirmAndAdmin();
-        $global = Role::where('name', 'paralegal')->where('guard_name', 'web')->firstOrFail();
 
-        $this->actingAsUser($adminA)->delete("/admin/roles/{$global->id}")->assertStatus(403);
-        $this->assertDatabaseHas('roles', ['id' => $global->id]);
+        $this->actingAsUser($adminA)->delete('/admin/roles/1')->assertNotFound();
+
     }
 
     /** SL-03 */
@@ -85,33 +73,31 @@ class SecurityRegressionTest extends TestCase
         [$firmA, $adminA] = $this->createFirmAndAdmin();
         [$firmB, $adminB] = $this->createFirmAndAdmin();
 
-        $this->actingAsUser($adminA)->post('/admin/roles', [
-            'name' => 'FirmA Private Role',
-            'permissions' => ['view_invoices', 'view_trust'],
-        ])->assertRedirect();
-
+        // Only staff and firm_admin are grantable from firm routes now.
         $this->actingAsUser($adminB)->post('/admin/users', [
             'full_name' => 'B User', 'email' => 'buser@example.com',
             'password' => 'Password123!', 'password_confirmation' => 'Password123!',
-            'role' => 'FirmA Private Role',
+            'role' => 'super_admin',
         ])->assertSessionHasErrors('role');
 
         $this->assertDatabaseMissing('users', ['email' => 'buser@example.com']);
+
     }
 
     /** SL-02 sibling: no privilege escalation by delegation */
     public function test_admin_cannot_grant_permissions_they_do_not_hold(): void
     {
         [$firm, $admin] = $this->createFirmAndAdmin();
-        $admin->syncPermissions(['view_dashboard', 'view_users', 'create_users', 'edit_users']);
-        $admin->syncRoles([]);
 
-        $this->actingAsUser($admin->fresh())->post('/admin/roles', [
-            'name' => 'Overreach',
-            'permissions' => ['view_dashboard', 'manage_trust'],
-        ])->assertStatus(403);
+        // Deleted roles can never be granted, even by name.
+        $this->actingAsUser($admin)->post('/admin/users', [
+            'full_name' => 'Backdoor', 'email' => 'backdoor@example.com',
+            'password' => 'Password123!', 'password_confirmation' => 'Password123!',
+            'role' => 'manager',
+        ])->assertSessionHasErrors('role');
 
-        $this->assertDatabaseMissing('roles', ['name' => 'Overreach']);
+        $this->assertDatabaseMissing('users', ['email' => 'backdoor@example.com']);
+
     }
 
     /** SL-06: the TOTP challenge is rate limited */
@@ -538,8 +524,8 @@ class SecurityRegressionTest extends TestCase
     /** SL-12: the audit log requires a permission */
     public function test_activity_log_requires_a_permission(): void
     {
-        [$firm, $clerk] = $this->createFirmAndUser(['role' => 'secretary']);
-        $clerk->syncRoles(['secretary']);
+        [$firm, $clerk] = $this->createFirmAndUser(['role' => 'lawyer']);
+        $clerk->syncRoles(['lawyer']);
 
         $this->actingAsUser($clerk->fresh())->get('/activities')->assertStatus(403);
 
@@ -609,30 +595,32 @@ class SecurityRegressionTest extends TestCase
         $this->actingAsUser($admin)->post('/admin/users', [
             'full_name' => 'Weak', 'email' => 'weak@example.com',
             'password' => 'Short1!', 'password_confirmation' => 'Short1!',
-            'role' => 'solicitor',
+            'role' => 'lawyer',
         ])->assertSessionHasErrors('password');
     }
 
-    /** SL-27: the live timer endpoints require create_time_entries (H1) */
-    public function test_view_only_users_cannot_use_the_time_tracker(): void
+    /** SL-27: timers follow assignment — staff track only visible matters */
+    public function test_time_tracking_follows_matter_assignment(): void
     {
         [$firm, $admin] = $this->createFirmAndAdmin();
         $matter = Matter::factory()->forFirm($firm, $admin)->create();
-        $secretary = User::factory()->forFirm($firm)->create(['role' => 'secretary']);
-        $secretary->assignRole('secretary');
-        $this->assertFalse($secretary->hasPermissionTo('create_time_entries'));
+        $other = Matter::factory()->forFirm($firm, $admin)->create();
+        $staff = User::factory()->forFirm($firm)->create(['role' => 'lawyer']);
+        $staff->assignRole('lawyer');
+        $matter->assignees()->syncWithoutDetaching([$staff->id]);
 
-        $this->actingAsUser($secretary);
-        $this->postJson('/time/checkin', ['matter_id' => $matter->id])->assertForbidden();
-        $this->postJson('/time/checkout')->assertForbidden();
-        $this->postJson('/time/discard')->assertForbidden();
-        $this->postJson('/time/pause')->assertForbidden();
-        $this->postJson('/time/resume')->assertForbidden();
-        $this->postJson('/time/timer/start', ['matter_id' => $matter->id])->assertForbidden();
-        $this->postJson('/time/timer/stop')->assertForbidden();
+        // Assigned matter: full lifecycle works.
+        $this->actingAsUser($staff);
+        $this->postJson('/time/checkin', ['matter_id' => $matter->id])->assertOk();
+        $this->postJson('/time/pause')->assertOk();
+        $this->postJson('/time/resume')->assertOk();
+        $this->postJson('/time/checkout')->assertOk();
 
-        $this->assertDatabaseMissing('time_sessions', ['user_id' => $secretary->id]);
-        $this->assertDatabaseMissing('time_entries', ['user_id' => $secretary->id]);
+        // Unassigned matter: creation is refused, nothing is written.
+        $this->postJson('/time/checkin', ['matter_id' => $other->id])->assertStatus(404);
+        $this->postJson('/time/timer/start', ['matter_id' => $other->id])->assertStatus(404);
+        $this->assertDatabaseMissing('time_sessions', ['user_id' => $staff->id, 'matter_id' => $other->id]);
+        $this->assertSame(1, \App\Models\TimeEntry::where('user_id', $staff->id)->count());
     }
 
     /** SL-27: the gate must not block legitimate time tracking */
@@ -652,8 +640,8 @@ class SecurityRegressionTest extends TestCase
     public function test_totp_fields_are_not_mass_assignable(): void
     {
         [$firm, $admin] = $this->createFirmAndAdmin();
-        $user = User::factory()->forFirm($firm)->create(['role' => 'solicitor']);
-        $user->assignRole('solicitor');
+        $user = User::factory()->forFirm($firm)->create(['role' => 'lawyer']);
+        $user->assignRole('lawyer');
 
         $user->update(['totp_enabled' => true, 'totp_secret' => 'ATTACKER']);
         $this->assertFalse($user->fresh()->totp_enabled);
@@ -705,8 +693,8 @@ class SecurityRegressionTest extends TestCase
     {
         [$firmA, $adminA] = $this->createFirmAndAdmin();
         [$firmB, $adminB] = $this->createFirmAndAdmin();
-        $solicitor = User::factory()->forFirm($firmA)->create(['role' => 'solicitor']);
-        $solicitor->assignRole('solicitor');
+        $solicitor = User::factory()->forFirm($firmA)->create(['role' => 'lawyer']);
+        $solicitor->assignRole('lawyer');
 
         $superadmin = User::factory()->create(['role' => 'super_admin', 'firm_id' => null]);
         $superadmin->assignRole('super_admin');

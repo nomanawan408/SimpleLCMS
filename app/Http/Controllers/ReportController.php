@@ -17,7 +17,7 @@ class ReportController extends Controller
 {
     public function index(Request $request)
     {
-        abort_unless($request->user()->hasPermissionTo('view_reports'), 403);
+        abort_unless($request->user()->is_active && $request->user()->isFirmAdmin(), 403);
 
         $firmId = $request->user()->firm_id;
 

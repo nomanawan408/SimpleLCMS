@@ -3,12 +3,15 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class AvatarReproTest extends TestCase
 {
+    use RefreshDatabase;
+
     public function test_upload_and_display(): void
     {
         Storage::fake('public');

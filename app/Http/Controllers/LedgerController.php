@@ -30,9 +30,9 @@ class LedgerController extends Controller
     /** Combined matter ledger: client + business columns with running balances. */
     public function matterLedger(Request $request, string $matter): Response
     {
-        abort_unless($request->user()->hasPermissionTo('view_ledger'), 403);
+        abort_unless($request->user()->is_active, 403);
 
-        $record = Matter::where('firm_id', $request->user()->firm_id)->findOrFail($matter);
+        $record = Matter::where('firm_id', $request->user()->firm_id)->visibleTo($request->user())->findOrFail($matter);
         $svc = $this->service($request);
 
         $postings = LedgerPosting::where('firm_id', $request->user()->firm_id)
@@ -57,7 +57,7 @@ class LedgerController extends Controller
     /** System cash sheets (client + business), filterable by date range. */
     public function cashSheet(Request $request): Response
     {
-        abort_unless($request->user()->hasPermissionTo('view_ledger'), 403);
+        abort_unless($request->user()->is_active, 403);
 
         $validated = $request->validate([
             'account'   => ['nullable', 'in:client,business'],
@@ -69,6 +69,7 @@ class LedgerController extends Controller
         $account = $validated['account'] ?? 'client';
         $query = LedgerPosting::where('firm_id', $request->user()->firm_id)
             ->where('account_type', $account === 'business' ? 'cash_sheet_business' : 'cash_sheet_client')
+            ->when(! $request->user()->isFirmAdmin(), fn ($q) => $q->whereHas('matter', fn ($qq) => $qq->visibleTo($request->user())))
             ->with(['transaction:id,transaction_date,reference,narrative,transaction_type', 'matter:id,name,matter_number'])
             ->orderBy('value_date', 'desc')
             ->orderBy('created_at', 'desc');
@@ -90,6 +91,7 @@ class LedgerController extends Controller
             'postings' => $postings,
             'balance'  => $svc->cashSheetBalance(),
             'matters'  => Matter::where('firm_id', $request->user()->firm_id)
+                ->visibleTo($request->user())
                 ->orderBy('name')
                 ->get(['id', 'name', 'matter_number'])
                 ->each(fn ($m) => $m->setAppends([])),
@@ -99,9 +101,23 @@ class LedgerController extends Controller
 
     public function store(StoreLedgerEntryRequest $request): RedirectResponse
     {
-        abort_unless($request->user()->hasPermissionTo($request->requiredPermission()), 403);
+        $needMoneyFlag = $request->input('transaction_type') === 'client_to_office_transfer';
+        abort_unless(
+            $request->user()->isFirmAdmin()
+                || (! $needMoneyFlag && $request->user()->is_active)
+                || ($needMoneyFlag && $request->user()->canManageFinances()),
+            403
+        );
 
         $data = $request->validated();
+
+        $target = Matter::where('firm_id', $request->user()->firm_id)
+            ->visibleTo($request->user())
+            ->where('id', $data['matter_id'])
+            ->first();
+        abort_unless($target, 403);
+        $target->ensureMutableBy($request->user());
+
         $svc = $this->service($request);
 
         $transaction = match ($data['transaction_type']) {
@@ -117,7 +133,17 @@ class LedgerController extends Controller
 
     public function reverse(ReverseLedgerEntryRequest $request, string $transaction): RedirectResponse
     {
-        abort_unless($request->user()->hasPermissionTo('reverse_ledger_entries'), 403);
+        abort_unless($request->user()->canManageFinances(), 403);
+
+        $original = FinancialTransaction::where('firm_id', $request->user()->firm_id)->findOrFail($transaction);
+        abort_unless(
+            $request->user()->isFirmAdmin()
+                || Matter::where('id', $original->matter_id)->visibleTo($request->user())->exists(),
+            403
+        );
+        if (! $request->user()->isFirmAdmin()) {
+            Matter::where('id', $original->matter_id)->firstOrFail()->ensureMutableBy($request->user());
+        }
 
         $reversal = $this->service($request)->recordReversal($transaction, $request->validated()['narrative']);
 
@@ -128,7 +154,7 @@ class LedgerController extends Controller
 
     public function reconciliations(Request $request): Response
     {
-        abort_unless($request->user()->hasPermissionTo('view_ledger'), 403);
+        abort_unless($request->user()->is_active, 403);
 
         $records = BankReconciliation::where('firm_id', $request->user()->firm_id)
             ->with('performer:id,full_name')
@@ -140,7 +166,7 @@ class LedgerController extends Controller
 
     public function reconcile(RunReconciliationRequest $request): RedirectResponse
     {
-        abort_unless($request->user()->hasPermissionTo('run_reconciliation'), 403);
+        abort_unless($request->user()->canManageFinances(), 403);
 
         $data = $request->validated();
         $record = $this->service($request)->runReconciliation(

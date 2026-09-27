@@ -1,7 +1,7 @@
 import { Link, router, usePage } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 import { ChevronDown, LogOut, Pause, Play, Timer, Trash2, FileText } from 'lucide-react';
-import { cn, hasPermission } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import type { PageProps } from '@/types';
@@ -30,7 +30,7 @@ function csrfToken(): string {
  */
 export function TimerPill() {
     const { activeTimer: sharedTimer, auth } = usePage<PageProps>().props;
-    const canAct = hasPermission(auth.user?.permissions, 'create_time_entries');
+    const canAct = !!auth.user;
 
     const [timer, setTimer] = useState<ActiveTimer | null>(sharedTimer);
     const [elapsed, setElapsed] = useState(0);

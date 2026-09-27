@@ -22,7 +22,7 @@ class InvoiceController extends Controller
 {
     public function index(Request $request)
     {
-        abort_unless($request->user()->hasPermissionTo('view_invoices'), 403);
+        abort_unless($request->user()->canViewFinances(), 403);
 
         $user = auth()->user();
         $firmId = $user->firm_id;
@@ -44,6 +44,7 @@ class InvoiceController extends Controller
         $query = Invoice::with(['matter', 'matter.responsibleUser'])
             ->withSum('payments as amount_paid', 'amount')
             ->where('firm_id', $firmId)
+            ->visibleTo($request->user())
             // Urgency first: collectable (sent/partial) by due date with
             // overdue on top, then drafts, then finished (paid/written
             // off/cancelled) by recency. Dateless invoices sink via COALESCE
@@ -85,6 +86,7 @@ class InvoiceController extends Controller
 
         // Stats for dashboard - respect same filters except pagination, but not search for cleaner KPI
         $statsBase = Invoice::where('firm_id', $firmId)
+            ->visibleTo($request->user())
             ->when($request->filled('status'), fn ($q) => $q->where('status', $request->status))
             ->when($request->filled('matter_id'), fn ($q) => $q->where('matter_id', $request->matter_id))
             ->when($request->filled('user_id'), fn ($q) => $q->whereHas('matter', fn ($mq) => $mq->where('responsible_user_id', $request->user_id)))
@@ -111,6 +113,7 @@ class InvoiceController extends Controller
                 ->get(['id', 'total'])
                 ->sum(fn ($inv) => max(0, (float) $inv->total - (float) ($paidPerInvoice[$inv->id] ?? 0))),
             'paid_this_month' => Payment::where('firm_id', $firmId)
+                ->when(! $request->user()->isFirmAdmin(), fn ($q) => $q->whereHas('invoice.matter', fn ($qq) => $qq->visibleTo($request->user())))
                 ->when($dateFrom && $dateTo, fn ($q) => $q->whereBetween('paid_at', [$dateFrom, $dateTo]), fn ($q) => $q->whereMonth('paid_at', now()->month)->whereYear('paid_at', now()->year))
                 ->when($request->filled('matter_id'), fn ($q) => $q->whereHas('invoice', fn ($iq) => $iq->where('matter_id', $request->matter_id)))
                 ->sum('amount'),
@@ -118,7 +121,7 @@ class InvoiceController extends Controller
         ];
 
         $filterOptions = [
-            'matters' => \App\Models\Matter::where('firm_id', $firmId)->orderBy('name')->get(['id', 'name', 'matter_number']),
+            'matters' => \App\Models\Matter::where('firm_id', $firmId)->visibleTo($request->user())->orderBy('name')->get(['id', 'name', 'matter_number']),
             'users' => \App\Models\User::where('firm_id', $firmId)->where('is_active', true)->get(['id', 'full_name']),
         ];
 
@@ -132,13 +135,14 @@ class InvoiceController extends Controller
 
     public function create(Request $request)
     {
-        abort_unless($request->user()->hasPermissionTo('create_invoices'), 403);
+        abort_unless($request->user()->canManageFinances(), 403);
 
         $user = auth()->user();
         $firmId = $user->firm_id;
 
         $matters = Matter::where('firm_id', $firmId)
             ->whereIn('status', Matter::ACTIVE_STATUSES)
+            ->visibleTo($user)
             ->with(['responsibleUser', 'contacts'])
             ->orderBy('name')
             ->get()
@@ -147,12 +151,14 @@ class InvoiceController extends Controller
         $unbilledTime = TimeEntry::where('firm_id', $firmId)
             ->where('billed', false)
             ->where('billable', true)
+            ->when(! $user->isFirmAdmin(), fn ($q) => $q->whereHas('matter', fn ($qq) => $qq->visibleTo($user)))
             ->with(['matter', 'user'])
             ->orderBy('date', 'desc')
             ->get();
 
         $unbilledExpenses = Expense::where('firm_id', $firmId)
             ->where('billed', false)
+            ->when(! $user->isFirmAdmin(), fn ($q) => $q->whereHas('matter', fn ($qq) => $qq->visibleTo($user)))
             ->with('matter')
             ->orderBy('date', 'desc')
             ->get();
@@ -172,7 +178,7 @@ class InvoiceController extends Controller
 
     public function store(Request $request)
     {
-        abort_unless($request->user()->hasPermissionTo('create_invoices'), 403);
+        abort_unless($request->user()->canManageFinances(), 403);
 
         $user = auth()->user();
         $firmId = $user->firm_id;
@@ -196,6 +202,12 @@ class InvoiceController extends Controller
             'notes'                   => 'nullable|string|max:5000',
             'action'                  => 'nullable|in:draft,send',
         ]);
+
+        // Staff with financial access invoice only matters they can see —
+        // and never a closed archive.
+        $targetMatter = Matter::where('firm_id', $firmId)->visibleTo($request->user())->where('id', $validated['matter_id'])->first();
+        abort_unless($targetMatter, 403);
+        $targetMatter->ensureMutableBy($request->user());
 
         // Linked unbilled records must belong to this firm + matter and not already be billed.
         foreach (['bill_time_entry_ids' => [TimeEntry::class, 'time entries'], 'bill_expense_ids' => [Expense::class, 'expenses']] as $field => [$model, $label]) {

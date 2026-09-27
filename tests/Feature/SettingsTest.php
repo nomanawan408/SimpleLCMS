@@ -23,16 +23,14 @@ class SettingsTest extends TestCase
                 ->where('canManageTeam', true)
                 ->where('firm.id', $firm->id)
                 ->has('users')
-                ->has('availableRoles')
-                ->has('roles')
-                ->has('groupedPermissions'));
+                ->has('availableRoles'));
     }
 
     public function test_non_admin_gets_no_firm_or_team_payload(): void
     {
         [$firm, $admin] = $this->createFirmAndAdmin();
-        $user = User::factory()->forFirm($firm)->create(['role' => 'solicitor']);
-        $user->assignRole('solicitor');
+        $user = User::factory()->forFirm($firm)->create(['role' => 'lawyer']);
+        $user->assignRole('lawyer');
 
         $this->actingAsUser($user)->get('/settings')
             ->assertOk()
@@ -47,7 +45,7 @@ class SettingsTest extends TestCase
     public function test_profile_update_changes_own_record_only(): void
     {
         [$firm, $admin] = $this->createFirmAndAdmin();
-        $other = User::factory()->forFirm($firm)->create(['role' => 'solicitor']);
+        $other = User::factory()->forFirm($firm)->create(['role' => 'lawyer']);
 
         $this->actingAsUser($admin)->put('/settings/profile', [
             'full_name' => 'New Name', 'phone' => '+44 7700 000099', 'email' => 'hacked@example.com',
@@ -113,13 +111,10 @@ class SettingsTest extends TestCase
         $this->actingAsUser($admin)->get('/settings')
             ->assertOk()
             ->assertInertia(fn ($page) => $page
-                ->where('roles', fn ($roles) => collect($roles)->pluck('name')->doesntContain('super_admin'))
                 ->where('availableRoles', fn ($roles) => collect($roles)->pluck('name')->doesntContain('super_admin')));
 
-        $this->actingAsUser($admin)->get('/admin/roles')
-            ->assertOk()
-            ->assertInertia(fn ($page) => $page
-                ->where('roles', fn ($roles) => collect($roles)->pluck('name')->doesntContain('super_admin')));
+        // Role management no longer exists as a firm feature.
+        $this->actingAsUser($admin)->get('/admin/roles')->assertNotFound();
     }
 
     public function test_removed_firm_endpoint_stays_gone(): void

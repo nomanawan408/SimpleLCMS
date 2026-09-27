@@ -174,7 +174,7 @@ class MatterTest extends TestCase
     public function test_paralegal_cannot_create_matter(): void
     {
         [$firm, $admin] = $this->createFirmAndAdmin();
-        $paralegal = User::factory()->forFirm($firm)->create(['role' => 'paralegal']);
+        $paralegal = User::factory()->forFirm($firm)->create(['role' => 'lawyer']);
         $contact   = Contact::factory()->forFirm($firm)->create();
 
         $this->actingAsUser($paralegal)->post('/matters', [
@@ -204,7 +204,7 @@ class MatterTest extends TestCase
     public function test_only_firm_admin_can_delete_matter(): void
     {
         [$firm, $admin] = $this->createFirmAndAdmin();
-        $solicitor = User::factory()->forFirm($firm)->create(['role' => 'solicitor']);
+        $solicitor = User::factory()->forFirm($firm)->create(['role' => 'lawyer']);
         $matter    = Matter::factory()->forFirm($firm, $admin)->create();
 
         $this->actingAsUser($solicitor)->delete("/matters/{$matter->id}")

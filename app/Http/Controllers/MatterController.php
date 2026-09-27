@@ -22,6 +22,7 @@ class MatterController extends Controller
         $this->authorize('viewAny', Matter::class);
 
         $query = Matter::where('firm_id', $request->user()->firm_id)
+            ->visibleTo($request->user())
             ->with(['responsibleUser', 'originatingUser:id,full_name,avatar_url', 'contacts', 'tasks' => fn ($q) => $q->whereIn('status', ['todo', 'in_progress'])->whereNull('completed_at')->orderBy('due_date')->with('assignee'), 'calendarEvents' => fn ($q) => $q->where('is_court_date', true)->where('start_at', '>=', now())->orderBy('start_at')])
             // Default sort is deadline urgency: most overdue first, then the
             // nearest upcoming deadline; matters with no open-task deadline
@@ -58,10 +59,17 @@ class MatterController extends Controller
         }
 
         // Tab counts respect every other filter, just not the category itself.
+        // State buckets power the KPI cards; all inherit the visibility scope.
         $counts = [
             'all'    => (clone $query)->count(),
             'open'   => (clone $query)->open()->count(),
             'closed' => (clone $query)->closed()->count(),
+        ];
+        $buckets = [
+            'opened'      => (clone $query)->whereIn('status', Matter::OPENED_STATUSES)->count(),
+            'in_progress' => (clone $query)->whereIn('status', Matter::PROGRESS_STATUSES)->count(),
+            'on_hold'     => (clone $query)->where('status', 'on_hold')->count(),
+            'closed'      => (clone $query)->closed()->count(),
         ];
 
         if ($category === 'open') {
@@ -87,6 +95,7 @@ class MatterController extends Controller
             'matters' => $matters,
             'filters' => [...$request->only('status', 'practice_area', 'priority', 'search'), 'category' => $category, 'per_page' => $perPage],
             'counts' => $counts,
+            'buckets' => $buckets,
             'tablePreferences' => $tablePreferences,
         ]);
     }
@@ -107,7 +116,7 @@ class MatterController extends Controller
         return Inertia::render('Matters/Create', [
             'users' => User::where('firm_id', $firmId)
                 ->where('is_active', true)
-                ->whereHas('roles', fn ($q) => $q->whereIn('name', ['firm_admin', 'manager', 'solicitor', 'lawyer', 'barrister', 'consultant']))
+                ->whereHas('roles', fn ($q) => $q->whereIn('name', ['firm_admin', 'lawyer']))
                 ->get(['id', 'full_name', 'role']),
             'contacts' => Contact::where('firm_id', $firmId)
                 ->orderBy('name')
@@ -131,6 +140,16 @@ class MatterController extends Controller
             'opened_at'     => now(),
         ]);
 
+        // The responsible user is always assigned: a matter must never be
+        // invisible to the person running it.
+        $assigneeIds = array_values(array_unique(array_filter(array_merge(
+            $request->validated()['assignee_ids'] ?? [],
+            [$matter->responsible_user_id]
+        ))));
+        if ($assigneeIds !== []) {
+            $matter->assignees()->sync($assigneeIds);
+        }
+
         if ($request->filled('contact_ids')) {
             foreach ($request->contact_ids as $contactId) {
                 $matter->contacts()->attach($contactId, ['role' => 'client']);
@@ -139,12 +158,22 @@ class MatterController extends Controller
 
         activity()->causedBy($request->user())->performedOn($matter)->log('created');
 
+        // Opening a matter with a team grants file access to each assignee:
+        // attributable in the audit trail from day one.
+        $this->logAssigneeChanges($request->user(), $matter, null, [], false);
+
         return redirect()->route('matters.show', $matter)->with('success', 'Matter created successfully.');
     }
 
     public function show(Matter $matter, Request $request): Response
     {
         $this->authorize('view', $matter);
+
+        // GDPR trail: read access to a closed file by anyone except the firm
+        // admin is an auditable event.
+        if ($matter->isClosed() && ! $request->user()->isFirmAdmin()) {
+            activity()->causedBy($request->user())->performedOn($matter)->log('viewed_closed_matter');
+        }
 
         $viewFinancial = $request->user()->canAccessFinancials();
 
@@ -195,7 +224,7 @@ class MatterController extends Controller
         // SRA matter summary badge (client CR / office DR), for roles that can
         // view the ledger. Two aggregate sums — no postings payload here.
         $ledgerBalances = null;
-        if ($request->user()->hasPermissionTo('view_ledger')) {
+        if ($request->user()->canViewFinances()) {
             $svc = new \App\Services\Accounting\LedgerService($matter->firm_id, $request->user()->id);
             $ledgerBalances = [
                 'client' => $svc->clientBalance($matter->id),
@@ -220,13 +249,13 @@ class MatterController extends Controller
 
         $firmId = $request->user()->firm_id;
 
-        $matter->load(['contacts']);
+        $matter->load(['contacts', 'assignees:id,full_name']);
 
         return Inertia::render('Matters/Edit', [
             'matter' => $matter,
             'users' => User::where('firm_id', $firmId)
                 ->where('is_active', true)
-                ->whereHas('roles', fn ($q) => $q->whereIn('name', ['firm_admin', 'manager', 'solicitor', 'lawyer', 'barrister', 'consultant']))
+                ->whereHas('roles', fn ($q) => $q->whereIn('name', ['firm_admin', 'lawyer']))
                 ->get(['id', 'full_name', 'role']),
             'contacts' => Contact::where('firm_id', $firmId)
                 ->orderBy('name')
@@ -239,7 +268,16 @@ class MatterController extends Controller
     {
         $this->authorize('update', $matter);
 
-        $matter->fill($request->validated());
+        $validated = $request->validated();
+
+        // Snapshot assignment before any write: needed for the grant gate
+        // below and for the audit entry afterwards.
+        $previousResponsible = (string) $matter->responsible_user_id;
+        $previousAssignees = $matter->assignees()->pluck('users.id')->map(fn ($id) => (string) $id)->all();
+
+        $this->ensureAssignmentUnchanged($request->user(), $matter, $validated, $previousAssignees);
+
+        $matter->fill($validated);
 
         // Keep closed_at in step with the Open/Closed buckets: stamp it the
         // moment a matter is finished, clear it if the matter is reopened.
@@ -248,11 +286,104 @@ class MatterController extends Controller
         }
         $matter->save();
 
+        // Full-sync semantics from the edit form; the responsible user can
+        // never be removed (they would lose the matter entirely). Skips the
+        // write when the effective set is unchanged so identical resubmits
+        // stay silent in the audit trail. (Effective = pivot plus the
+        // responsible user, who is always assigned via the model fallback.)
+        if (array_key_exists('assignee_ids', $validated)) {
+            $ids = array_values(array_unique(array_filter(array_merge(
+                (array) ($validated['assignee_ids'] ?? []),
+                [$matter->responsible_user_id]
+            ))));
+            $effectivePivot = array_values(array_unique(array_filter(array_merge(
+                $previousAssignees,
+                [$previousResponsible]
+            ))));
+            sort($ids);
+            sort($effectivePivot);
+            if ($ids !== $effectivePivot) {
+                $matter->assignees()->sync($ids);
+            }
+        }
+
+        $this->logAssigneeChanges($request->user(), $matter, $previousResponsible, $previousAssignees);
+
         activity()->causedBy($request->user())->performedOn($matter)->log('updated');
 
         // Always land on the matter itself: back() from the edit form just
         // redisplays the edit form (its own referer), stranding the user.
         return redirect()->route('matters.show', $matter)->with('success', 'Matter updated successfully.');
+    }
+
+    /**
+     * Assignment is access: adding someone to a matter (or moving the
+     * responsible role) grants them the whole client file, so only firm
+     * admins may change it. The edit form always resubmits the full set,
+     * so an identical resubmit is a no-op and stays allowed for lawyers —
+     * only an actual grant, revoke, or reassignment is refused, before any
+     * write happens.
+     */
+    private function ensureAssignmentUnchanged(User $user, Matter $matter, array $validated, array $previousAssignees): void
+    {
+        if ($user->isFirmAdmin()) {
+            return;
+        }
+
+        if (array_key_exists('responsible_user_id', $validated)
+            && (string) $validated['responsible_user_id'] !== (string) $matter->responsible_user_id) {
+            abort(403, 'Only a firm admin can reassign a matter.');
+        }
+
+        if (array_key_exists('assignee_ids', $validated)) {
+            $effectiveResponsible = (string) ($validated['responsible_user_id'] ?? $matter->responsible_user_id);
+            $requested = array_values(array_unique(array_filter(array_merge(
+                array_map(strval(...), (array) ($validated['assignee_ids'] ?? [])),
+                [$effectiveResponsible]
+            ))));
+            sort($requested);
+            // The responsible user is always assigned, even when the pivot
+            // hasn't caught up (factory/legacy rows): compare effective sets
+            // so identical resubmits never read as a grant.
+            $current = array_values(array_unique(array_filter(array_merge(
+                $previousAssignees,
+                [(string) $matter->responsible_user_id]
+            ))));
+            sort($current);
+            abort_unless($requested === $current, 403, 'Only a firm admin can change who can access a matter.');
+        }
+    }
+
+    /**
+     * GDPR accountability: every grant/revoke of file access is attributable
+     * (who, whom, which file). Skips silently when nothing changed so routine
+     * edits don't spam the trail.
+     */
+    private function logAssigneeChanges(User $user, Matter $matter, ?string $previousResponsible, array $previousAssignees, bool $trackResponsible = true): void
+    {
+        $current = $matter->assignees()->pluck('users.id')->map(fn ($id) => (string) $id)->all();
+        $added = array_values(array_diff($current, $previousAssignees));
+        $removed = array_values(array_diff($previousAssignees, $current));
+        $responsibleChanged = $trackResponsible
+            && $previousResponsible !== null
+            && $previousResponsible !== (string) $matter->responsible_user_id;
+
+        if ($added === [] && $removed === [] && ! $responsibleChanged) {
+            return;
+        }
+
+        $names = User::where('firm_id', $matter->firm_id)
+            ->whereIn('id', array_merge($added, $removed))
+            ->pluck('full_name', 'id')
+            ->all();
+        $label = fn ($id) => ['id' => $id, 'name' => $names[$id] ?? null];
+
+        activity()->causedBy($user)->performedOn($matter)->withProperties(array_filter([
+            'added' => array_map($label, $added),
+            'removed' => array_map($label, $removed),
+            'responsible_from' => $responsibleChanged ? $previousResponsible : null,
+            'responsible_to' => $responsibleChanged ? (string) $matter->responsible_user_id : null,
+        ]))->log('assignees_updated');
     }
 
     public function destroy(Matter $matter, Request $request): RedirectResponse

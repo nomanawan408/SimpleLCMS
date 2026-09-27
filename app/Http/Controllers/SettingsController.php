@@ -24,15 +24,14 @@ class SettingsController extends Controller
 
         $canEditFirm = $firm ? $user->can('update', $firm) : false;
         // Same gate as the sidebar Admin section.
-        $canManageTeam = ! $user->hasRole('super_admin')
-            && ($user->hasRole('firm_admin') || $user->hasPermissionTo('manage_users'));
+        $canManageTeam = ! $user->hasRole('super_admin') && $user->hasRole('firm_admin');
 
         // Team data mirrors Admin\UserController@index / Admin\RoleController@index
         // so the embedded managers show exactly what their standalone pages show.
         $team = [];
         if ($canManageTeam) {
             $users = \App\Models\User::where('firm_id', $firmId)
-                ->with('roles:id,name')
+                ->with(['roles:id,name', 'permissions:id,name'])
                 ->orderBy('full_name')
                 ->get(['id', 'full_name', 'email', 'role', 'phone', 'rate_per_hour', 'is_active', 'totp_enabled', 'last_login_at', 'avatar_url', 'created_at']);
 
@@ -41,6 +40,8 @@ class SettingsController extends Controller
                 'role' => $u->role, 'roles' => $u->roles->pluck('name')->toArray(),
                 'phone' => $u->phone, 'rate_per_hour' => $u->rate_per_hour,
                 'is_active' => $u->is_active, 'totp_enabled' => $u->totp_enabled,
+                'can_view_finances' => $u->hasPermissionTo('view_finances'),
+                'can_manage_finances' => $u->hasPermissionTo('manage_finances'),
                 'last_login_at' => $u->last_login_at, 'avatar_url' => $u->avatar_url,
                 'created_at' => $u->created_at,
             ]);
@@ -53,36 +54,6 @@ class SettingsController extends Controller
                 ->orderBy('name')
                 ->get(['id', 'name', 'description', 'is_system']);
 
-            $roles = \Spatie\Permission\Models\Role::where(function ($q) use ($firmId) {
-                    $q->where('firm_id', $firmId)->orWhereNull('firm_id');
-                })
-                ->whereNotIn('name', \App\Rules\AssignableRole::PLATFORM_ROLES)
-                ->withCount('permissions')
-                ->withCount('users')
-                ->orderByDesc('is_system')
-                ->orderBy('name')
-                ->get(['id', 'name', 'guard_name', 'description', 'is_system', 'firm_id', 'permissions_count', 'users_count']);
-
-            $team['roles'] = $roles->map(function ($role) {
-                $role->load('permissions:id,name');
-                return [
-                    'id' => $role->id, 'name' => $role->name, 'description' => $role->description,
-                    'is_system' => $role->is_system,
-                    'is_builtin' => in_array($role->name, \App\Http\Controllers\Admin\RoleController::BUILT_IN_ROLES),
-                    'firm_id' => $role->firm_id, 'permissions_count' => $role->permissions_count,
-                    'users_count' => $role->users_count,
-                    'permissions' => $role->permissions->pluck('name')->toArray(),
-                ];
-            });
-            $team['groupedPermissions'] = \Spatie\Permission\Models\Permission::where('guard_name', 'web')
-                ->orderBy('name')
-                ->get(['id', 'name'])
-                ->groupBy(function ($p) {
-                    $parts = explode('_', $p->name, 2);
-                    return $parts[1] ?? 'other';
-                })
-                ->map(fn ($perms) => $perms->map(fn ($p) => ['id' => $p->id, 'name' => $p->name])->values()->toArray())
-                ->toArray();
         }
 
         return Inertia::render('Settings/Index', [

@@ -1,4 +1,4 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Card, CardContent } from '@/components/ui/card';
@@ -14,12 +14,13 @@ import { getDateUrgency } from '@/components/ui/urgency-dot';
 import { daysUntilDate, formatDate, isOverdueDate, splitDateTime, MATTER_STATUS_LABELS, MATTER_PRIORITY_LABELS, MATTER_PRIORITY_STYLES, PRACTICE_AREA_LABELS } from '@/lib/utils';
 import { UserAvatar } from '@/components/ui/user-avatar';
 import { Plus, Search, X, Calendar, Clock, ListTodo, Briefcase, Flag, Trash2 } from 'lucide-react';
-import type { Matter, PaginatedData } from '@/types';
+import type { Matter, PaginatedData, PageProps } from '@/types';
 
 interface Props {
     matters: PaginatedData<Matter>;
     filters: { search?: string; status?: string; practice_area?: string; category?: string; per_page?: number | string };
     counts: { all: number; open: number; closed: number };
+    buckets: { opened: number; in_progress: number; on_hold: number; closed: number };
     tablePreferences?: TablePreferences | null;
 }
 
@@ -77,7 +78,9 @@ const statusBadgeStyles: Record<string, string> = {
     archived: 'bg-zinc-100 text-zinc-600 border-zinc-200',
 };
 
-export default function MattersIndex({ matters, filters, counts, tablePreferences }: Props) {
+export default function MattersIndex({ matters, filters, counts, buckets, tablePreferences }: Props) {
+    const { auth } = usePage<PageProps>().props;
+    const isFirmAdmin = auth.user?.roles?.includes('firm_admin') || auth.user?.roles?.includes('super_admin') || false;
     const [search, setSearch]   = useState(filters.search ?? '');
     const [status, setStatus]   = useState(filters.status ?? '_all');
     const [area, setArea]       = useState(filters.practice_area ?? '_all');
@@ -92,6 +95,8 @@ export default function MattersIndex({ matters, filters, counts, tablePreference
     const debouncedSearch       = useDebounce(search, 300);
     const isFirstRun            = useRef(true);
     const [editingHearing, setEditingHearing] = useState<Matter | null>(null);
+    // Closed matters are read-only for lawyers; firm admins keep full control.
+    const hearingLocked = !!editingHearing && (editingHearing.status === 'closed' || editingHearing.status === 'archived') && !isFirmAdmin;
     const [hearingDate, setHearingDate] = useState('');
     const [hearingTime, setHearingTime] = useState('');
     const [hearingEndDate, setHearingEndDate] = useState('');
@@ -418,9 +423,27 @@ export default function MattersIndex({ matters, filters, counts, tablePreference
             <div className="flex flex-col gap-3 mb-6">
                 <div className="flex items-center justify-between">
                     <h1 className="text-2xl font-extrabold tracking-tight">Matters</h1>
-                    <Button asChild className="gap-2">
-                        <Link href="/matters/create"><Plus className="h-4 w-4" />New Matter</Link>
-                    </Button>
+                    {isFirmAdmin && (
+                        <Button asChild className="gap-2">
+                            <Link href="/matters/create"><Plus className="h-4 w-4" />New Matter</Link>
+                        </Button>
+                    )}
+                </div>
+                <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+                    {[
+                        { label: 'Opened', value: buckets?.opened ?? 0, href: '/matters?category=open', strip: 'bg-emerald-500' },
+                        { label: 'In Progress', value: buckets?.in_progress ?? 0, href: '/matters?status=in_progress', strip: 'bg-sky-500' },
+                        { label: 'On Hold', value: buckets?.on_hold ?? 0, href: '/matters?status=on_hold', strip: 'bg-amber-500' },
+                        { label: 'Closed', value: buckets?.closed ?? 0, href: '/matters?category=closed', strip: 'bg-zinc-400' },
+                    ].map((b) => (
+                        <Link key={b.label} href={b.href} className="group relative overflow-hidden rounded-xl border border-border/40 bg-white transition-all duration-300 hover:shadow-[0_8px_30px_-8px_rgba(0,0,0,0.08)]">
+                            <div className={`absolute left-0 top-0 h-full w-1 ${b.strip} rounded-l-xl`} />
+                            <div className="px-4 py-3.5">
+                                <p className="text-[10px] font-semibold uppercase tracking-[0.07em] text-foreground/70">{b.label}</p>
+                                <p className="mt-1 text-xl font-bold leading-none tracking-[-0.03em] tabular-nums text-foreground">{b.value}</p>
+                            </div>
+                        </Link>
+                    ))}
                 </div>
                 <div className="flex items-center gap-1 self-start rounded-lg border border-border/60 bg-muted/40 p-1" role="tablist" aria-label="Matter categories">
                     {CATEGORY_TABS.map((tab) => {
@@ -502,9 +525,11 @@ export default function MattersIndex({ matters, filters, counts, tablePreference
                             <p className="text-muted-foreground text-sm mb-4">
                                 {hasFilters ? 'Try adjusting your search or filters' : 'Get started by creating your first matter'}
                             </p>
-                            <Button asChild>
-                                <Link href="/matters/create"><Plus className="h-4 w-4 mr-2" />New Matter</Link>
-                            </Button>
+                            {isFirmAdmin && (
+                                <Button asChild>
+                                    <Link href="/matters/create"><Plus className="h-4 w-4 mr-2" />New Matter</Link>
+                                </Button>
+                            )}
                         </div>
                     ) : (
                         <DynamicTable
@@ -666,7 +691,7 @@ export default function MattersIndex({ matters, filters, counts, tablePreference
                                             variant="ghost" size="sm"
                                             className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
                                             title="Remove this hearing"
-                                            disabled={hearingSaving}
+                                            disabled={hearingSaving || hearingLocked}
                                             onClick={() => {
                                                 if (!editingHearing) return;
                                                 setHearingSaving(true);
@@ -735,6 +760,7 @@ export default function MattersIndex({ matters, filters, counts, tablePreference
                         <Button variant="outline" onClick={() => setEditingHearing(null)} disabled={hearingSaving}>
                             Done
                         </Button>
+                        {!hearingLocked && (
                         <Button disabled={!hearingDate || hearingSaving} onClick={() => {
                                 if (!editingHearing) return;
                                 setHearingSaving(true);
@@ -759,6 +785,10 @@ export default function MattersIndex({ matters, filters, counts, tablePreference
                         >
                             {hearingSaving ? 'Adding…' : 'Add Hearing'}
                         </Button>
+                        )}
+                        {hearingLocked && (
+                            <p className="text-xs text-amber-700">This matter is closed — read-only.</p>
+                        )}
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

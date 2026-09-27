@@ -48,9 +48,10 @@ class AppServiceProvider extends ServiceProvider
             return null;
         });
 
-        // Admin panel access: admin role or manage_users permission
+        // Admin panel access: firm admins only (the manage_users permission
+        // was removed in the access-model rebuild).
         Gate::define('admin-panel', fn (User $user): bool =>
-            $user->is_active && ($user->hasRole('firm_admin') || $user->hasPermissionTo('manage_users'))
+            $user->is_active && $user->hasRole('firm_admin')
         );
 
         // Horizon exposes job payloads and failed-job traces, which routinely

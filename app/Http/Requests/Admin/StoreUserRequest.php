@@ -23,6 +23,8 @@ class StoreUserRequest extends FormRequest
             'role' => ['required', 'string', new AssignableRole($this->user())],
             'phone' => ['nullable', 'string', 'max:50'],
             'rate_per_hour' => ['nullable', 'numeric', 'min:0'],
+            'can_view_finances' => ['sometimes', 'boolean'],
+            'can_manage_finances' => ['sometimes', 'boolean'],
         ];
     }
 }

@@ -87,12 +87,12 @@ class ContactNoteController extends Controller
 
     /**
      * A note is someone's own record of a conversation, so only its author
-     * may rewrite it. Anyone who can manage contacts may tidy up.
+     * may rewrite it. Firm admins may tidy up.
      */
     private function canModify(Request $request, Note $note): bool
     {
         $user = $request->user();
 
-        return $note->user_id === $user->id || $user->hasPermissionTo('manage_contacts');
+        return $note->user_id === $user->id || $user->isFirmAdmin();
     }
 }

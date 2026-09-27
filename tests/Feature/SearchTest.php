@@ -91,18 +91,26 @@ class SearchTest extends TestCase
     }
 
     /** A user without view_invoices must never see invoice results, matching the permission that gates /billing itself. */
-    public function test_invoice_results_are_withheld_without_the_permission(): void
+    public function test_invoice_results_need_the_financial_flag(): void
     {
         [$firm, $admin] = $this->createFirmAndAdmin();
-        Invoice::factory()->create(['firm_id' => $firm->id, 'invoice_number' => 'INV-2026-0099']);
+        $matter = Matter::factory()->forFirm($firm, $admin)->create();
+        Invoice::factory()->forMatter($matter)->create(['invoice_number' => 'INV-2026-0099']);
 
-        $clerk = \App\Models\User::factory()->forFirm($firm)->create();
-        $clerk->syncRoles([]);
-        $clerk->syncPermissions(['view_matters', 'view_contacts']);
+        $staff = \App\Models\User::factory()->forFirm($firm)->create(['role' => 'lawyer']);
+        $staff->assignRole('lawyer');
+        $this->assignToMatter($staff, $matter);
 
-        $this->actingAsUser($clerk->fresh())->getJson('/search?q=0099')
+        // Assigned but no financial flag: no invoice results.
+        $this->actingAsUser($staff->fresh())->getJson('/search?q=0099')
             ->assertOk()
             ->assertJsonMissingPath('results.invoices');
+
+        // With the flag: results appear.
+        $this->grantFinances($staff);
+        $this->actingAsUser($staff->fresh())->getJson('/search?q=0099')
+            ->assertOk()
+            ->assertJsonPath('results.invoices.0.title', 'INV-2026-0099');
     }
 
     /** A matter in another firm must never surface, matching every other list in the app. */

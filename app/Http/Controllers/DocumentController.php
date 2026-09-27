@@ -21,11 +21,11 @@ class DocumentController extends Controller
 {
     public function index(Request $request): Response
     {
-        abort_unless($request->user()->hasPermissionTo('view_documents'), 403);
+        abort_unless($request->user()->is_active, 403);
 
         $firmId = $request->user()->firm_id;
 
-        $query = Document::where('firm_id', $firmId)
+        $query = Document::where('firm_id', $firmId)->whereHas('matter', fn ($q) => $q->visibleTo($request->user()))
             ->with(['matter', 'uploadedBy'])
             ->orderBy('created_at', 'desc');
 
@@ -37,14 +37,14 @@ class DocumentController extends Controller
 
         return Inertia::render('Documents/Index', [
             'documents' => $documents,
-            'matters'   => Matter::where('firm_id', $firmId)->orderBy('name')->get(['id', 'name', 'matter_number']),
+            'matters'   => Matter::where('firm_id', $firmId)->visibleTo($request->user())->orderBy('name')->get(['id', 'name', 'matter_number']),
             'filters'   => $request->only('matter_id'),
         ]);
     }
 
     public function store(Request $request): SymfonyResponse
     {
-        abort_unless($request->user()->hasPermissionTo('upload_documents'), 403);
+        abort_unless($request->user()->is_active, 403);
 
         $request->validate([
             // An extension allowlist keeps active content (html, svg, xhtml)
@@ -61,7 +61,16 @@ class DocumentController extends Controller
 
         $matter = Matter::findOrFail($request->matter_id);
         if ($matter->firm_id !== $request->user()->firm_id) {
-            abort(403);
+            abort(404);
+        }
+        // Staff may only file into matters they can see, and never into
+        // a closed archive.
+        if (! $request->user()->isFirmAdmin()) {
+            abort_unless(
+                Matter::where('id', $matter->id)->visibleTo($request->user())->exists(),
+                403
+            );
+            $matter->ensureMutableBy($request->user());
         }
 
         $firmId   = $request->user()->firm_id;
@@ -81,7 +90,9 @@ class DocumentController extends Controller
 
         $path = $file->store("documents/{$firmId}/{$matterId}", 'local');
 
-        $defaultFolder = $matter->matter_number ?: $matter->name;
+        // Folders are named for the matter title; the tree matcher still
+        // recognises legacy number-based folders so nothing ever hides.
+        $defaultFolder = $matter->name ?: $matter->matter_number;
         $document = Document::create([
             'firm_id'          => $firmId,
             'matter_id'        => $request->input('matter_id'),
@@ -114,13 +125,36 @@ class DocumentController extends Controller
         return back()->with('success', 'Document uploaded.');
     }
 
+    /**
+     * Firm admins open any firm document. Everyone else only documents on
+     * matters they can see. Binding already 404s cross-firm rows.
+     */
+    /**
+     * Reads need visibility only; writes additionally require an open
+     * matter (closed files are a frozen archive for lawyers).
+     */
+    private function authorizeDocument(Request $request, Document $document, bool $forWrite = false): void
+    {
+        $user = $request->user();
+        abort_unless($user->is_active, 403);
+        if ($document->firm_id !== $user->firm_id) {
+            abort(404);
+        }
+        if ($user->isFirmAdmin()) {
+            return;
+        }
+        abort_unless(
+            $document->matter && Matter::where('id', $document->matter_id)->visibleTo($user)->exists(),
+            403
+        );
+        if ($forWrite) {
+            $document->matter->ensureMutableBy($user);
+        }
+    }
+
     public function view(Request $request, Document $document): StreamedResponse
     {
-        abort_unless($request->user()->hasPermissionTo('view_documents'), 403);
-
-        if ($document->firm_id !== $request->user()->firm_id) {
-            abort(403);
-        }
+        $this->authorizeDocument($request, $document);
 
         $path = $document->s3_key;
 
@@ -154,11 +188,7 @@ class DocumentController extends Controller
 
     public function download(Request $request, Document $document): StreamedResponse
     {
-        abort_unless($request->user()->hasPermissionTo('view_documents'), 403);
-
-        if ($document->firm_id !== $request->user()->firm_id) {
-            abort(403);
-        }
+        $this->authorizeDocument($request, $document);
 
         $path = $document->s3_key;
 
@@ -175,11 +205,7 @@ class DocumentController extends Controller
 
     public function destroy(Request $request, Document $document): SymfonyResponse
     {
-        abort_unless($request->user()->hasPermissionTo('delete_documents'), 403);
-
-        if ($document->firm_id !== $request->user()->firm_id) {
-            abort(403);
-        }
+        $this->authorizeDocument($request, $document, forWrite: true);
 
         $path = $document->s3_key;
 

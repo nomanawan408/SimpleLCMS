@@ -9,32 +9,45 @@ class InvoicePolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->is_active && $user->hasPermissionTo('view_invoices');
+        return (bool) ($user->is_active && $user->canViewFinances());
     }
 
     public function view(User $user, Invoice $invoice): bool
     {
-        return $user->is_active
-            && $user->firm_id === $invoice->firm_id
-            && $user->hasPermissionTo('view_invoices');
+        if (! $user->is_active || $user->firm_id !== $invoice->firm_id) {
+            return false;
+        }
+        if ($user->hasRole('super_admin') || $user->hasRole('firm_admin')) {
+            return true;
+        }
+
+        return $user->canViewFinances() && $invoice->matter && $invoice->matter->isAssignedTo($user);
     }
 
     public function create(User $user): bool
     {
-        return $user->is_active && $user->hasPermissionTo('create_invoices');
+        return (bool) ($user->is_active && $user->canManageFinances());
     }
 
     public function update(User $user, Invoice $invoice): bool
     {
-        return $user->is_active
-            && $user->firm_id === $invoice->firm_id
-            && ($user->hasPermissionTo('edit_invoices') || $user->hasPermissionTo('manage_invoices'));
+        if (! $user->is_active || $user->firm_id !== $invoice->firm_id) {
+            return false;
+        }
+        if ($user->hasRole('super_admin') || $user->hasRole('firm_admin')) {
+            return true;
+        }
+
+        // Invoices on closed matters are frozen archive, like everything else.
+        if (! $invoice->matter || $invoice->matter->isClosed()) {
+            return false;
+        }
+
+        return $user->canManageFinances() && $invoice->matter->isAssignedTo($user);
     }
 
     public function delete(User $user, Invoice $invoice): bool
     {
-        return $user->is_active
-            && $user->firm_id === $invoice->firm_id
-            && $user->hasPermissionTo('delete_invoices');
+        return $this->update($user, $invoice);
     }
 }

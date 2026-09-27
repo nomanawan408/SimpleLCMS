@@ -25,6 +25,8 @@ class StoreMatterRequest extends FormRequest
             // user or contact belonging to another firm, which then rendered
             // on the matter page.
             'responsible_user_id'   => ['required', 'uuid', Rule::exists('users', 'id')->where(fn ($q) => $q->where('firm_id', $firmId))],
+            'assignee_ids'            => ['nullable', 'array'],
+            'assignee_ids.*'          => ['uuid', Rule::exists('users', 'id')->where(fn ($q) => $q->where('firm_id', $firmId))],
             'originating_user_id'   => ['nullable', 'uuid', Rule::exists('users', 'id')->where(fn ($q) => $q->where('firm_id', $firmId))],
             'court'                 => ['nullable', 'string', 'max:255'],
             'court_reference'       => ['nullable', 'string', 'max:100'],

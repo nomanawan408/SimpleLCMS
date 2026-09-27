@@ -22,7 +22,7 @@ class UserController extends Controller
         $firmId = $request->user()->firm_id;
 
         $users = User::where('firm_id', $firmId)
-            ->with('roles:id,name')
+            ->with(['roles:id,name', 'permissions:id,name'])
             ->orderBy('full_name')
             ->get(['id', 'full_name', 'email', 'role', 'phone', 'rate_per_hour', 'is_active', 'totp_enabled', 'last_login_at', 'avatar_url', 'created_at']);
 
@@ -45,8 +45,10 @@ class UserController extends Controller
                 'roles'         => $user->roles->pluck('name')->toArray(),
                 'phone'         => $user->phone,
                 'rate_per_hour' => $user->rate_per_hour,
-                'is_active'     => $user->is_active,
-                'totp_enabled'  => $user->totp_enabled,
+                'is_active'         => $user->is_active,
+                'can_view_finances' => $user->hasPermissionTo('view_finances'),
+                'can_manage_finances' => $user->hasPermissionTo('manage_finances'),
+                'totp_enabled'      => $user->totp_enabled,
                 'last_login_at' => $user->last_login_at,
                 'avatar_url'    => $user->avatar_url,
                 'created_at'    => $user->created_at,
@@ -64,6 +66,11 @@ class UserController extends Controller
         $firmId = $request->user()->firm_id;
 
         $roleName = $validated['role'];
+        $financeFlags = [
+            'can_view_finances' => $validated['can_view_finances'] ?? false,
+            'can_manage_finances' => $validated['can_manage_finances'] ?? false,
+        ];
+        unset($validated['can_view_finances'], $validated['can_manage_finances']);
 
         $user = User::create([
             ...$validated,
@@ -75,6 +82,7 @@ class UserController extends Controller
         ]);
 
         $user->assignRole($roleName);
+        $this->syncFinancialFlags($user, $financeFlags);
 
         activity()->causedBy($request->user())->performedOn($user)->log('user_created');
 
@@ -92,13 +100,42 @@ class UserController extends Controller
             $user->role = $validated['role'];
             unset($validated['role']);
         }
+        unset($validated['can_view_finances'], $validated['can_manage_finances']);
 
         $user->fill($validated);
         $user->save();
 
+        $this->syncFinancialFlags($user, $request->validated());
+
         activity()->causedBy($request->user())->performedOn($user)->log('user_updated');
 
         return back()->with('success', 'User updated.');
+    }
+
+    /**
+     * Financial access is granted per user (never by role): firm admins flip
+     * these two flags on the user record. Only present keys are touched so
+     * partial updates never wipe the other flag.
+     */
+    private function syncFinancialFlags(User $user, array $validated): void
+    {
+        $changed = false;
+        foreach (['can_view_finances' => 'view_finances', 'can_manage_finances' => 'manage_finances'] as $input => $permission) {
+            if (! array_key_exists($input, $validated)) {
+                continue;
+            }
+            if ($validated[$input]) {
+                $user->givePermissionTo($permission);
+            } else {
+                $user->revokePermissionTo($permission);
+            }
+            $changed = true;
+        }
+        // User-level grants do not flush Spatie's cache (only Role writes
+        // do), so long-lived processes would keep serving the old access.
+        if ($changed) {
+            app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+        }
     }
 
     public function destroy(Request $request, User $user): RedirectResponse

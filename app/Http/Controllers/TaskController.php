@@ -18,11 +18,12 @@ class TaskController extends Controller
 {
     public function index(Request $request): Response
     {
-        abort_unless($request->user()->hasPermissionTo('view_tasks'), 403);
+        abort_unless($request->user()->is_active, 403);
 
         $firmId = $request->user()->firm_id;
 
         $query = Task::where('firm_id', $firmId)
+            ->visibleTo($request->user())
             ->with(['matter', 'assignee'])
             ->orderByRaw("CASE status WHEN 'todo' THEN 1 WHEN 'in_progress' THEN 2 WHEN 'review' THEN 3 ELSE 4 END")
             // Urgency within each status: overdue first, then upcoming;
@@ -61,14 +62,14 @@ class TaskController extends Controller
         return Inertia::render('Tasks/Index', [
             'tasks'   => $tasks,
             'users'   => User::where('firm_id', $firmId)->where('is_active', true)->get(['id', 'full_name']),
-            'matters' => Matter::where('firm_id', $firmId)->orderBy('name')->get(['id', 'name', 'matter_number']),
+            'matters' => Matter::where('firm_id', $firmId)->visibleTo($request->user())->orderBy('name')->get(['id', 'name', 'matter_number']),
             'filters' => $request->only('status', 'priority', 'assignee_id', 'matter_id', 'search'),
         ]);
     }
 
     public function store(Request $request): SymfonyResponse
     {
-        abort_unless($request->user()->hasPermissionTo('create_tasks'), 403);
+        abort_unless($request->user()->is_active, 403);
 
         $firmId = $request->user()->firm_id;
 
@@ -83,6 +84,15 @@ class TaskController extends Controller
         ]);
 
         $validated['status'] = $validated['status'] ?? 'todo';
+
+        if (! empty($validated['matter_id'])) {
+            $target = Matter::where('firm_id', $firmId)
+                ->visibleTo($request->user())
+                ->where('id', $validated['matter_id'])
+                ->first();
+            abort_unless($target, 403);
+            $target->ensureMutableBy($request->user());
+        }
 
         $task = Task::create([
             ...$validated,
@@ -103,11 +113,7 @@ class TaskController extends Controller
 
     public function update(Request $request, Task $task): SymfonyResponse
     {
-        abort_unless($request->user()->hasPermissionTo('edit_tasks'), 403);
-
-        if ($task->firm_id !== $request->user()->firm_id) {
-            abort(403);
-        }
+        $this->authorizeTask($request, $task);
 
         $firmId = $request->user()->firm_id;
 
@@ -125,6 +131,15 @@ class TaskController extends Controller
             $validated['completed_at'] = now();
         } elseif (isset($validated['status']) && $validated['status'] !== 'done') {
             $validated['completed_at'] = null;
+        }
+
+        if (! empty($validated['matter_id'])) {
+            $destination = Matter::where('firm_id', $request->user()->firm_id)
+                ->visibleTo($request->user())
+                ->where('id', $validated['matter_id'])
+                ->first();
+            abort_unless($destination, 403);
+            $destination->ensureMutableBy($request->user());
         }
 
         $previousAssigneeId = $task->assignee_id;
@@ -146,11 +161,7 @@ class TaskController extends Controller
 
     public function destroy(Request $request, Task $task): SymfonyResponse
     {
-        abort_unless($request->user()->hasPermissionTo('delete_tasks'), 403);
-
-        if ($task->firm_id !== $request->user()->firm_id) {
-            abort(403);
-        }
+        $this->authorizeTask($request, $task);
 
         activity()->causedBy($request->user())->performedOn($task)->log('deleted');
 
@@ -161,6 +172,27 @@ class TaskController extends Controller
         }
 
         return back()->with('success', 'Task deleted.');
+    }
+
+    /**
+     * Firm admins act on any firm task; everyone else only on tasks they can
+     * see (assigned, created, or on an assigned matter). Route-model binding
+     * already 404s cross-firm rows via the tenant scope.
+     */
+    private function authorizeTask(Request $request, Task $task): void
+    {
+        $user = $request->user();
+        abort_unless($user->is_active, 403);
+        if ($user->isFirmAdmin()) {
+            return;
+        }
+        abort_unless(
+            Task::where('id', $task->id)->visibleTo($user)->exists(),
+            403
+        );
+        if ($task->matter_id) {
+            $task->matter?->ensureMutableBy($user);
+        }
     }
 
     /**

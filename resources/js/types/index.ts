@@ -98,6 +98,7 @@ export interface Matter {
     opened_at: string | null;
     closed_at: string | null;
     responsible_user?: User;
+    assignees?: { id: string; full_name: string }[];
     contacts?: Contact[];
     tasks?: Task[];
     notes?: Note[];

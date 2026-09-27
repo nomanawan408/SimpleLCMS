@@ -13,13 +13,14 @@ class AccountController extends Controller
 {
     public function index(Request $request): Response
     {
-        abort_unless($request->user()->hasPermissionTo('view_trust'), 403);
+        abort_unless($request->user()->canViewFinances(), 403);
 
         $firmId = $request->user()->firm_id;
         $firm   = $request->user()->firm;
 
         // Trust entries
         $query = TrustEntry::where('firm_id', $firmId)
+            ->when(! $request->user()->isFirmAdmin(), fn ($q) => $q->whereHas('matter', fn ($qq) => $qq->visibleTo($request->user())))
             ->with('matter')
             ->orderBy('date', 'desc')
             ->orderBy('created_at', 'desc');
@@ -30,7 +31,9 @@ class AccountController extends Controller
 
         $entries = $query->paginate(30)->withQueryString();
 
-        $trustTotals = TrustEntry::where('firm_id', $firmId)
+        $scopedTrust = TrustEntry::where('firm_id', $firmId)
+            ->when(! $request->user()->isFirmAdmin(), fn ($q) => $q->whereHas('matter', fn ($qq) => $qq->visibleTo($request->user())));
+        $trustTotals = (clone $scopedTrust)
             ->selectRaw("SUM(CASE WHEN type = 'receipt' THEN amount ELSE 0 END) as total_receipts, SUM(CASE WHEN type = 'disbursement' THEN amount ELSE 0 END) as total_disbursements")
             ->first();
 
@@ -51,9 +54,11 @@ class AccountController extends Controller
             'payment_instructions'=> $firm->payment_instructions,
         ];
 
-        // Client accounts: contacts with their matter links
+        // Client accounts: contacts with their matter links (staff see
+        // contacts tied to matters they can see).
         $clientAccounts = Contact::where('firm_id', $firmId)
             ->whereHas('matters')
+            ->when(! $request->user()->isFirmAdmin(), fn ($q) => $q->whereHas('matters', fn ($qq) => $qq->visibleTo($request->user())))
             ->with(['matters' => fn ($q) => $q->select('matters.id', 'matters.name', 'matters.matter_number', 'matters.status')->whereIn('status', Matter::ACTIVE_STATUSES)])
             ->orderBy('name')
             ->get(['id', 'name', 'type', 'email', 'phone', 'contact_person_name', 'contact_person_email']);
@@ -63,7 +68,7 @@ class AccountController extends Controller
             'summary'       => $summary,
             'firmAccount'   => $firmAccount,
             'clientAccounts'=> $clientAccounts,
-            'matters'       => Matter::where('firm_id', $firmId)->orderBy('name')->get(['id', 'name', 'matter_number']),
+            'matters'       => Matter::where('firm_id', $firmId)->visibleTo($request->user())->orderBy('name')->get(['id', 'name', 'matter_number']),
             'filters'       => $request->only('matter_id'),
         ]);
     }

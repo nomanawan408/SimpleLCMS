@@ -10,10 +10,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { applyTheme, type ThemeChoice } from '@/lib/theme';
 import FirmSetupForm from '@/components/settings/FirmSetupForm';
 import UsersManager, { type UserItem, type RoleOption } from '@/components/settings/UsersManager';
-import RolesManager, { type RoleData } from '@/components/settings/RolesManager';
 import {
     Building2, KeyRound, Moon, Monitor, Palette, Sun, UserRound, Users,
-    ShieldCheck, Shield,
+    ShieldCheck,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -27,12 +26,10 @@ interface Props {
     isSuperAdmin: boolean;
     users?: UserItem[];
     availableRoles?: RoleOption[];
-    roles?: RoleData[];
-    groupedPermissions?: Record<string, { id: number; name: string }[]>;
 }
 
 type Category = 'account' | 'firm';
-type SectionKey = 'profile' | 'appearance' | 'security' | 'company' | 'users' | 'roles';
+type SectionKey = 'profile' | 'appearance' | 'security' | 'company' | 'users';
 
 interface Section {
     key: SectionKey;
@@ -53,12 +50,12 @@ const THEMES: { value: ThemeChoice; label: string; hint: string; icon: LucideIco
 ];
 
 function sectionCategory(section: SectionKey): Category {
-    return section === 'company' || section === 'users' || section === 'roles' ? 'firm' : 'account';
+    return section === 'company' || section === 'users' ? 'firm' : 'account';
 }
 
 export default function SettingsIndex({
     preferences, canEditFirm, canManageTeam, firm, isSuperAdmin,
-    users, availableRoles, roles, groupedPermissions,
+    users, availableRoles,
 }: Props) {
     const { auth, theme: activeTheme } = usePage<PageProps>().props;
     const user = auth.user!;
@@ -66,7 +63,6 @@ export default function SettingsIndex({
     const firmSections: Section[] = [
         ...(canEditFirm && firm ? [{ key: 'company', label: 'Company', icon: Building2 } as Section] : []),
         ...(canManageTeam && users && availableRoles ? [{ key: 'users', label: 'Users', icon: Users } as Section] : []),
-        ...(canManageTeam && roles && groupedPermissions ? [{ key: 'roles', label: 'Roles', icon: Shield } as Section] : []),
     ];
     const showFirmCategory = firmSections.length > 0;
 
@@ -290,10 +286,6 @@ export default function SettingsIndex({
 
                     {section === 'users' && canManageTeam && users && availableRoles && (
                         <UsersManager users={users} availableRoles={availableRoles} />
-                    )}
-
-                    {section === 'roles' && canManageTeam && roles && groupedPermissions && (
-                        <RolesManager roles={roles} groupedPermissions={groupedPermissions} />
                     )}
                 </div>
             </div>

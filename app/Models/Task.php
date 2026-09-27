@@ -38,6 +38,23 @@ class Task extends Model
     }
 
     public function firm(): BelongsTo { return $this->belongsTo(Firm::class); }
+
+    /**
+     * Staff see tasks assigned to them, created by them, or sitting on a
+     * matter they can see. Admins see the whole firm.
+     */
+    public function scopeVisibleTo($query, \App\Models\User $user)
+    {
+        if ($user->hasRole('super_admin') || $user->hasRole('firm_admin')) {
+            return $query;
+        }
+
+        return $query->where(function ($q) use ($user) {
+            $q->where('assignee_id', $user->id)
+                ->orWhere('created_by_id', $user->id)
+                ->orWhereHas('matter', fn ($qq) => $qq->visibleTo($user));
+        });
+    }
     public function matter(): BelongsTo { return $this->belongsTo(Matter::class); }
     public function assignee(): BelongsTo { return $this->belongsTo(User::class, 'assignee_id'); }
     public function createdBy(): BelongsTo { return $this->belongsTo(User::class, 'created_by_id'); }

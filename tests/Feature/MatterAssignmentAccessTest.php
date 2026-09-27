@@ -1,0 +1,156 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\Matter;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Spatie\Activitylog\Models\Activity;
+use Tests\TestCase;
+
+/**
+ * Assignment is access: granting or revoking matter visibility (or moving
+ * the responsible role) is a firm-admin-only act, and every change is
+ * attributable in the audit trail. Lawyers keep editing everything else —
+ * identical resubmits of the assignment set are no-ops, not violations.
+ */
+class MatterAssignmentAccessTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private function openAssignedMatter(): array
+    {
+        [$firm, $lawyer] = $this->createFirmAndUser(['role' => 'lawyer']);
+        $matter = Matter::factory()->forFirm($firm)->create([
+            'status' => 'open',
+            'responsible_user_id' => $lawyer->id,
+        ]);
+        $outsider = User::factory()->forFirm($firm)->create(['role' => 'lawyer']);
+        $outsider->assignRole('lawyer');
+
+        return [$firm, $lawyer, $matter, $outsider];
+    }
+
+    public function test_lawyer_cannot_grant_matter_access_to_an_outsider(): void
+    {
+        [$firm, $lawyer, $matter, $outsider] = $this->openAssignedMatter();
+
+        $this->actingAsUser($lawyer)
+            ->put("/matters/{$matter->id}", [
+                'name' => $matter->name,
+                'assignee_ids' => [$lawyer->id, $outsider->id],
+            ])
+            ->assertForbidden();
+
+        $this->assertFalse($matter->fresh()->isAssignedTo($outsider));
+    }
+
+    public function test_lawyer_cannot_revoke_matter_access_or_reassign(): void
+    {
+        [$firm, $lawyer, $matter, $outsider] = $this->openAssignedMatter();
+        $this->assignToMatter($outsider, $matter);
+
+        // Revoke.
+        $this->actingAsUser($lawyer)
+            ->put("/matters/{$matter->id}", [
+                'name' => $matter->name,
+                'assignee_ids' => [$lawyer->id],
+            ])
+            ->assertForbidden();
+        $this->assertTrue($matter->fresh()->isAssignedTo($outsider));
+
+        // Reassign the responsible role.
+        $this->actingAsUser($lawyer)
+            ->put("/matters/{$matter->id}", [
+                'name' => $matter->name,
+                'responsible_user_id' => $outsider->id,
+            ])
+            ->assertForbidden();
+        $this->assertSame($lawyer->id, $matter->fresh()->responsible_user_id);
+    }
+
+    public function test_lawyer_noop_assignment_resubmit_stays_allowed(): void
+    {
+        [$firm, $lawyer, $matter, $outsider] = $this->openAssignedMatter();
+
+        $this->actingAsUser($lawyer)
+            ->put("/matters/{$matter->id}", [
+                'name' => 'Edited title stays possible',
+                'responsible_user_id' => $lawyer->id,
+                'assignee_ids' => [],
+            ])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame('Edited title stays possible', $matter->fresh()->name);
+        $this->assertSame(
+            0,
+            Activity::where('description', 'assignees_updated')->where('subject_id', $matter->id)->count()
+        );
+    }
+
+    public function test_admin_grants_are_applied_and_audit_logged(): void
+    {
+        [$firm, $admin] = $this->createFirmAndAdmin();
+        $lawyer = User::factory()->forFirm($firm)->create(['role' => 'lawyer']);
+        $lawyer->assignRole('lawyer');
+        $matter = Matter::factory()->forFirm($firm)->create([
+            'status' => 'open',
+            'responsible_user_id' => $admin->id,
+        ]);
+
+        // Grant.
+        $this->actingAsUser($admin)
+            ->put("/matters/{$matter->id}", [
+                'name' => $matter->name,
+                'assignee_ids' => [$lawyer->id],
+            ])
+            ->assertSessionHasNoErrors();
+
+        $this->assertTrue($matter->fresh()->isAssignedTo($lawyer));
+        $grant = Activity::where('description', 'assignees_updated')
+            ->where('subject_id', $matter->id)->latest('id')->firstOrFail();
+        $this->assertContains($lawyer->id, array_column($grant->properties['added'] ?? [], 'id'));
+        $this->assertSame($admin->id, $grant->causer_id);
+
+        // Revoke.
+        $this->actingAsUser($admin)
+            ->put("/matters/{$matter->id}", [
+                'name' => $matter->name,
+                'assignee_ids' => [],
+            ])
+            ->assertSessionHasNoErrors();
+
+        $this->assertFalse($matter->fresh()->isAssignedTo($lawyer));
+        $revoke = Activity::where('description', 'assignees_updated')
+            ->where('subject_id', $matter->id)->latest('id')->firstOrFail();
+        $this->assertSame([$lawyer->id], array_column($revoke->properties['removed'] ?? [], 'id'));
+    }
+
+    public function test_matter_creation_logs_initial_access_grants(): void
+    {
+        [$firm, $admin] = $this->createFirmAndAdmin();
+        $lawyer = User::factory()->forFirm($firm)->create(['role' => 'lawyer']);
+        $lawyer->assignRole('lawyer');
+        $contact = \App\Models\Contact::factory()->forFirm($firm)->create();
+
+        $this->actingAsUser($admin)
+            ->post('/matters', [
+                'name' => 'Team matter',
+                'practice_area' => 'litigation',
+                'fee_arrangement' => 'hourly_rate',
+                'responsible_user_id' => $admin->id,
+                'assignee_ids' => [$lawyer->id],
+                'contact_ids' => [$contact->id],
+                'status' => 'open',
+                'priority' => 'medium',
+            ])
+            ->assertRedirect();
+
+        $matter = Matter::where('name', 'Team matter')->firstOrFail();
+        $this->assertTrue($matter->isAssignedTo($lawyer));
+
+        $logged = Activity::where('description', 'assignees_updated')
+            ->where('subject_id', $matter->id)->firstOrFail();
+        $this->assertContains($lawyer->id, array_column($logged->properties['added'] ?? [], 'id'));
+    }
+}

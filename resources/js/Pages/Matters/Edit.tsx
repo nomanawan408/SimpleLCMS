@@ -1,4 +1,4 @@
-import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, Trash2, Info } from 'lucide-react';
-import type { User, Contact, Matter } from '@/types';
+import type { User, Contact, Matter, PageProps } from '@/types';
 
 interface Props {
     matter: Matter & { contacts: Contact[] };
@@ -26,6 +26,10 @@ const FEE_ARRANGEMENT_HINTS: Record<string, string> = {
 
 export default function EditMatter({ matter, users, contacts, viewFinancial }: Props) {
     const cf = (matter.custom_fields as Record<string, string>) ?? {};
+    const { auth } = usePage<PageProps>().props;
+    // Assignment grants file access: firm admins only. Everyone else keeps
+    // editing everything else; the server refuses grant attempts anyway.
+    const canManageAssignment = auth.user?.roles?.includes('firm_admin') || auth.user?.roles?.includes('super_admin') || false;
 
     const { data, setData, put, processing, errors } = useForm({
         name: matter.name,
@@ -35,6 +39,7 @@ export default function EditMatter({ matter, users, contacts, viewFinancial }: P
         practice_area: matter.practice_area || '',
         fee_arrangement: matter.fee_arrangement || '',
         responsible_user_id: matter.responsible_user_id || '',
+        assignee_ids: matter.assignees?.map((a) => a.id) || [],
         contact_ids: matter.contacts?.map((c) => c.id) || [],
         court: (matter as any).court || '',
         court_reference: (matter as any).court_reference || '',
@@ -194,9 +199,13 @@ export default function EditMatter({ matter, users, contacts, viewFinancial }: P
 
                             <div className="space-y-3">
                                 <Label className="text-sm font-medium">Responsible User *</Label>
+                                {!canManageAssignment && (
+                                    <p className="text-xs text-muted-foreground">Only a firm admin can reassign a matter.</p>
+                                )}
                                 <Select
                                     value={data.responsible_user_id}
                                     onValueChange={(v) => setData('responsible_user_id', v)}
+                                    disabled={!canManageAssignment}
                                 >
                                     <SelectTrigger className="h-11">
                                         <SelectValue placeholder="Assign to…" />
@@ -208,6 +217,37 @@ export default function EditMatter({ matter, users, contacts, viewFinancial }: P
                                     </SelectContent>
                                 </Select>
                                 {errors.responsible_user_id && <p className="text-xs text-destructive mt-1">{errors.responsible_user_id}</p>}
+                            </div>
+
+                            <div className="space-y-3">
+                                <Label className="text-sm font-medium">Assigned Team <span className="font-normal text-muted-foreground">(who can see and work this matter)</span></Label>
+                                {!canManageAssignment && (
+                                    <p className="text-xs text-muted-foreground">Only a firm admin can change who can access a matter.</p>
+                                )}
+                                <div className="space-y-1.5 rounded-lg border border-border/60 bg-muted/20 p-3">
+                                    {users.map((u) => {
+                                        const isResponsible = u.id === data.responsible_user_id;
+                                        const checked = isResponsible || data.assignee_ids.includes(u.id);
+                                        return (
+                                            <label key={u.id} className="flex cursor-pointer items-center gap-2.5 text-sm">
+                                                <input
+                                                    type="checkbox"
+                                                    className="h-4 w-4 rounded accent-primary"
+                                                    checked={checked}
+                                                    disabled={isResponsible || !canManageAssignment}
+                                                    onChange={(e) => setData('assignee_ids',
+                                                        e.target.checked
+                                                            ? [...data.assignee_ids, u.id]
+                                                            : data.assignee_ids.filter((id: string) => id !== u.id)
+                                                    )}
+                                                />
+                                                <span className={isResponsible ? 'font-medium' : ''}>{u.full_name}</span>
+                                                {isResponsible && <span className="text-xs text-muted-foreground">(responsible — always assigned)</span>}
+                                            </label>
+                                        );
+                                    })}
+                                </div>
+                                {(errors as any).assignee_ids && <p className="text-xs text-destructive mt-1">{(errors as any).assignee_ids}</p>}
                             </div>
 
                             <Separator />

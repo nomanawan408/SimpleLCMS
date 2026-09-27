@@ -48,6 +48,19 @@ class Invoice extends Model
     }
 
     public function firm(): BelongsTo { return $this->belongsTo(Firm::class); }
+
+    /**
+     * Staff see invoices on matters they can see; admins see the firm.
+     * (Financial visibility itself is gated separately by canViewFinances.)
+     */
+    public function scopeVisibleTo($query, User $user)
+    {
+        if ($user->hasRole('super_admin') || $user->hasRole('firm_admin')) {
+            return $query;
+        }
+
+        return $query->whereHas('matter', fn ($q) => $q->visibleTo($user));
+    }
     public function matter(): BelongsTo { return $this->belongsTo(Matter::class); }
     public function lineItems(): HasMany { return $this->hasMany(InvoiceLineItem::class); }
     public function payments(): HasMany { return $this->hasMany(Payment::class); }

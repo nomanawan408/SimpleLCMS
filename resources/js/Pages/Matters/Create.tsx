@@ -53,6 +53,7 @@ export default function CreateMatter({ users, contacts, prefill_contact_id, view
         priority: 'medium' as string,
         status: 'open' as string,
         responsible_user_id: '',
+        assignee_ids: [] as string[],
         contact_ids: (prefill_contact_id ? [prefill_contact_id] : []) as string[],
         court: '',
         court_reference: '',
@@ -314,6 +315,27 @@ export default function CreateMatter({ users, contacts, prefill_contact_id, view
                                         </SelectContent>
                                     </Select>
                                     {errors.responsible_user_id && <p className="text-xs text-destructive mt-1">{errors.responsible_user_id}</p>}
+                                </div>
+
+                                <div className="space-y-3">
+                                    <Label className="text-sm font-medium">Additional Team <span className="font-normal text-muted-foreground">(responsible user is always assigned)</span></Label>
+                                    <div className="space-y-1.5 rounded-lg border border-border/60 bg-muted/20 p-3">
+                                        {users.filter((u) => u.id !== data.responsible_user_id).map((u) => (
+                                            <label key={u.id} className="flex cursor-pointer items-center gap-2.5 text-sm">
+                                                <input
+                                                    type="checkbox"
+                                                    className="h-4 w-4 rounded accent-primary"
+                                                    checked={data.assignee_ids.includes(u.id)}
+                                                    onChange={(e) => setData('assignee_ids',
+                                                        e.target.checked
+                                                            ? [...data.assignee_ids, u.id]
+                                                            : data.assignee_ids.filter((id: string) => id !== u.id)
+                                                    )}
+                                                />
+                                                <span>{u.full_name}</span>
+                                            </label>
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
 

@@ -120,7 +120,7 @@ export default function UsersIndex({ users, firms, filters }: Props) {
             <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <h2 className="text-lg font-semibold">Firm Admins</h2>
-                    <p className="text-sm text-muted-foreground">{users.total} admin{users.total !== 1 ? 's' : ''} across all firms · firm staff are managed by their own firm</p>
+                    <p className="text-sm text-muted-foreground">{users.total} admin{users.total !== 1 ? 's' : ''} across all firms · firm users are managed by their own firm</p>
                 </div>
                 <div className="flex items-center gap-3">
                     <div className="relative">

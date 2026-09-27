@@ -29,7 +29,6 @@ class MatterExpenseController extends Controller
     public function store(Matter $matter, Request $request): SymfonyResponse
     {
         $this->authorize('update', $matter);
-        abort_unless($this->canManageExpenses($request, 'create_expenses'), 403);
 
         $validated = $request->validate($this->rules());
 
@@ -61,7 +60,6 @@ class MatterExpenseController extends Controller
     public function update(Matter $matter, Expense $expense, Request $request): SymfonyResponse
     {
         $this->authorize('update', $matter);
-        abort_unless($this->canManageExpenses($request, 'edit_expenses'), 403);
         abort_unless($expense->matter_id === $matter->id, 404);
 
         if ($locked = $this->lockedResponse($expense, $request, 'edited')) {
@@ -85,7 +83,6 @@ class MatterExpenseController extends Controller
     public function destroy(Matter $matter, Expense $expense, Request $request): SymfonyResponse
     {
         $this->authorize('update', $matter);
-        abort_unless($this->canManageExpenses($request, 'delete_expenses'), 403);
         abort_unless($expense->matter_id === $matter->id, 404);
 
         if ($locked = $this->lockedResponse($expense, $request, 'deleted')) {
@@ -144,10 +141,4 @@ class MatterExpenseController extends Controller
      * Expenses are financial records, so they use the dedicated expense
      * permissions rather than general matter-edit rights.
      */
-    private function canManageExpenses(Request $request, string $permission): bool
-    {
-        $user = $request->user();
-
-        return $user->hasPermissionTo($permission) || $user->hasPermissionTo('manage_expenses');
-    }
 }

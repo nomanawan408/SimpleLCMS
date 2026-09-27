@@ -24,7 +24,7 @@ class BackupTest extends TestCase
 
     public function test_non_super_admin_cannot_access_backups(): void
     {
-        [$firm, $user] = $this->createFirmAndUser(['role' => 'solicitor']);
+        [$firm, $user] = $this->createFirmAndUser(['role' => 'lawyer']);
 
         $this->actingAsUser($user)->get('/superadmin/backups')->assertForbidden();
         $this->actingAsUser($user)->post('/superadmin/backups')->assertForbidden();
@@ -65,7 +65,7 @@ class BackupTest extends TestCase
 
     public function test_non_super_admin_cannot_download_backup(): void
     {
-        [$firm, $user] = $this->createFirmAndUser(['role' => 'solicitor']);
+        [$firm, $user] = $this->createFirmAndUser(['role' => 'lawyer']);
 
         $this->actingAsUser($user)
             ->get('/superadmin/backups/backup-2026-08-27-09-00-00-1234abcd.tar.gz')

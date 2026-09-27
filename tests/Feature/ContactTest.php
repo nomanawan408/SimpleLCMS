@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Contact;
+use App\Models\Matter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -13,11 +14,19 @@ class ContactTest extends TestCase
     public function test_can_list_contacts(): void
     {
         [$firm, $user] = $this->createFirmAndUser();
-        Contact::factory()->forFirm($firm)->count(5)->create();
+        $matter = Matter::factory()->forFirm($firm)->create();
+        $contacts = Contact::factory()->forFirm($firm)->count(5)->create();
+        foreach ($contacts as $contact) {
+            $matter->contacts()->attach($contact->id, ['role' => 'client']);
+        }
+        $this->assignToMatter($user, $matter);
+        $unlinked = Contact::factory()->forFirm($firm)->create();
 
         $this->actingAsUser($user)->get('/contacts')
             ->assertOk()
-            ->assertInertia(fn ($page) => $page->where('contacts.total', 5));
+            ->assertInertia(fn ($page) => $page
+                ->where('contacts.total', 5)
+                ->where('contacts.data', fn ($data) => collect($data)->pluck('id')->doesntContain($unlinked->id)));
     }
 
     public function test_can_create_individual_contact(): void
@@ -42,6 +51,9 @@ class ContactTest extends TestCase
     {
         [$firm, $user] = $this->createFirmAndUser();
         $contact = Contact::factory()->forFirm($firm)->create(['name' => 'Old Name']);
+        $matter = Matter::factory()->forFirm($firm)->create();
+        $matter->contacts()->attach($contact->id, ['role' => 'client']);
+        $this->assignToMatter($user, $matter);
 
         $this->actingAsUser($user)->patch("/contacts/{$contact->id}", [
             'type'  => 'individual',
@@ -65,7 +77,7 @@ class ContactTest extends TestCase
 
     public function test_solicitor_cannot_delete_contact(): void
     {
-        [$firm, $user] = $this->createFirmAndUser(['role' => 'solicitor']);
+        [$firm, $user] = $this->createFirmAndUser(['role' => 'lawyer']);
         $contact = Contact::factory()->forFirm($firm)->create();
 
         $this->actingAsUser($user)->delete("/contacts/{$contact->id}")

@@ -37,8 +37,9 @@ class SearchController extends Controller
         $user = $request->user();
         $results = [];
 
-        if ($user->hasPermissionTo('view_matters')) {
+        if ($user->is_active) {
             $results['matters'] = Matter::query()
+                ->visibleTo($user)
                 ->where(function ($q) use ($query) {
                     $q->where('name', 'like', "%{$query}%")
                         ->orWhere('matter_number', 'like', "%{$query}%")
@@ -55,8 +56,9 @@ class SearchController extends Controller
                 ]);
         }
 
-        if ($user->hasPermissionTo('view_contacts')) {
+        if ($user->is_active) {
             $results['contacts'] = Contact::query()
+                ->when(! $user->isFirmAdmin(), fn ($q) => $q->whereHas('matters', fn ($qq) => $qq->visibleTo($user)))
                 ->where(function ($q) use ($query) {
                     $q->where('name', 'like', "%{$query}%")
                         ->orWhere('email', 'like', "%{$query}%")
@@ -73,8 +75,9 @@ class SearchController extends Controller
                 ]);
         }
 
-        if ($user->hasPermissionTo('view_documents')) {
+        if ($user->is_active) {
             $results['documents'] = Document::query()
+                ->when(! $user->isFirmAdmin(), fn ($q) => $q->whereHas('matter', fn ($qq) => $qq->visibleTo($user)))
                 // Wrapped in a closure deliberately: an un-grouped orWhere here
                 // would compile as `firm_id = ? AND original_name LIKE ? OR
                 // name LIKE ?`, and the OR branch would bypass the firm scope
@@ -94,8 +97,9 @@ class SearchController extends Controller
                 ]);
         }
 
-        if ($user->hasPermissionTo('view_invoices')) {
+        if ($user->canViewFinances()) {
             $results['invoices'] = Invoice::query()
+                ->visibleTo($user)
                 ->where('invoice_number', 'like', "%{$query}%")
                 ->orderByDesc('created_at')
                 ->limit(self::PER_CATEGORY_LIMIT)
@@ -108,8 +112,9 @@ class SearchController extends Controller
                 ]);
         }
 
-        if ($user->hasPermissionTo('view_tasks')) {
+        if ($user->is_active) {
             $results['tasks'] = Task::query()
+                ->visibleTo($user)
                 ->where('title', 'like', "%{$query}%")
                 ->orderByDesc('created_at')
                 ->limit(self::PER_CATEGORY_LIMIT)

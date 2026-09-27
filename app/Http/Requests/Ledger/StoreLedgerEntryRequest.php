@@ -26,12 +26,4 @@ class StoreLedgerEntryRequest extends FormRequest
             'amount'           => ['required', 'numeric', 'min:0.01', 'max:999999999.99'],
         ];
     }
-
-    /** Permission for the requested entry kind (checked by the controller). */
-    public function requiredPermission(): string
-    {
-        return $this->input('transaction_type') === 'client_to_office_transfer'
-            ? 'transfer_client_funds'
-            : 'post_ledger';
-    }
 }

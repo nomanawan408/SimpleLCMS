@@ -12,9 +12,9 @@ class ActivityController extends Controller
 {
     public function index(Request $request): Response
     {
-        // Every other read endpoint gates on a permission; this one did not,
-        // so any authenticated user could page the whole firm's audit trail.
-        abort_unless($request->user()->hasPermissionTo('view_reports'), 403);
+        // The audit trail is firm-admin only: staff must never page other
+        // users' activity across the firm.
+        abort_unless($request->user()->is_active && $request->user()->isFirmAdmin(), 403);
 
         $firmId = $request->user()->firm_id;
 

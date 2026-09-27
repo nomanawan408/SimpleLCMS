@@ -6,43 +6,37 @@ use App\Models\User;
 
 class UserPolicy
 {
+    private function isFirmManager(User $user): bool
+    {
+        return $user->is_active && $user->hasRole('firm_admin');
+    }
+
     public function viewAny(User $user): bool
     {
-        return $user->is_active && $user->hasPermissionTo('view_users');
+        return $this->isFirmManager($user);
     }
 
     public function create(User $user): bool
     {
-        return $user->is_active && $user->hasPermissionTo('create_users');
+        return $this->isFirmManager($user);
     }
 
     public function update(User $user, User $target): bool
     {
-        if (! $user->is_active || ! $user->hasPermissionTo('edit_users')) {
+        if (! $this->isFirmManager($user)) {
             return false;
         }
 
-        if ($user->firm_id !== $target->firm_id) {
-            return false;
-        }
-
-        return true;
+        return $user->firm_id === $target->firm_id;
     }
 
     public function delete(User $user, User $target): bool
     {
-        return $this->update($user, $target)
-            && $user->hasPermissionTo('delete_users')
-            && $user->id !== $target->id;
+        return $this->update($user, $target) && $user->id !== $target->id;
     }
 
     public function editAny(User $user): bool
     {
-        return $user->is_active && $user->hasPermissionTo('edit_users');
-    }
-
-    public function deleteAny(User $user): bool
-    {
-        return $user->is_active && $user->hasPermissionTo('delete_users');
+        return $this->isFirmManager($user);
     }
 }

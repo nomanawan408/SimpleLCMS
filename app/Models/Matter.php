@@ -140,6 +140,55 @@ class Matter extends Model
             ->withTimestamps();
     }
 
+    /**
+     * Staff assigned to this matter. Assignment is the visibility gate for
+     * non-admin users (see scopeVisibleTo).
+     */
+    public function assignees(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'matter_user')->using(MatterUser::class)->withTimestamps();
+    }
+
+    /**
+     * Whether the user is assigned to this matter. The responsible user
+     * counts as assigned (safety net: assignment and responsibility must
+     * never disagree into invisibility).
+     */
+    public function isAssignedTo(User $user): bool
+    {
+        if ($this->responsible_user_id === $user->id) {
+            return true;
+        }
+        if ($this->relationLoaded('assignees')) {
+            return $this->assignees->contains('id', $user->id);
+        }
+
+        return $this->assignees()->where('users.id', $user->id)->exists();
+    }
+
+    /**
+     * Write-freeze for the closed archive (GDPR least-privilege: closed
+     * client files are read-only for lawyers). Call at every mutation
+     * entry point after establishing the matter. Firm admins bypass as the
+     * accountable owners (super_admin never reaches here — Gate::before).
+     */
+    public function ensureMutableBy(User $user): void
+    {
+        abort_if($this->isClosed() && ! $user->isFirmAdmin(), 403, 'This matter is closed and read-only.');
+    }
+
+    public function scopeVisibleTo($query, User $user)
+    {
+        if ($user->hasRole('super_admin') || $user->hasRole('firm_admin')) {
+            return $query;
+        }
+
+        return $query->where(function ($q) use ($user) {
+            $q->whereHas('assignees', fn ($qq) => $qq->where('users.id', $user->id))
+                ->orWhere('responsible_user_id', $user->id);
+        });
+    }
+
     public function timeEntries(): HasMany
     {
         return $this->hasMany(TimeEntry::class);

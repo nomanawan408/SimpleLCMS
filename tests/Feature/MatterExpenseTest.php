@@ -189,14 +189,21 @@ class MatterExpenseTest extends TestCase
     }
 
     /** Expenses are financial records and use the expense permissions. */
-    public function test_users_without_expense_permissions_are_refused(): void
+    public function test_expenses_follow_matter_assignment(): void
     {
         [$firm, $admin, $matter] = $this->matterAndAdmin();
-        $admin->syncRoles([]);
-        $admin->syncPermissions(['view_matters', 'edit_matters']);
+        $staff = \App\Models\User::factory()->forFirm($firm)->create(['role' => 'lawyer']);
+        $staff->assignRole('lawyer');
 
-        $this->actingAsUser($admin->fresh())->postJson("/matters/{$matter->id}/expenses", [
+        // Unassigned: refused even though the route exists.
+        $this->actingAsUser($staff)->postJson("/matters/{$matter->id}/expenses", [
             'date' => '2026-08-27', 'amount' => 10, 'billable' => true, 'description' => 'x',
         ])->assertStatus(403);
+
+        // Assigned: allowed (expenses follow matter CRUD, no extra flag).
+        $this->assignToMatter($staff, $matter);
+        $this->actingAsUser($staff->fresh())->postJson("/matters/{$matter->id}/expenses", [
+            'date' => '2026-08-27', 'amount' => 10, 'billable' => true, 'description' => 'x',
+        ])->assertOk();
     }
 }

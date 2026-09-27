@@ -1,4 +1,4 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useState, useEffect, useRef } from 'react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Card, CardContent } from '@/components/ui/card';
@@ -9,9 +9,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Combobox } from '@/components/ui/combobox';
-import { formatCurrency, formatDate, isOverdueDate, cn, matterComboboxOptions } from '@/lib/utils';
+import { formatCurrency, formatDate, isOverdueDate, cn, hasPermission, matterComboboxOptions } from '@/lib/utils';
 import { Plus, Search, FileText, AlertCircle, CheckCircle, Clock, X, Filter, Calendar, Briefcase, User } from 'lucide-react';
-import type { Invoice, PaginatedData } from '@/types';
+import type { Invoice, PaginatedData, PageProps } from '@/types';
 
 function useDebounce(value: string, delay: number) {
     const [debounced, setDebounced] = useState(value);
@@ -38,6 +38,10 @@ const TIMEFRAMES = [
 ];
 
 export default function BillingIndex({ invoices, stats, filters, filterOptions }: Props) {
+    const { auth } = usePage<PageProps>().props;
+    const userRoles = auth.user?.roles ?? [];
+    const canCreateInvoice = userRoles.includes('firm_admin') || userRoles.includes('super_admin')
+        || hasPermission(auth.user?.permissions, 'manage_finances');
     const [search, setSearch] = useState(filters.search ?? '');
     const [status, setStatus] = useState(filters.status ?? 'all');
     const [timeframe, setTimeframe] = useState(filters.timeframe ?? 'all');
@@ -122,7 +126,9 @@ export default function BillingIndex({ invoices, stats, filters, filterOptions }
                     <h1 className="text-2xl font-extrabold tracking-tight">Billing</h1>
                     <p className="text-sm text-muted-foreground mt-1">Invoices, payments and outstanding — filter by timeframe, matter and team.</p>
                 </div>
-                <Button asChild className="gap-2"><Link href="/billing/create"><Plus className="h-4 w-4" /> New Invoice</Link></Button>
+                {canCreateInvoice && (
+                    <Button asChild className="gap-2"><Link href="/billing/create"><Plus className="h-4 w-4" /> New Invoice</Link></Button>
+                )}
             </div>
 
             {/* Stats - transaction style: just colored icons, values stay black */}
@@ -227,7 +233,9 @@ export default function BillingIndex({ invoices, stats, filters, filterOptions }
                             <p className="text-sm text-muted-foreground mt-1">Try adjusting filters or create a new invoice.</p>
                             <div className="flex gap-2 justify-center mt-4">
                                 {hasActiveFilters && <Button variant="outline" size="sm" onClick={clearFilters} className="rounded-xl">Clear filters</Button>}
-                                <Button asChild size="sm" className="rounded-xl"><Link href="/billing/create">New Invoice</Link></Button>
+                                {canCreateInvoice && (
+                                    <Button asChild size="sm" className="rounded-xl"><Link href="/billing/create">New Invoice</Link></Button>
+                                )}
                             </div>
                         </div>
                     ) : (

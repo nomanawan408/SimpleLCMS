@@ -19,13 +19,13 @@ class AdminUserTest extends TestCase
             'email'                 => 'new@example.com',
             'password'              => 'Password123!',
             'password_confirmation' => 'Password123!',
-            'role'                  => 'solicitor',
+            'role' => 'lawyer',
         ])->assertRedirect();
 
         $this->assertDatabaseHas('users', [
             'firm_id'   => $firm->id,
             'email'     => 'new@example.com',
-            'role'      => 'solicitor',
+            'role' => 'lawyer',
         ]);
     }
 
@@ -44,7 +44,7 @@ class AdminUserTest extends TestCase
 
     public function test_non_admin_cannot_access_admin_users(): void
     {
-        [$firm, $user] = $this->createFirmAndUser(['role' => 'solicitor']);
+        [$firm, $user] = $this->createFirmAndUser(['role' => 'lawyer']);
 
         $this->actingAsUser($user)->get('/admin/users')
             ->assertStatus(403);
@@ -60,28 +60,28 @@ class AdminUserTest extends TestCase
             'email'                 => 'existing@example.com',
             'password'              => 'Password123!',
             'password_confirmation' => 'Password123!',
-            'role'                  => 'solicitor',
+            'role' => 'lawyer',
         ])->assertSessionHasErrors('email');
     }
 
     public function test_firm_admin_can_update_user_role(): void
     {
         [$firm, $admin] = $this->createFirmAndAdmin();
-        $user = User::factory()->forFirm($firm)->create(['role' => 'solicitor']);
-        $user->assignRole('solicitor');
+        $user = User::factory()->forFirm($firm)->create(['role' => 'lawyer']);
+        $user->assignRole('lawyer');
 
         $this->actingAsUser($admin)->put("/admin/users/{$user->id}", [
-            'role' => 'clerk',
+            'role' => 'firm_admin',
         ])->assertRedirect();
 
-        $this->assertDatabaseHas('users', ['id' => $user->id, 'role' => 'clerk']);
+        $this->assertDatabaseHas('users', ['id' => $user->id, 'role' => 'firm_admin']);
     }
 
     public function test_valid_roles_accepted(): void
     {
         [$firm, $admin] = $this->createFirmAndAdmin();
 
-        $validRoles = ['firm_admin', 'solicitor', 'lawyer', 'barrister', 'clerk', 'consultant', 'paralegal', 'secretary', 'manager', 'accounts'];
+        $validRoles = ['firm_admin', 'lawyer'];
 
         foreach ($validRoles as $i => $role) {
             $this->actingAsUser($admin)->post('/admin/users', [
@@ -94,5 +94,15 @@ class AdminUserTest extends TestCase
         }
 
         $this->assertDatabaseCount('users', 1 + count($validRoles));
+
+        foreach (['solicitor', 'paralegal', 'secretary', 'super_admin'] as $i => $role) {
+            $this->actingAsUser($admin)->post('/admin/users', [
+                'full_name'             => "Rejected {$i}",
+                'email'                 => "rejected{$i}@example.com",
+                'password'              => 'Password123!',
+                'password_confirmation' => 'Password123!',
+                'role'                  => $role,
+            ])->assertSessionHasErrors('role');
+        }
     }
 }

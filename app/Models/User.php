@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
@@ -102,11 +103,41 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasRole('super_admin') || $this->hasRole('firm_admin');
     }
 
+    public function isLawyer(): bool
+    {
+        return $this->hasRole('lawyer');
+    }
+
+    /**
+     * Matters explicitly assigned to this user (plus responsible matters
+     * via Matter::isAssignedTo).
+     */
+    public function assignedMatters(): BelongsToMany
+    {
+        return $this->belongsToMany(Matter::class, 'matter_user')->using(MatterUser::class)->withTimestamps();
+    }
+
+    /**
+     * Financial visibility: firm admins always, staff only with the
+     * view_finances grant. Guards every money widget and report.
+     */
+    public function canViewFinances(): bool
+    {
+        return $this->is_active && ($this->isFirmAdmin() || $this->hasPermissionTo('view_finances'));
+    }
+
+    /**
+     * Financial mutation: firm admins always, staff only with the
+     * manage_finances grant. Guards invoicing, payments, transfers,
+     * reconciliations and trust writes.
+     */
+    public function canManageFinances(): bool
+    {
+        return $this->is_active && ($this->isFirmAdmin() || $this->hasPermissionTo('manage_finances'));
+    }
+
     public function canAccessFinancials(): bool
     {
-        return $this->hasPermissionTo('view_invoices')
-            || $this->hasPermissionTo('view_trust')
-            || $this->hasPermissionTo('view_expenses')
-            || $this->hasPermissionTo('view_reports');
+        return $this->canViewFinances();
     }
 }

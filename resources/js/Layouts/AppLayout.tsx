@@ -3,7 +3,7 @@ import { Link, router, usePage } from '@inertiajs/react';
 import {
     LayoutDashboard, Briefcase, Users, FileText, Clock, PoundSterling,
     Calendar, CheckSquare, LogOut, Menu, Search, Radio, ChevronDown, UserRound,
-    Building2, Shield, ShieldCheck, Activity, BarChart2, Landmark, CreditCard, Database, ScrollText, Scale, Settings, KeyRound,
+    Building2, Shield, ShieldCheck, Activity, BarChart2, Landmark, CreditCard, Database, ScrollText, Scale, Settings,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -12,7 +12,7 @@ import { Separator } from '@/components/ui/separator';
 import { GlobalSearch } from '@/components/GlobalSearch';
 import { NotificationBell } from '@/components/NotificationBell';
 import { TimerPill } from '@/components/TimerPill';
-import { cn, initials, ROLE_LABELS } from '@/lib/utils';
+import { cn, hasPermission, initials, ROLE_LABELS } from '@/lib/utils';
 import { applyTheme } from '@/lib/theme';
 import type { PageProps } from '@/types';
 
@@ -22,28 +22,31 @@ interface NavItem {
     icon: React.ComponentType<{ className?: string }>;
     routeName: string;
     adminOnly?: boolean;
-    permission?: string;
+    /** Visible when the user holds any of these roles (default: everyone). */
+    roles?: string[];
+    /** Visible with financial access (firm admins always pass). */
+    requiresFinances?: boolean;
     children?: NavItem[];
 }
 
 const navItems: NavItem[] = [
     { label: 'Dashboard',  href: '/dashboard',   icon: LayoutDashboard, routeName: 'dashboard' },
-    { label: 'Matters',    href: '/matters',      icon: Briefcase,       routeName: 'matters.index',  permission: 'view_matters' },
-    { label: 'Contacts',   href: '/contacts',     icon: Users,           routeName: 'contacts.index', permission: 'view_contacts' },
-    { label: 'Documents',  href: '/documents',    icon: FileText,        routeName: 'documents.index', permission: 'view_documents' },
-    { label: 'Time',         href: '/time',         icon: Clock,       routeName: 'time.index',       permission: 'view_time_entries',
+    { label: 'Matters',    href: '/matters',      icon: Briefcase,       routeName: 'matters.index' },
+    { label: 'Contacts',   href: '/contacts',     icon: Users,           routeName: 'contacts.index' },
+    { label: 'Documents',  href: '/documents',    icon: FileText,        routeName: 'documents.index' },
+    { label: 'Time',         href: '/time',         icon: Clock,       routeName: 'time.index',
         children: [
-            { label: 'Active', href: '/time/sessions', icon: Radio, routeName: 'time.sessions', permission: 'manage_time_entries' },
+            { label: 'Active', href: '/time/sessions', icon: Radio, routeName: 'time.sessions', adminOnly: true },
         ] },
-    { label: 'Billing',      href: '/billing',      icon: PoundSterling, routeName: 'billing.index',    permission: 'view_invoices' },
-    { label: 'Transactions', href: '/transactions', icon: CreditCard,  routeName: 'transactions.index', permission: 'view_invoices' },
-    { label: 'Accounts',           href: '/accounts',               icon: Landmark,   routeName: 'accounts.index',              permission: 'view_trust' },
-    { label: 'Client Cash Sheet',  href: '/ledger/cash-sheet',      icon: ScrollText, routeName: 'ledger.cash-sheet',         permission: 'view_ledger' },
-    { label: 'Reconciliation',     href: '/ledger/reconciliations', icon: Scale,      routeName: 'ledger.reconciliations.index', permission: 'view_ledger' },
-    { label: 'Calendar',     href: '/calendar',     icon: Calendar,    routeName: 'calendar.index',   permission: 'view_calendar' },
-    { label: 'Tasks',      href: '/tasks',        icon: CheckSquare,     routeName: 'tasks.index',     permission: 'view_tasks' },
-    { label: 'Activities', href: '/activities',   icon: Activity,        routeName: 'activities.index' },
-    { label: 'Reports',    href: '/reports',      icon: BarChart2,       routeName: 'reports.index',   permission: 'view_reports' },
+    { label: 'Billing',      href: '/billing',      icon: PoundSterling, routeName: 'billing.index',    requiresFinances: true },
+    { label: 'Transactions', href: '/transactions', icon: CreditCard,  routeName: 'transactions.index', requiresFinances: true },
+    { label: 'Accounts',           href: '/accounts',               icon: Landmark,   routeName: 'accounts.index',              requiresFinances: true },
+    { label: 'Client Cash Sheet',  href: '/ledger/cash-sheet',      icon: ScrollText, routeName: 'ledger.cash-sheet' },
+    { label: 'Reconciliation',     href: '/ledger/reconciliations', icon: Scale,      routeName: 'ledger.reconciliations.index' },
+    { label: 'Calendar',     href: '/calendar',     icon: Calendar,    routeName: 'calendar.index' },
+    { label: 'Tasks',      href: '/tasks',        icon: CheckSquare,     routeName: 'tasks.index' },
+    { label: 'Activities', href: '/activities',   icon: Activity,        routeName: 'activities.index', adminOnly: true },
+    { label: 'Reports',    href: '/reports',      icon: BarChart2,       routeName: 'reports.index',   adminOnly: true },
 ];
 
 // All settings live in one place: the Admin section's Settings submenu.
@@ -52,7 +55,6 @@ const adminItems: NavItem[] = [
         children: [
             { label: 'General',    href: '/settings',                   icon: UserRound,  routeName: 'settings.general' },
             { label: 'Users',      href: '/settings?section=users',     icon: Users,      routeName: 'settings.users', adminOnly: true },
-            { label: 'Roles',      href: '/settings?section=roles',     icon: KeyRound,   routeName: 'settings.roles', adminOnly: true },
             { label: 'Firm Setup', href: '/settings?section=company',   icon: Building2,  routeName: 'settings.company', adminOnly: true },
         ] },
 ];
@@ -101,9 +103,18 @@ export default function AppLayout({ children, title }: AppLayoutProps) {
     const isSuperAdmin = user.roles?.includes('super_admin') ?? false;
     const isFirmAdmin = user.roles?.includes('firm_admin') ?? false;
 
+    // Three-role world: firm admins see everything, staff see their pages
+    // (lists are scoped server-side), financial pages need the flag.
+    const canSee = (item: NavItem): boolean => {
+        if (item.adminOnly && !isFirmAdmin && !isSuperAdmin) return false;
+        if (item.roles && !item.roles.some((r) => user.roles?.includes(r))) return false;
+        if (item.requiresFinances && !isFirmAdmin && !hasPermission(user.permissions, 'view_finances')) return false;
+        return true;
+    };
+
     // Longest href match wins so /time/sessions doesn't also highlight /time.
     const visibleChildren = (item: NavItem): NavItem[] =>
-        (item.children ?? []).filter((c) => !c.permission || user.permissions?.includes(c.permission));
+        (item.children ?? []).filter(canSee);
 
     const allNavItems = [
         ...navItems.flatMap((i) => [i, ...visibleChildren(i)]),
@@ -114,9 +125,7 @@ export default function AppLayout({ children, title }: AppLayoutProps) {
         .sort((a, b) => b.href.length - a.href.length)[0];
     const isActive = (item: NavItem) => bestMatch?.href === item.href || (url === item.href);
 
-    const visibleNavItems = navItems.filter(
-        (item) => !item.permission || user.permissions?.includes(item.permission),
-    );
+    const visibleNavItems = navItems.filter(canSee);
 
     const handleLogout = () => {
         router.post('/logout');
@@ -223,7 +232,7 @@ export default function AppLayout({ children, title }: AppLayoutProps) {
                     );
                 })}
 
-                {!isSuperAdmin && (isFirmAdmin || user.permissions?.includes('manage_users')) && (
+                {!isSuperAdmin && isFirmAdmin && (
                     <>
                         <div className="pt-5 pb-2">
                              <p className="px-3 text-xs font-semibold text-white/70 uppercase tracking-[0.15em]">Admin</p>

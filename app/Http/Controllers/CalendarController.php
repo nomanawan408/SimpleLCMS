@@ -15,7 +15,7 @@ class CalendarController extends Controller
 {
     public function index(Request $request): Response
     {
-        abort_unless($request->user()->hasPermissionTo('view_calendar'), 403);
+        abort_unless($request->user()->is_active, 403);
 
         $firmId = $request->user()->firm_id;
         $year   = (int) ($request->query('year', now()->year));
@@ -25,6 +25,10 @@ class CalendarController extends Controller
         $end   = $start->copy()->endOfMonth();
 
         $events = CalendarEvent::where('firm_id', $firmId)
+            ->when(! $request->user()->isFirmAdmin(), fn ($q) => $q->where(function ($qq) use ($request) {
+                $qq->where('created_by_id', $request->user()->id)
+                    ->orWhereHas('matter', fn ($qqq) => $qqq->visibleTo($request->user()));
+            }))
             ->whereBetween('start_at', [$start, $end])
             ->with(['matter', 'createdBy'])
             ->orderBy('start_at')
@@ -51,6 +55,7 @@ class CalendarController extends Controller
             });
 
         $tasks = Task::where('firm_id', $firmId)
+            ->visibleTo($request->user())
             ->whereNotNull('due_date')
             ->whereBetween('due_date', [$start->toDateString(), $end->toDateString()])
             ->with('matter')
@@ -82,7 +87,7 @@ class CalendarController extends Controller
 
         return Inertia::render('Calendar/Index', [
             'events'  => $allEvents,
-            'matters' => Matter::where('firm_id', $firmId)->orderBy('name')->get(['id', 'name', 'matter_number']),
+            'matters' => Matter::where('firm_id', $firmId)->visibleTo($request->user())->orderBy('name')->get(['id', 'name', 'matter_number']),
             'year'    => $year,
             'month'   => $month,
         ]);
@@ -90,7 +95,7 @@ class CalendarController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        abort_unless($request->user()->hasPermissionTo('create_events'), 403);
+        abort_unless($request->user()->is_active, 403);
 
         $firmId = $request->user()->firm_id;
 
@@ -103,6 +108,15 @@ class CalendarController extends Controller
             'location'     => ['nullable', 'string', 'max:255'],
             'is_court_date' => ['boolean'],
         ]);
+
+        if (! empty($validated['matter_id'])) {
+            $target = Matter::where('firm_id', $firmId)
+                ->visibleTo($request->user())
+                ->where('id', $validated['matter_id'])
+                ->first();
+            abort_unless($target, 403);
+            $target->ensureMutableBy($request->user());
+        }
 
         $event = CalendarEvent::create([
             ...$validated,
@@ -118,7 +132,7 @@ class CalendarController extends Controller
 
     public function update(Request $request, CalendarEvent $event): JsonResponse
     {
-        abort_unless($request->user()->hasPermissionTo('edit_events'), 403);
+        abort_unless($request->user()->is_active, 403);
 
         if ($event->firm_id !== $request->user()->firm_id) {
             abort(403);
@@ -140,6 +154,23 @@ class CalendarController extends Controller
             $validated['end_at'] = \Carbon\Carbon::parse($validated['start_at'])->addHour();
         }
 
+        $this->authorizeEvent($request, $event);
+
+        // Moving to another matter needs visibility of the destination too.
+        // Detaching to a personal event only needs the access just checked.
+        if (array_key_exists('matter_id', $validated)
+            && $validated['matter_id'] !== null
+            && $validated['matter_id'] !== $event->matter_id
+            && ! $request->user()->isFirmAdmin()
+        ) {
+            $destination = Matter::where('firm_id', $request->user()->firm_id)
+                ->visibleTo($request->user())
+                ->where('id', $validated['matter_id'])
+                ->first();
+            abort_unless($destination, 403);
+            $destination->ensureMutableBy($request->user());
+        }
+
         $event->update($validated);
 
         activity()->causedBy($request->user())->performedOn($event)->log('updated');
@@ -147,13 +178,35 @@ class CalendarController extends Controller
         return response()->json(['event' => $event->load(['matter', 'createdBy'])]);
     }
 
+    /**
+     * Firm admins act on any firm event. Everyone else: personal events are
+     * creator-only, matter events require a visible AND open matter (closed
+     * files are a frozen archive for lawyers).
+     */
+    private function authorizeEvent(Request $request, CalendarEvent $event): void
+    {
+        $user = $request->user();
+        if ($user->isFirmAdmin()) {
+            return;
+        }
+        if ($event->matter_id === null) {
+            abort_unless($event->created_by_id === $user->id, 403);
+            return;
+        }
+        $matter = Matter::where('firm_id', $user->firm_id)->visibleTo($user)->where('id', $event->matter_id)->first();
+        abort_unless($matter, 403);
+        $matter->ensureMutableBy($user);
+    }
+
     public function destroy(Request $request, CalendarEvent $event): JsonResponse
     {
-        abort_unless($request->user()->hasPermissionTo('delete_events'), 403);
+        abort_unless($request->user()->is_active, 403);
 
         if ($event->firm_id !== $request->user()->firm_id) {
             abort(403);
         }
+
+        $this->authorizeEvent($request, $event);
 
         activity()->causedBy($request->user())->performedOn($event)->log('deleted');
 

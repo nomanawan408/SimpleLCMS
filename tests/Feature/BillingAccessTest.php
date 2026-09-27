@@ -12,7 +12,7 @@ class BillingAccessTest extends TestCase
 
     public function test_solicitor_cannot_access_billing_index(): void
     {
-        [$firm, $user] = $this->createFirmAndUser(['role' => 'solicitor']);
+        [$firm, $user] = $this->createFirmAndUser(['role' => 'lawyer']);
 
         $this->actingAsUser($user)->get('/billing')->assertForbidden();
     }
@@ -26,14 +26,14 @@ class BillingAccessTest extends TestCase
 
     public function test_solicitor_cannot_access_billing_create(): void
     {
-        [$firm, $user] = $this->createFirmAndUser(['role' => 'solicitor']);
+        [$firm, $user] = $this->createFirmAndUser(['role' => 'lawyer']);
 
         $this->actingAsUser($user)->get('/billing/create')->assertForbidden();
     }
 
     public function test_solicitor_cannot_create_invoice(): void
     {
-        [$firm, $user] = $this->createFirmAndUser(['role' => 'solicitor']);
+        [$firm, $user] = $this->createFirmAndUser(['role' => 'lawyer']);
         $matter = Matter::factory()->forFirm($firm, $user)->create();
 
         $this->actingAsUser($user)->post('/billing', [
@@ -53,7 +53,7 @@ class BillingAccessTest extends TestCase
 
     public function test_paralegal_cannot_access_billing(): void
     {
-        [$firm, $user] = $this->createFirmAndUser(['role' => 'paralegal']);
+        [$firm, $user] = $this->createFirmAndUser(['role' => 'lawyer']);
 
         $this->actingAsUser($user)->get('/billing')->assertForbidden();
     }

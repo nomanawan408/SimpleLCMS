@@ -41,9 +41,16 @@ function gbp(value: string | number): string {
 
 export default function MatterLedger({ matter, postings, balances }: Props) {
     const { auth } = usePage<PageProps>().props;
-    const canPost = hasPermission(auth.user?.permissions, 'post_ledger');
-    const canTransfer = hasPermission(auth.user?.permissions, 'transfer_client_funds');
-    const canReverse = hasPermission(auth.user?.permissions, 'reverse_ledger_entries');
+    // Page access already enforces assignment/admin, so every viewer may post
+    // receipts and payments. Transfers and reversals move/lock firm money and
+    // stay behind the manage flag (firm admins always pass).
+    const userRoles = auth.user?.roles ?? [];
+    const isFirmAdmin = userRoles.includes('firm_admin') || userRoles.includes('super_admin');
+    const canPost = !!auth.user;
+    const canTransfer = isFirmAdmin || hasPermission(auth.user?.permissions, 'manage_finances');
+    const canReverse = isFirmAdmin || hasPermission(auth.user?.permissions, 'manage_finances');
+    // Closed matters are a frozen archive for lawyers; firm admins keep control.
+    const ledgerLocked = (matter.status === 'closed' || matter.status === 'archived') && !isFirmAdmin;
 
     const [entryKind, setEntryKind] = useState<EntryKind | null>(null);
     const [form, setForm] = useState({ amount: '', transaction_date: new Date().toISOString().slice(0, 10), narrative: '', reference: '' });
@@ -80,7 +87,7 @@ export default function MatterLedger({ matter, postings, balances }: Props) {
     }
 
     function submitReversal() {
-        if (!reversingId) return;
+        if (!reversingId || ledgerLocked) return;
         setSaving(true);
         router.post(`/ledger/reversals/${reversingId}`, { narrative: reverseNarrative }, {
             preserveScroll: true,
@@ -108,7 +115,7 @@ export default function MatterLedger({ matter, postings, balances }: Props) {
                         <h1 className="text-2xl font-extrabold tracking-tight">Matter Ledger</h1>
                     </div>
                     <div className="flex items-center gap-2">
-                        {canPost && (
+                        {canPost && !ledgerLocked && (
                             <>
                                 <Button size="sm" variant="outline" className="gap-1.5" onClick={() => openEntry('client_receipt')}>
                                     <Plus className="h-4 w-4" />Receipt
@@ -118,7 +125,7 @@ export default function MatterLedger({ matter, postings, balances }: Props) {
                                 </Button>
                             </>
                         )}
-                        {canTransfer && (
+                        {canTransfer && !ledgerLocked && (
                             <Button size="sm" className="gap-1.5" onClick={() => openEntry('client_to_office_transfer')}>
                                 <ArrowRightLeft className="h-4 w-4" />Transfer to Office
                             </Button>
@@ -165,7 +172,7 @@ export default function MatterLedger({ matter, postings, balances }: Props) {
                                         <TableHead className="text-right">Office DR</TableHead>
                                         <TableHead className="text-right">Office CR</TableHead>
                                         <TableHead className="text-right">Office Bal</TableHead>
-                                        {canReverse && <TableHead><span className="sr-only">Actions</span></TableHead>}
+                                        {canReverse && !ledgerLocked && <TableHead><span className="sr-only">Actions</span></TableHead>}
                                     </TableHeaderRow>
                                 </TableHeader>
                                 <TableBody>
@@ -205,7 +212,7 @@ export default function MatterLedger({ matter, postings, balances }: Props) {
                                                         <>{gbp(Math.abs(parseFloat(posting.balance_after)))} <span className="text-muted-foreground">{parseFloat(posting.balance_after) < 0 ? 'CR' : 'DR'}</span></>
                                                     ) : '—'}
                                                 </TableCell>
-                                                {canReverse && (
+                                                {canReverse && !ledgerLocked && (
                                                     <TableCell className="text-right">
                                                         {firstOfTxn && txn && (
                                                             <button

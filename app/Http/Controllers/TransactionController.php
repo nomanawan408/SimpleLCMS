@@ -14,13 +14,14 @@ class TransactionController extends Controller
 {
     public function index(Request $request): Response
     {
-        abort_unless($request->user()->hasPermissionTo('view_invoices'), 403);
+        abort_unless($request->user()->canViewFinances(), 403);
 
         $user   = $request->user();
         $firmId = $user->firm_id;
 
         $query = Payment::with(['invoice', 'invoice.matter', 'invoice.matter.contacts'])
             ->where('firm_id', $firmId)
+            ->when(! $request->user()->isFirmAdmin(), fn ($q) => $q->whereHas('invoice.matter', fn ($qq) => $qq->visibleTo($request->user())))
             ->orderBy('paid_at', 'desc');
 
         if ($request->filled('matter_id')) {
@@ -42,6 +43,7 @@ class TransactionController extends Controller
         $transactions = $query->paginate(25)->withQueryString();
 
         $outstandingInvoices = Invoice::where('firm_id', $firmId)
+            ->visibleTo($request->user())
             ->whereIn('status', ['draft', 'sent', 'partial'])
             ->get(['id', 'total']);
         $paidPerInvoice = Payment::where('firm_id', $firmId)
@@ -93,7 +95,7 @@ class TransactionController extends Controller
 
     public function store(Request $request)
     {
-        abort_unless($request->user()->hasPermissionTo('manage_invoices'), 403);
+        abort_unless($request->user()->canManageFinances(), 403);
 
         $user   = $request->user();
         $firmId = $user->firm_id;
@@ -108,6 +110,7 @@ class TransactionController extends Controller
 
         $invoice = Invoice::where('id', $validated['invoice_id'])
             ->where('firm_id', $firmId)
+            ->visibleTo($request->user())
             ->firstOrFail();
 
         $payment = Payment::create([

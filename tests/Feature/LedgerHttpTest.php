@@ -16,17 +16,18 @@ class LedgerHttpTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function solicitor($firm): User
+    private function staffOn(Matter $matter, $firm): User
     {
-        $user = User::factory()->forFirm($firm)->create(['role' => 'solicitor']);
-        $user->assignRole('solicitor');
+        $user = User::factory()->forFirm($firm)->create(['role' => 'lawyer']);
+        $user->assignRole('lawyer');
+        $matter->assignees()->syncWithoutDetaching([$user->id]);
         return $user;
     }
 
-    private function secretary($firm): User
+    private function plainStaff($firm): User
     {
-        $user = User::factory()->forFirm($firm)->create(['role' => 'secretary']);
-        $user->assignRole('secretary');
+        $user = User::factory()->forFirm($firm)->create(['role' => 'lawyer']);
+        $user->assignRole('lawyer');
         return $user;
     }
 
@@ -42,15 +43,16 @@ class LedgerHttpTest extends TestCase
         ];
     }
 
-    public function test_view_only_role_can_read_but_not_post(): void
+    public function test_unassigned_staff_cannot_post_but_flagged_staff_cannot_reconcile(): void
     {
         [$firm, $admin] = $this->createFirmAndAdmin();
         $matter = Matter::factory()->forFirm($firm, $admin)->create();
-        $secretary = $this->secretary($firm);
+        $secretary = $this->plainStaff($firm);
 
         $this->actingAsUser($secretary)->get('/ledger/cash-sheet')->assertOk();
-        $this->actingAsUser($secretary)->get("/ledger/matters/{$matter->id}")->assertOk();
         $this->actingAsUser($secretary)->get('/ledger/reconciliations')->assertOk();
+        // Not assigned to the matter: the ledger page itself is closed.
+        $this->actingAsUser($secretary)->get("/ledger/matters/{$matter->id}")->assertNotFound();
 
         $this->actingAsUser($secretary)->post('/ledger/entries', $this->entryPayload($matter->id))->assertForbidden();
         $this->actingAsUser($secretary)->post('/ledger/reconciliations', [
@@ -58,11 +60,13 @@ class LedgerHttpTest extends TestCase
         ])->assertForbidden();
     }
 
-    public function test_solicitor_can_post_receipts_but_not_transfers_or_reversals(): void
+    public function test_assigned_staff_can_post_receipts_but_not_transfers_or_reversals(): void
     {
         [$firm, $admin] = $this->createFirmAndAdmin();
         $matter = Matter::factory()->forFirm($firm, $admin)->create();
-        $solicitor = $this->solicitor($firm);
+        $solicitor = $this->staffOn($matter, $firm);
+
+        $this->actingAsUser($solicitor)->get("/ledger/matters/{$matter->id}")->assertOk();
 
         $this->actingAsUser($solicitor)
             ->post('/ledger/entries', $this->entryPayload($matter->id))

@@ -1,7 +1,6 @@
 <?php
 
 use App\Http\Controllers\Admin\FirmController;
-use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\PasswordResetController;
@@ -248,10 +247,8 @@ Route::middleware(['auth', 'verified', 'set.tenant', 'requires.two.factor', 'red
         Route::delete('/users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
         Route::put('/users/{user}/reset-password', [UserController::class, 'resetPassword'])->name('users.reset-password');
 
-        Route::get('/roles', [RoleController::class, 'index'])->name('roles.index');
-        Route::post('/roles', [RoleController::class, 'store'])->name('roles.store');
-        Route::put('/roles/{role}', [RoleController::class, 'update'])->name('roles.update');
-        Route::delete('/roles/{role}', [RoleController::class, 'destroy'])->name('roles.destroy');
+        // No role routes: the three roles are fixed (super_admin, firm_admin,
+        // staff) and managed only by migrations/seeds.
     });
 });
 

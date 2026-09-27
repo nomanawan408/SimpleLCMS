@@ -114,9 +114,8 @@ class ContactNoteTest extends TestCase
             'body' => 'Author note', 'type' => 'note', 'logged_at' => now(),
         ]);
 
-        $colleague = \App\Models\User::factory()->forFirm($firm)->create();
-        $colleague->syncRoles([]);
-        $colleague->syncPermissions(['view_contacts', 'edit_contacts']);
+        $colleague = \App\Models\User::factory()->forFirm($firm)->create(['role' => 'lawyer']);
+        $colleague->assignRole('lawyer');
 
         $this->actingAsUser($colleague->fresh())
             ->putJson("/contacts/{$contact->id}/notes/{$note->id}", ['body' => 'Rewritten'])
@@ -157,12 +156,14 @@ class ContactNoteTest extends TestCase
     }
 
     /** Without view_documents the tab is not offered and no files are sent. */
-    public function test_documents_are_withheld_without_the_permission(): void
+    public function test_documents_follow_matter_assignment(): void
     {
         [$firm, $admin] = $this->createFirmAndAdmin();
         $contact = Contact::factory()->create(['firm_id' => $firm->id]);
         $matter = \App\Models\Matter::factory()->create(['firm_id' => $firm->id]);
         $matter->contacts()->attach($contact->id, ['role' => 'client']);
+        $otherMatter = \App\Models\Matter::factory()->create(['firm_id' => $firm->id]);
+        $otherMatter->contacts()->attach($contact->id, ['role' => 'client']);
 
         \App\Models\Document::create([
             'firm_id' => $firm->id, 'matter_id' => $matter->id, 'uploaded_by_id' => $admin->id,
@@ -171,12 +172,22 @@ class ContactNoteTest extends TestCase
             'mime_type' => 'application/pdf', 'size_bytes' => 10, 'version' => 1,
         ]);
 
-        $admin->syncRoles([]);
-        $admin->syncPermissions(['view_contacts', 'edit_contacts']);
+        $staff = \App\Models\User::factory()->forFirm($firm)->create(['role' => 'lawyer']);
+        $staff->assignRole('lawyer');
+        // Assigned to the other matter only: contact visible, private.pdf hidden.
+        $otherMatter->assignees()->syncWithoutDetaching([$staff->id]);
 
-        $this->actingAsUser($admin->fresh())
+        $this->actingAsUser($staff->fresh())
             ->get("/contacts/{$contact->id}")
             ->assertOk()
             ->assertDontSee('private.pdf', false);
+
+        // Assigned to the matter holding the document: visible.
+        $matter->assignees()->syncWithoutDetaching([$staff->id]);
+
+        $this->actingAsUser($staff->fresh())
+            ->get("/contacts/{$contact->id}")
+            ->assertOk()
+            ->assertSee('private.pdf', false);
     }
 }

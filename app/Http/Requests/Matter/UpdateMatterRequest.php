@@ -22,6 +22,8 @@ class UpdateMatterRequest extends FormRequest
             'practice_area'       => ['sometimes', 'in:conveyancing,family_law,litigation,employment,wills_probate,corporate,immigration,criminal,personal_injury,custom'],
             'fee_arrangement'     => ['sometimes', 'in:hourly_rate,fixed_fee,contingency,retainer'],
             'responsible_user_id' => ['sometimes', 'uuid', Rule::exists('users', 'id')->where(fn ($q) => $q->where('firm_id', $firmId))],
+            'assignee_ids' => ['nullable', 'array'],
+            'assignee_ids.*' => ['uuid', Rule::exists('users', 'id')->where(fn ($q) => $q->where('firm_id', $firmId))],
             'court'               => ['nullable', 'string', 'max:255'],
             'court_reference'     => ['nullable', 'string', 'max:100'],
             'custom_fields'       => ['nullable', 'array'],

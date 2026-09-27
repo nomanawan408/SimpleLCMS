@@ -23,7 +23,7 @@ class UserFactory extends Factory
             'email'             => fake()->unique()->safeEmail(),
             'email_verified_at' => now(),
             'password'          => static::$password ??= Hash::make('password'),
-            'role'              => 'solicitor',
+            'role'              => 'lawyer',
             'is_active'         => true,
             'totp_enabled'      => false,
             'remember_token'    => Str::random(10),
@@ -33,21 +33,6 @@ class UserFactory extends Factory
     public function firmAdmin(): static
     {
         return $this->state(fn () => ['role' => 'firm_admin']);
-    }
-
-    public function accounts(): static
-    {
-        return $this->state(fn () => ['role' => 'accounts']);
-    }
-
-    public function solicitor(): static
-    {
-        return $this->state(fn () => ['role' => 'solicitor']);
-    }
-
-    public function clerk(): static
-    {
-        return $this->state(fn () => ['role' => 'clerk']);
     }
 
     public function forFirm(Firm $firm): static

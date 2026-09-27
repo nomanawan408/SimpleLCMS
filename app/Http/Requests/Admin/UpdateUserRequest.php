@@ -24,6 +24,8 @@ class UpdateUserRequest extends FormRequest
             'phone' => ['nullable', 'string', 'max:50'],
             'rate_per_hour' => ['nullable', 'numeric', 'min:0'],
             'is_active' => ['sometimes', 'boolean'],
+            'can_view_finances' => ['sometimes', 'boolean'],
+            'can_manage_finances' => ['sometimes', 'boolean'],
         ];
     }
 }

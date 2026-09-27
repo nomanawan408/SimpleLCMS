@@ -21,7 +21,7 @@ import {
     ArrowLeft, Clock, Receipt, Wallet, FileText, CheckSquare, Users, Edit, Plus, Download,
     Gavel, Calendar, TrendingUp, AlertTriangle, ChevronRight, ChevronDown, MessageSquare, Timer,
     Paperclip, ExternalLink, PoundSterling, Eye, X, Pencil, Trash2, Upload,
-    Landmark, CalendarClock, Flag, Folder, FolderOpen, CircleCheck, RotateCcw, BookOpenText,
+    Landmark, CalendarClock, Flag, Folder, FolderOpen, CircleCheck, RotateCcw, BookOpenText, Lock,
 } from 'lucide-react';
 import type { Matter, Expense, Document, TrustEntry, User, PageProps } from '@/types';
 import { useUploadQueue } from '@/hooks/useUploadQueue';
@@ -74,9 +74,13 @@ interface Props {
 
 export default function ShowMatter({ matter, users, viewFinancial, activeTimer: serverTimer, ledgerBalances }: Props) {
     const { auth } = usePage<PageProps>().props;
-    const canCreateTime = hasPermission(auth.user?.permissions, 'create_time_entries');
-    const canViewLedger = hasPermission(auth.user?.permissions, 'view_ledger');
-    const canDeleteDocuments = hasPermission(auth.user?.permissions, 'delete_documents');
+    // Page access already enforces assignment/admin, so every viewer may log
+    // time and manage documents here. Money actions stay behind the flag.
+    const userRoles = auth.user?.roles ?? [];
+    const isFirmAdmin = userRoles.includes('firm_admin') || userRoles.includes('super_admin');
+    const canManageFinances = isFirmAdmin || hasPermission(auth.user?.permissions, 'manage_finances');
+    const canCreateTime = !!auth.user;
+    const canDeleteDocuments = !!auth.user;
     const [notes, setNotes] = useState<any[]>(matter.notes ?? []);
     const [timeEntries, setTimeEntries] = useState<any[]>(matter.time_entries ?? []);
     const [expenses, setExpenses] = useState<any[]>(matter.expenses ?? []);
@@ -121,6 +125,8 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
     // Closed = status is closed/archived (Matter::CLOSED_STATUSES). Everything
     // else counts as open, so finishing a matter is a single status flip.
     const isClosed = matter.status === 'closed' || matter.status === 'archived';
+    // Lawyers see closed matters read-only; firm admins keep full control.
+    const matterLocked = isClosed && !isFirmAdmin;
     const [statusDialog, setStatusDialog] = useState<null | 'close' | 'reopen'>(null);
     const [statusSaving, setStatusSaving] = useState(false);
     const openTasksCount = tasks.filter((t: any) => t.status !== 'done').length;
@@ -321,8 +327,10 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
 
     const [docModalOpen, setDocModalOpen] = useState(false);
     const [docClientVisible, setDocClientVisible] = useState(false);
-    const [docFolder, setDocFolder] = useState(matter.matter_number || matter.name);
-    const _baseFolder = (matter.matter_number || matter.name).trim();
+    const [docFolder, setDocFolder] = useState(matter.name || matter.matter_number);
+    // Folders are named for the matter title; the tree matcher below
+    // still recognises legacy number-based folders so nothing ever hides.
+    const _baseFolder = (matter.name || matter.matter_number).trim();
     // Direct child subfolders of the matter folder (not full paths)
     const docExistingFolders = [...new Set(
         documents
@@ -341,7 +349,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
             const fd = new FormData();
             fd.append('file', file);
             fd.append('matter_id', matter.id);
-            const baseFolder = (matter.matter_number || matter.name).trim();
+            const baseFolder = (matter.name || matter.matter_number).trim();
             const userFolder = docFolder.trim();
 
             // docFolder is always a subfolder name or the base folder itself
@@ -699,7 +707,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
     const openDocModal = (folder?: string) => {
         docUploadQueue.clearAll();
         setDocClientVisible(false);
-        setDocFolder(folder ?? matter.matter_number ?? matter.name ?? 'General');
+        setDocFolder(folder ?? matter.name ?? matter.matter_number ?? 'General');
         if (docFileRef.current) docFileRef.current.value = '';
         setDocModalOpen(true);
     };
@@ -821,19 +829,21 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                     </Link>
                 </Button>
                 <div className="flex items-center gap-2">
-                    {canCreateTime && (
+                    {canCreateTime && !matterLocked && (
                         <Button size="sm" variant="outline" type="button" onClick={openTimeModal}>
                             <Timer className="h-4 w-4 mr-1" />
                             Log Time
                         </Button>
                     )}
-                    <Button asChild size="sm" variant="outline">
-                        <Link href={`/billing/create?matter_id=${matter.id}`}>
-                            <Receipt className="h-4 w-4 mr-1" />
-                            New Invoice
-                        </Link>
-                    </Button>
-                    {canViewLedger && (
+                    {canManageFinances && !matterLocked && (
+                        <Button asChild size="sm" variant="outline">
+                            <Link href={`/billing/create?matter_id=${matter.id}`}>
+                                <Receipt className="h-4 w-4 mr-1" />
+                                New Invoice
+                            </Link>
+                        </Button>
+                    )}
+                    {ledgerBalances && (
                         <Button asChild size="sm" variant="outline">
                             <Link href={`/ledger/matters/${matter.id}`}>
                                 <BookOpenText className="h-4 w-4 mr-1" />
@@ -842,10 +852,12 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                         </Button>
                     )}
                     {isClosed ? (
+                        !matterLocked && (
                         <Button size="sm" variant="outline" type="button" onClick={() => setStatusDialog('reopen')}>
                             <RotateCcw className="h-4 w-4 mr-1" />
                             Reopen
                         </Button>
+                        )
                     ) : (
                         <Button
                             size="sm"
@@ -858,13 +870,21 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                             Mark as Closed
                         </Button>
                     )}
+                    {!matterLocked && (
                     <Button asChild size="sm">
                         <Link href={`/matters/${matter.id}/edit`}>
                             <Edit className="h-4 w-4 mr-1" />
                             Edit Matter
                         </Link>
                     </Button>
+                    )}
                 </div>
+                {matterLocked && (
+                    <div className="mb-5 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800">
+                        <Lock className="h-4 w-4 shrink-0" />
+                        <span>This matter is <strong>closed — read-only</strong>. Only a firm admin can make changes.</span>
+                    </div>
+                )}
             </div>
 
             {/* Close / Reopen confirmation */}
@@ -938,7 +958,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                         <span className="inline-flex items-center rounded-full border border-border bg-muted/50 px-2.5 py-1 font-mono text-xs font-semibold tabular-nums tracking-wide text-foreground">
                             {matter.matter_number}
                         </span>
-                        {canViewLedger && ledgerBalances && (
+                        {ledgerBalances && (
                             <>
                                 <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold tabular-nums text-emerald-700">
                                     Client {formatCurrency(parseFloat(ledgerBalances.client))} {parseFloat(ledgerBalances.client) < 0 ? 'DR' : 'CR'}
@@ -997,7 +1017,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                     {daysUntil !== null && <span className="text-xs text-amber-700">{daysUntil < 0 ? `· overdue ${Math.abs(daysUntil)}d` : deadlinePassed ? '· overdue' : daysUntil === 0 ? '· today' : `· in ${daysUntil}d`}</span>}
                                 </div>
                             )}
-                            {(matter as any).hearing_date && (
+                            {(matter as any).hearing_date && !matterLocked && (
                                 <button
                                     type="button"
                                     onClick={openHearingDialog}
@@ -1032,7 +1052,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                         ...(viewFinancial ? [
                             { key: 'expenses',  label: 'Expenses', icon: Receipt, count: expenses.length || null },
                             { key: 'billing',   label: 'Billing',  icon: PoundSterling, count: matter.invoices?.length || null },
-                            { key: 'trust',     label: 'Trust',    icon: Wallet, count: null },
+                            { key: 'account',   label: 'Account',  icon: Wallet, count: null },
                         ] : []),
                         { key: 'documents', label: 'Documents', icon: Paperclip, count: documents.length || null },
                         { key: 'tasks',     label: 'Tasks',     icon: CheckSquare, count: tasks.filter((t: any) => t.status !== 'done').length || null },
@@ -1052,10 +1072,12 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                     <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-foreground text-background"><MessageSquare className="h-3.5 w-3.5" /></span>
                                     Notes & Activity
                                 </CardTitle>
+                                {!matterLocked && (
                                 <Button size="sm" type="button" onClick={openNoteModal} variant="contrast">
                                     <Plus className="h-3.5 w-3.5 mr-1" />
                                     Add Note
                                 </Button>
+                                )}
                             </CardHeader>
                             <CardContent className="p-0">
                                 {notes?.length === 0 ? (
@@ -1475,7 +1497,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                 </p>
                             )}
                         </div>
-                        {canCreateTime && (
+                        {canCreateTime && !matterLocked && (
                             <Button size="sm" variant="outline" type="button" onClick={openTimeModal}>
                                 <Plus className="h-3.5 w-3.5 mr-1" />
                                 Log Time
@@ -1561,10 +1583,12 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                 </p>
                             )}
                         </div>
+                        {!matterLocked && (
                         <Button size="sm" variant="outline" type="button" onClick={() => openExpenseModal()}>
                             <Plus className="h-3.5 w-3.5 mr-1" />
                             Add Expense
                         </Button>
+                        )}
                     </CardHeader>
                     <CardContent className="p-0">
                         {expenses?.length ? (
@@ -1603,7 +1627,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                                 <TableCell className="text-right whitespace-nowrap">
                                                     {exp.billed ? (
                                                         <span className="text-xs text-muted-foreground">Locked</span>
-                                                    ) : (
+                                                    ) : !matterLocked ? (
                                                         <div className="flex items-center justify-end gap-1">
                                                             <Button size="icon" variant="ghost" className="h-7 w-7" type="button" aria-label="Edit expense" onClick={() => openExpenseModal(exp)}
                                                             >
@@ -1614,7 +1638,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                                                 <Trash2 className="h-3.5 w-3.5" />
                                                             </Button>
                                                         </div>
-                                                    )}
+                                                    ) : null}
                                                 </TableCell>
                                             </TableRow>
                                         ))}
@@ -1650,10 +1674,12 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                         <CardTitle className="text-base tracking-tight flex items-center gap-2">
                             <FileText className="h-4 w-4" /> Documents
                         </CardTitle>
+                        {!matterLocked && (
                         <Button size="sm" variant="outline" type="button" onClick={() => openDocModal()}>
                             <Plus className="h-3.5 w-3.5 mr-1" />
                             Upload
                         </Button>
+                        )}
                     </CardHeader>
                     <CardContent className="p-0">
                         {documents.length ? (
@@ -1732,7 +1758,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                             <Button variant="ghost" size="icon" className="h-7 w-7" title="Download" asChild>
                                                 <a href={`/documents/${doc.id}/download`} download><Download className="h-3.5 w-3.5" /></a>
                                             </Button>
-                                            {canDeleteDocuments && (
+                                            {canDeleteDocuments && !matterLocked && (
                                                 <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" title="Delete" onClick={() => deleteDocument(doc)}>
                                                     <Trash2 className="h-3.5 w-3.5" />
                                                 </Button>
@@ -1769,7 +1795,8 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                                 <button
                                                     type="button"
                                                     title={`Upload to ${node.name}`}
-                                                    onClick={() => openDocModal(node.fullPath)}
+                                                    onClick={() => !matterLocked && openDocModal(node.fullPath)}
+                                                    disabled={matterLocked}
                                                     className="rounded-md p-1.5 text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-primary focus-visible:opacity-100 group-hover:opacity-100"
                                                 >
                                                     <Plus className="h-3.5 w-3.5" />
@@ -1828,10 +1855,12 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                 <div className="space-y-4">
                     <div className="flex items-center justify-between">
                         <p className="text-sm text-muted-foreground">{tasks.length} total · {tasks.filter((t: any) => t.status !== 'done').length} open</p>
+                        {!matterLocked && (
                         <Button size="sm" variant="outline" type="button" onClick={openTaskModal}>
                             <Plus className="h-3.5 w-3.5 mr-1" />
                             Add Task
                         </Button>
+                        )}
                     </div>
                     {tasks.length === 0 ? (
                         <Card className="surface-card">
@@ -1894,6 +1923,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                                     <Select
                                                         value={task.status}
                                                         onValueChange={(v) => cycleTaskStatus({ ...task, _overrideStatus: v })}
+                                                        disabled={matterLocked}
                                                     >
                                                         <SelectTrigger className={cn(
                                                             'h-7 w-32 text-xs font-medium border-0 shadow-none shrink-0 focus:ring-1',
@@ -1912,6 +1942,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                                         </SelectContent>
                                                     </Select>
                                                     <div className="flex items-center gap-1 shrink-0">
+                                                        {!matterLocked && (
                                                         <button
                                                             type="button"
                                                             className="flex items-center justify-center h-7 w-7 rounded-md border border-border hover:bg-muted transition-colors"
@@ -1920,6 +1951,8 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                                         >
                                                             <Pencil className="h-3.5 w-3.5" />
                                                         </button>
+                                                        )}
+                                                        {!matterLocked && (
                                                         <button
                                                             type="button"
                                                             className="flex items-center justify-center h-7 w-7 rounded-md border border-border hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-colors"
@@ -1928,6 +1961,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                                         >
                                                             <Trash2 className="h-3.5 w-3.5" />
                                                         </button>
+                                                        )}
                                                     </div>
                                                 </div>
                                             ))}
@@ -1953,12 +1987,14 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                 </p>
                             )}
                         </div>
-                        <Button size="sm" asChild>
-                            <Link href={`/billing/create?matter_id=${matter.id}`}>
-                                <Plus className="h-3.5 w-3.5 mr-1" />
-                                New Invoice
-                            </Link>
-                        </Button>
+                        {canManageFinances && !matterLocked && (
+                            <Button size="sm" asChild>
+                                <Link href={`/billing/create?matter_id=${matter.id}`}>
+                                    <Plus className="h-3.5 w-3.5 mr-1" />
+                                    New Invoice
+                                </Link>
+                            </Button>
+                        )}
                     </CardHeader>
                     <CardContent className="p-0">
                         {matter.invoices?.length ? (
@@ -2017,7 +2053,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                 </Card>
             )}
 
-            {tab === 'trust' && (
+            {tab === 'account' && (
                 <Card className="surface-card">
                     <CardHeader className="flex flex-row items-center justify-between pb-3">
                         <div>
@@ -2129,6 +2165,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                     <div className="min-w-0 flex-1">
                                         <div className="flex items-center justify-between gap-2">
                                             <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Hearing</p>
+                                            {!matterLocked && (
                                             <button
                                                 type="button"
                                                 onClick={openHearingDialog}
@@ -2137,6 +2174,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                                 <Pencil className="h-3 w-3" />
                                                 {(matter as any).hearing_date ? 'Edit' : 'Set'}
                                             </button>
+                                            )}
                                         </div>
                                         {(matter as any).hearing_date ? (
                                             <p className="text-sm font-semibold tabular-nums text-foreground">

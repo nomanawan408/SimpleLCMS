@@ -14,21 +14,23 @@ class TimeEntryTest extends TestCase
 
     // ── Index ──────────────────────────────────────────────────────────
 
-    public function test_solicitor_sees_only_own_entries(): void
+    public function test_staff_sees_own_and_assigned_matter_entries(): void
     {
         [$firm, $user] = $this->createFirmAndUser();
         $other = User::factory()->forFirm($firm)->create();
-        $matter = Matter::factory()->forFirm($firm, $user)->create();
+        $mine = Matter::factory()->forFirm($firm)->create();
+        $theirs = Matter::factory()->forFirm($firm, $other)->create();
+        $this->assignToMatter($user, $mine);
 
-        $mine   = TimeEntry::factory()->forMatter($matter)->forUser($user)->create();
-        $theirs = TimeEntry::factory()->forMatter($matter)->forUser($other)->create();
+        $ownEntry = TimeEntry::factory()->forMatter($mine)->forUser($user)->create();
+        $sharedEntry = TimeEntry::factory()->forMatter($mine)->forUser($other)->create();
+        $hiddenEntry = TimeEntry::factory()->forMatter($theirs)->forUser($other)->create();
 
         $this->actingAsUser($user)->get('/time')
             ->assertOk()
-            ->assertInertia(fn ($page) =>
-                $page->where('entries.data.0.id', $mine->id)
-                     ->where('entries.total', 1)
-            );
+            ->assertInertia(fn ($page) => $page
+                ->where('entries.total', 2)
+                ->where('entries.data', fn ($data) => collect($data)->pluck('id')->doesntContain($hiddenEntry->id)));
     }
 
     public function test_admin_sees_all_firm_entries(): void
