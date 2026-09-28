@@ -24,27 +24,33 @@ interface NavItem {
     adminOnly?: boolean;
     /** Visible when the user holds any of these roles (default: everyone). */
     roles?: string[];
+    /** Visible when the user holds any of these permissions (role-carried or direct). Unset = everyone. */
+    permission?: string | string[];
     /** Visible with financial access (firm admins always pass). */
     requiresFinances?: boolean;
     children?: NavItem[];
 }
 
 const navItems: NavItem[] = [
+    // Dashboard stays visible to every active user: it is the landing page
+    // and every card on it is assignment-scoped with money hidden behind
+    // financial access. Everything else requires its module permission, so
+    // custom roles (e.g. contacts-only) see exactly their modules.
     { label: 'Dashboard',  href: '/dashboard',   icon: LayoutDashboard, routeName: 'dashboard' },
-    { label: 'Matters',    href: '/matters',      icon: Briefcase,       routeName: 'matters.index' },
-    { label: 'Contacts',   href: '/contacts',     icon: Users,           routeName: 'contacts.index' },
-    { label: 'Documents',  href: '/documents',    icon: FileText,        routeName: 'documents.index' },
-    { label: 'Time',         href: '/time',         icon: Clock,       routeName: 'time.index',
+    { label: 'Matters',    href: '/matters',      icon: Briefcase,       routeName: 'matters.index',    permission: 'view_matters' },
+    { label: 'Contacts',   href: '/contacts',     icon: Users,           routeName: 'contacts.index',   permission: 'view_contacts' },
+    { label: 'Documents',  href: '/documents',    icon: FileText,        routeName: 'documents.index',  permission: 'view_documents' },
+    { label: 'Time',         href: '/time',         icon: Clock,       routeName: 'time.index',         permission: 'view_time_entries',
         children: [
             { label: 'Active', href: '/time/sessions', icon: Radio, routeName: 'time.sessions', adminOnly: true },
         ] },
     { label: 'Billing',      href: '/billing',      icon: PoundSterling, routeName: 'billing.index',    requiresFinances: true },
     { label: 'Transactions', href: '/transactions', icon: CreditCard,  routeName: 'transactions.index', requiresFinances: true },
     { label: 'Accounts',           href: '/accounts',               icon: Landmark,   routeName: 'accounts.index',              requiresFinances: true },
-    { label: 'Client Cash Sheet',  href: '/ledger/cash-sheet',      icon: ScrollText, routeName: 'ledger.cash-sheet' },
-    { label: 'Reconciliation',     href: '/ledger/reconciliations', icon: Scale,      routeName: 'ledger.reconciliations.index' },
-    { label: 'Calendar',     href: '/calendar',     icon: Calendar,    routeName: 'calendar.index' },
-    { label: 'Tasks',      href: '/tasks',        icon: CheckSquare,     routeName: 'tasks.index' },
+    { label: 'Client Cash Sheet',  href: '/ledger/cash-sheet',      icon: ScrollText, routeName: 'ledger.cash-sheet',          requiresFinances: true },
+    { label: 'Reconciliation',     href: '/ledger/reconciliations', icon: Scale,      routeName: 'ledger.reconciliations.index', requiresFinances: true },
+    { label: 'Calendar',     href: '/calendar',     icon: Calendar,    routeName: 'calendar.index',     permission: 'view_calendar' },
+    { label: 'Tasks',      href: '/tasks',        icon: CheckSquare,     routeName: 'tasks.index',      permission: 'view_tasks' },
     { label: 'Activities', href: '/activities',   icon: Activity,        routeName: 'activities.index', adminOnly: true },
     { label: 'Reports',    href: '/reports',      icon: BarChart2,       routeName: 'reports.index',   adminOnly: true },
 ];
@@ -55,6 +61,7 @@ const adminItems: NavItem[] = [
         children: [
             { label: 'General',    href: '/settings',                   icon: UserRound,  routeName: 'settings.general' },
             { label: 'Users',      href: '/settings?section=users',     icon: Users,      routeName: 'settings.users', adminOnly: true },
+            { label: 'Roles',      href: '/settings?section=roles',     icon: Shield,      routeName: 'settings.roles', adminOnly: true },
             { label: 'Firm Setup', href: '/settings?section=company',   icon: Building2,  routeName: 'settings.company', adminOnly: true },
         ] },
 ];
@@ -103,11 +110,16 @@ export default function AppLayout({ children, title }: AppLayoutProps) {
     const isSuperAdmin = user.roles?.includes('super_admin') ?? false;
     const isFirmAdmin = user.roles?.includes('firm_admin') ?? false;
 
-    // Three-role world: firm admins see everything, staff see their pages
-    // (lists are scoped server-side), financial pages need the flag.
+    // Backend 403s are the real boundary; this only hides what the user
+    // could never open. Modules need their view permission (custom roles
+    // see exactly their modules), money pages need the financial flag.
     const canSee = (item: NavItem): boolean => {
         if (item.adminOnly && !isFirmAdmin && !isSuperAdmin) return false;
         if (item.roles && !item.roles.some((r) => user.roles?.includes(r))) return false;
+        if (item.permission) {
+            const needed = Array.isArray(item.permission) ? item.permission : [item.permission];
+            if (!needed.some((p) => hasPermission(user.permissions, p))) return false;
+        }
         if (item.requiresFinances && !isFirmAdmin && !hasPermission(user.permissions, 'view_finances')) return false;
         return true;
     };

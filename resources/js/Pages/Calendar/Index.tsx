@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -8,8 +8,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Combobox } from '@/components/ui/combobox';
-import { cn, formatDate, splitDateTime, matterComboboxOptions } from '@/lib/utils';
+import { cn, formatDate, splitDateTime, matterComboboxOptions, hasAnyPermission } from '@/lib/utils';
 import { CalendarClock, ChevronLeft, ChevronRight, ExternalLink, Gavel, MapPin, Pencil, Plus, Trash2 } from 'lucide-react';
+
+import type { PageProps } from '@/types';
 
 interface CalendarEvent {
     id: string;
@@ -61,6 +63,13 @@ const TYPE_META: Record<string, { label: string; badge: string }> = {
 };
 
 export default function CalendarIndex({ events, matters, year, month }: Props) {
+    const { auth } = usePage<PageProps>().props;
+    // Backend CalendarController mirrors these (module permission plus
+    // matter assignment and the closed-file freeze, checked server-side).
+    const can = (perms: string[]) => hasAnyPermission(auth.user?.permissions, perms);
+    const canCreateEvent = can(['create_events', 'manage_calendar']);
+    const canEditEvent = can(['edit_events', 'manage_calendar']);
+    const canDeleteEvent = can(['delete_events', 'manage_calendar']);
     const [modalOpen, setModalOpen] = useState(false);
     const [editing, setEditing] = useState<CalendarEvent | null>(null);
     const [form, setForm] = useState({ ...emptyForm });
@@ -205,10 +214,12 @@ export default function CalendarIndex({ events, matters, year, month }: Props) {
                         <ChevronRight className="h-4 w-4" />
                     </Button>
                 </div>
+                {canCreateEvent && (
                 <Button onClick={() => openCreate()} className="gap-2">
                     <Plus className="h-4 w-4" />
                     New Event
                 </Button>
+                )}
             </div>
 
             {/* Calendar grid */}
@@ -510,7 +521,7 @@ export default function CalendarIndex({ events, matters, year, month }: Props) {
                         </label>
                     </div>
                     <DialogFooter className="flex items-center justify-between">
-                        {editing && (
+                        {editing && canDeleteEvent && (
                             <Button variant="outline" className="text-destructive border-destructive/40 hover:bg-destructive/10" onClick={() => { deleteEvent(editing.id); setModalOpen(false); }}>
                                 <Trash2 className="h-4 w-4 mr-1" />
                                 Delete
@@ -518,9 +529,11 @@ export default function CalendarIndex({ events, matters, year, month }: Props) {
                         )}
                         <div className="flex gap-2 ml-auto">
                             <Button variant="outline" onClick={() => setModalOpen(false)} disabled={saving}>Cancel</Button>
+                            {(editing ? canEditEvent : canCreateEvent) && (
                             <Button onClick={saveEvent} disabled={saving || !form.title.trim() || !form.start_at}>
                                 {saving ? 'Saving…' : 'Save'}
                             </Button>
+                            )}
                         </div>
                     </DialogFooter>
                 </DialogContent>

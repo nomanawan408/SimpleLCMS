@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Combobox } from '@/components/ui/combobox';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
-import { cn, formatCurrency, formatDate, formatTime, matterComboboxOptions } from '@/lib/utils';
+import { cn, formatCurrency, formatDate, formatTime, matterComboboxOptions, hasAnyPermission } from '@/lib/utils';
 import { Clock, LogIn, LogOut, Plus, Pencil, Trash2, Receipt, TrendingUp, AlertCircle, CheckCircle2, Timer, PoundSterling, X, CalendarDays, FileText, Search, SlidersHorizontal } from 'lucide-react';
 import type { PageProps, PaginatedData, TimeEntry } from '@/types';
 
@@ -127,7 +127,12 @@ function getMatterRate(matters: Props['matters'], matterId: string, fallback: nu
 export default function TimeIndex({ entries, stats, users, matters, filters, activeTimer: serverSession, defaultRate, firmVatRate, isAdmin }: Props) {
     const { auth } = usePage<PageProps>().props;
     // Timer + manual entry write to time entries server-side (403 without it).
-    const canCreateTime = !!auth.user;
+    // Backend TimeController gates mirror these exactly (module permission
+    // plus matter assignment and bill/lock state, checked server-side).
+    const can = (perms: string[]) => hasAnyPermission(auth.user?.permissions, perms);
+    const canCreateTime = can(['create_time_entries', 'manage_time_entries']);
+    const canEditTime = can(['edit_time_entries', 'manage_time_entries']);
+    const canDeleteTime = can(['delete_time_entries', 'manage_time_entries']);
     const [session, setSession] = useState<ActiveSession | null>(serverSession);
     const [elapsed, setElapsed] = useState(0);
     const [isPaused, setIsPaused] = useState(!!serverSession?.paused_at);
@@ -986,14 +991,17 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
                                             )}
                                         </TableCell>
                                         <TableCell>
-                                            {!entry.billed && !entry.is_locked && (
+                                            {!entry.billed && !entry.is_locked && (canEditTime || canDeleteTime) && (
                                                 <div className="flex items-center gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    {canEditTime && (
                                                     <button
                                                         onClick={() => openEdit(entry)}
                                                         className="h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                                                     >
                                                         <Pencil className="h-3.5 w-3.5" />
                                                     </button>
+                                                    )}
+                                                    {canDeleteTime && (
                                                     <button
                                                         className="h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                                                         disabled={deleting === entry.id}
@@ -1001,6 +1009,7 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
                                                     >
                                                         <Trash2 className="h-3.5 w-3.5" />
                                                     </button>
+                                                    )}
                                                 </div>
                                             )}
                                         </TableCell>

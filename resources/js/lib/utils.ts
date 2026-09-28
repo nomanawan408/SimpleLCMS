@@ -188,6 +188,12 @@ export function hasPermission(permissions: string[] | undefined, required: strin
     return permissions.includes(required);
 }
 
+/** True when the user holds any of the listed permissions (role-carried or direct). */
+export function hasAnyPermission(permissions: string[] | undefined, required: string[]): boolean {
+    if (!permissions) return false;
+    return required.some((p) => permissions.includes(p));
+}
+
 export function hasRole(roles: string[] | undefined, role: string): boolean {
     if (!roles) return false;
     return roles.includes(role);

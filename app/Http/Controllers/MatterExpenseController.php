@@ -29,6 +29,12 @@ class MatterExpenseController extends Controller
     public function store(Matter $matter, Request $request): SymfonyResponse
     {
         $this->authorize('update', $matter);
+        abort_unless(
+            $request->user()->isFirmAdmin()
+                || $request->user()->hasPermissionTo('create_expenses')
+                || $request->user()->hasPermissionTo('manage_expenses'),
+            403
+        );
 
         $validated = $request->validate($this->rules());
 
@@ -60,6 +66,12 @@ class MatterExpenseController extends Controller
     public function update(Matter $matter, Expense $expense, Request $request): SymfonyResponse
     {
         $this->authorize('update', $matter);
+        abort_unless(
+            $request->user()->isFirmAdmin()
+                || $request->user()->hasPermissionTo('edit_expenses')
+                || $request->user()->hasPermissionTo('manage_expenses'),
+            403
+        );
         abort_unless($expense->matter_id === $matter->id, 404);
 
         if ($locked = $this->lockedResponse($expense, $request, 'edited')) {
@@ -83,6 +95,12 @@ class MatterExpenseController extends Controller
     public function destroy(Matter $matter, Expense $expense, Request $request): SymfonyResponse
     {
         $this->authorize('update', $matter);
+        abort_unless(
+            $request->user()->isFirmAdmin()
+                || $request->user()->hasPermissionTo('delete_expenses')
+                || $request->user()->hasPermissionTo('manage_expenses'),
+            403
+        );
         abort_unless($expense->matter_id === $matter->id, 404);
 
         if ($locked = $this->lockedResponse($expense, $request, 'deleted')) {

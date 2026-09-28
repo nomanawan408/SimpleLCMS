@@ -37,7 +37,10 @@ class SearchController extends Controller
         $user = $request->user();
         $results = [];
 
-        if ($user->is_active) {
+        // Each category additionally needs its module permission, so a
+        // contacts-only user assigned to a matter still cannot surface
+        // matters, documents or tasks through search.
+        if ($user->is_active && ($user->isFirmAdmin() || $user->hasPermissionTo('view_matters'))) {
             $results['matters'] = Matter::query()
                 ->visibleTo($user)
                 ->where(function ($q) use ($query) {
@@ -56,7 +59,7 @@ class SearchController extends Controller
                 ]);
         }
 
-        if ($user->is_active) {
+        if ($user->is_active && ($user->isFirmAdmin() || $user->hasPermissionTo('view_contacts'))) {
             $results['contacts'] = Contact::query()
                 ->when(! $user->isFirmAdmin(), fn ($q) => $q->whereHas('matters', fn ($qq) => $qq->visibleTo($user)))
                 ->where(function ($q) use ($query) {
@@ -75,7 +78,7 @@ class SearchController extends Controller
                 ]);
         }
 
-        if ($user->is_active) {
+        if ($user->is_active && ($user->isFirmAdmin() || $user->hasPermissionTo('view_documents'))) {
             $results['documents'] = Document::query()
                 ->when(! $user->isFirmAdmin(), fn ($q) => $q->whereHas('matter', fn ($qq) => $qq->visibleTo($user)))
                 // Wrapped in a closure deliberately: an un-grouped orWhere here
@@ -112,7 +115,7 @@ class SearchController extends Controller
                 ]);
         }
 
-        if ($user->is_active) {
+        if ($user->is_active && ($user->isFirmAdmin() || $user->hasPermissionTo('view_tasks'))) {
             $results['tasks'] = Task::query()
                 ->visibleTo($user)
                 ->where('title', 'like', "%{$query}%")

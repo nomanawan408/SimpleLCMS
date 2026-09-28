@@ -126,6 +126,56 @@ class MatterAssignmentAccessTest extends TestCase
         $this->assertSame([$lawyer->id], array_column($revoke->properties['removed'] ?? [], 'id'));
     }
 
+    public function test_matter_create_picker_lists_custom_role_users(): void
+    {
+        [$firm, $admin] = $this->createFirmAndAdmin();
+        $junior = User::factory()->forFirm($firm)->create(['role' => 'lawyer']);
+        $junior->assignRole('lawyer');
+        // A custom role (e.g. "junior lawyer") must still appear: assignment
+        // is controlled separately, never by hiding people from the picker.
+        $custom = \Spatie\Permission\Models\Role::create([
+            'name' => 'junior lawyer', 'guard_name' => 'web', 'firm_id' => $firm->id,
+        ]);
+        $junior->syncRoles([$custom]);
+        $junior->forceFill(['role' => 'junior lawyer'])->save();
+
+        $this->actingAsUser($admin)->get('/matters/create')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('users', fn ($users) => collect($users)->pluck('id')->contains($junior->id)));
+    }
+
+    public function test_lawyer_cannot_staff_others_at_creation(): void
+    {
+        [$firm, $lawyer] = $this->createFirmAndUser(['role' => 'lawyer']);
+        $other = User::factory()->forFirm($firm)->create(['role' => 'lawyer']);
+        $other->assignRole('lawyer');
+        $contact = \App\Models\Contact::factory()->forFirm($firm)->create();
+        $base = [
+            'name' => 'Self matter',
+            'practice_area' => 'litigation',
+            'fee_arrangement' => 'hourly_rate',
+            'contact_ids' => [$contact->id],
+        ];
+
+        // Naming someone else responsible is refused before any write.
+        $this->actingAsUser($lawyer)->post('/matters', [
+            ...$base, 'responsible_user_id' => $other->id,
+        ])->assertForbidden();
+        $this->assertDatabaseMissing('matters', ['name' => 'Self matter']);
+
+        // Smuggling someone else into the team is refused too.
+        $this->actingAsUser($lawyer)->post('/matters', [
+            ...$base, 'responsible_user_id' => $lawyer->id, 'assignee_ids' => [$other->id],
+        ])->assertForbidden();
+
+        // Opening for yourself works.
+        $this->actingAsUser($lawyer)->post('/matters', [
+            ...$base, 'responsible_user_id' => $lawyer->id,
+        ])->assertRedirect();
+        $this->assertDatabaseHas('matters', ['name' => 'Self matter']);
+    }
+
     public function test_matter_creation_logs_initial_access_grants(): void
     {
         [$firm, $admin] = $this->createFirmAndAdmin();

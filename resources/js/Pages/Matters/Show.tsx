@@ -15,7 +15,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
-import { cn, daysUntilDate, formatCurrency, formatDate, formatTime, hasPermission, isOverdueDate, splitDateTime, MATTER_STATUS_LABELS, MATTER_PRIORITY_LABELS, MATTER_PRIORITY_STYLES, PRACTICE_AREA_LABELS } from '@/lib/utils';
+import { cn, daysUntilDate, formatCurrency, formatDate, formatTime, hasPermission, hasAnyPermission, isOverdueDate, splitDateTime, MATTER_STATUS_LABELS, MATTER_PRIORITY_LABELS, MATTER_PRIORITY_STYLES, PRACTICE_AREA_LABELS } from '@/lib/utils';
 import { UserAvatar } from '@/components/ui/user-avatar';
 import {
     ArrowLeft, Clock, Receipt, Wallet, FileText, CheckSquare, Users, Edit, Plus, Download,
@@ -74,13 +74,33 @@ interface Props {
 
 export default function ShowMatter({ matter, users, viewFinancial, activeTimer: serverTimer, ledgerBalances }: Props) {
     const { auth } = usePage<PageProps>().props;
-    // Page access already enforces assignment/admin, so every viewer may log
-    // time and manage documents here. Money actions stay behind the flag.
+    // Page access enforces assignment, the can* flags below mirror the
+    // backend gates exactly (module permission + closed-file freeze). Money
+    // actions stay behind the financial flag.
     const userRoles = auth.user?.roles ?? [];
     const isFirmAdmin = userRoles.includes('firm_admin') || userRoles.includes('super_admin');
     const canManageFinances = isFirmAdmin || hasPermission(auth.user?.permissions, 'manage_finances');
-    const canCreateTime = !!auth.user;
-    const canDeleteDocuments = !!auth.user;
+    // Closed = status is closed/archived (Matter::CLOSED_STATUSES). Everything
+    // else counts as open, so finishing a matter is a single status flip.
+    const isClosed = matter.status === 'closed' || matter.status === 'archived';
+    // Lawyers see closed matters read-only; firm admins keep full control.
+    const matterLocked = isClosed && !isFirmAdmin;
+    // Every button below mirrors its backend gate exactly: module permission
+    // (role-carried or direct) plus the closed-file freeze. Assignment holds
+    // on this page already (unassigned matters 404 server-side).
+    const can = (p: string | string[]) => hasAnyPermission(auth.user?.permissions, Array.isArray(p) ? p : [p]);
+    const canEditMatter = !matterLocked && can(['edit_matters', 'manage_matters']);
+    const canLogTime = !matterLocked && can(['create_time_entries', 'manage_time_entries']);
+    const canAddNote = canEditMatter;
+    const canEditDates = canEditMatter;
+    const canAddTask = !matterLocked && can(['create_tasks', 'manage_tasks']);
+    const canEditTask = !matterLocked && can(['edit_tasks', 'manage_tasks']);
+    const canDeleteTask = !matterLocked && can(['delete_tasks', 'manage_tasks']);
+    const canUploadDoc = !matterLocked && can(['upload_documents', 'manage_documents']);
+    const canDeleteDoc = !matterLocked && can(['delete_documents', 'manage_documents']);
+    const canAddExpense = !matterLocked && can(['create_expenses', 'manage_expenses']);
+    const canEditExpense = !matterLocked && can(['edit_expenses', 'manage_expenses']);
+    const canDeleteExpense = !matterLocked && can(['delete_expenses', 'manage_expenses']);
     const [notes, setNotes] = useState<any[]>(matter.notes ?? []);
     const [timeEntries, setTimeEntries] = useState<any[]>(matter.time_entries ?? []);
     const [expenses, setExpenses] = useState<any[]>(matter.expenses ?? []);
@@ -122,11 +142,6 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
     }
 
     // ── Close / Reopen ──
-    // Closed = status is closed/archived (Matter::CLOSED_STATUSES). Everything
-    // else counts as open, so finishing a matter is a single status flip.
-    const isClosed = matter.status === 'closed' || matter.status === 'archived';
-    // Lawyers see closed matters read-only; firm admins keep full control.
-    const matterLocked = isClosed && !isFirmAdmin;
     const [statusDialog, setStatusDialog] = useState<null | 'close' | 'reopen'>(null);
     const [statusSaving, setStatusSaving] = useState(false);
     const openTasksCount = tasks.filter((t: any) => t.status !== 'done').length;
@@ -829,7 +844,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                     </Link>
                 </Button>
                 <div className="flex items-center gap-2">
-                    {canCreateTime && !matterLocked && (
+                    {canLogTime && (
                         <Button size="sm" variant="outline" type="button" onClick={openTimeModal}>
                             <Timer className="h-4 w-4 mr-1" />
                             Log Time
@@ -858,7 +873,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                             Reopen
                         </Button>
                         )
-                    ) : (
+                    ) : canEditMatter ? (
                         <Button
                             size="sm"
                             variant="outline"
@@ -869,8 +884,8 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                             <CircleCheck className="h-4 w-4 mr-1" />
                             Mark as Closed
                         </Button>
-                    )}
-                    {!matterLocked && (
+                    ) : null}
+                    {canEditMatter && (
                     <Button asChild size="sm">
                         <Link href={`/matters/${matter.id}/edit`}>
                             <Edit className="h-4 w-4 mr-1" />
@@ -1017,7 +1032,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                     {daysUntil !== null && <span className="text-xs text-amber-700">{daysUntil < 0 ? `· overdue ${Math.abs(daysUntil)}d` : deadlinePassed ? '· overdue' : daysUntil === 0 ? '· today' : `· in ${daysUntil}d`}</span>}
                                 </div>
                             )}
-                            {(matter as any).hearing_date && !matterLocked && (
+                            {(matter as any).hearing_date && canEditDates && (
                                 <button
                                     type="button"
                                     onClick={openHearingDialog}
@@ -1072,7 +1087,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                     <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-foreground text-background"><MessageSquare className="h-3.5 w-3.5" /></span>
                                     Notes & Activity
                                 </CardTitle>
-                                {!matterLocked && (
+                                {canAddNote && (
                                 <Button size="sm" type="button" onClick={openNoteModal} variant="contrast">
                                     <Plus className="h-3.5 w-3.5 mr-1" />
                                     Add Note
@@ -1497,7 +1512,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                 </p>
                             )}
                         </div>
-                        {canCreateTime && !matterLocked && (
+                        {canLogTime && (
                             <Button size="sm" variant="outline" type="button" onClick={openTimeModal}>
                                 <Plus className="h-3.5 w-3.5 mr-1" />
                                 Log Time
@@ -1583,7 +1598,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                 </p>
                             )}
                         </div>
-                        {!matterLocked && (
+                        {canAddExpense && (
                         <Button size="sm" variant="outline" type="button" onClick={() => openExpenseModal()}>
                             <Plus className="h-3.5 w-3.5 mr-1" />
                             Add Expense
@@ -1627,16 +1642,20 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                                 <TableCell className="text-right whitespace-nowrap">
                                                     {exp.billed ? (
                                                         <span className="text-xs text-muted-foreground">Locked</span>
-                                                    ) : !matterLocked ? (
+                                                    ) : (canEditExpense || canDeleteExpense) ? (
                                                         <div className="flex items-center justify-end gap-1">
+                                                            {canEditExpense && (
                                                             <Button size="icon" variant="ghost" className="h-7 w-7" type="button" aria-label="Edit expense" onClick={() => openExpenseModal(exp)}
                                                             >
                                                                 <Edit className="h-3.5 w-3.5" />
                                                             </Button>
+                                                            )}
+                                                            {canDeleteExpense && (
                                                             <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" type="button" aria-label="Delete expense" onClick={() => deleteExpense(exp)}
                                                             >
                                                                 <Trash2 className="h-3.5 w-3.5" />
                                                             </Button>
+                                                            )}
                                                         </div>
                                                     ) : null}
                                                 </TableCell>
@@ -1674,7 +1693,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                         <CardTitle className="text-base tracking-tight flex items-center gap-2">
                             <FileText className="h-4 w-4" /> Documents
                         </CardTitle>
-                        {!matterLocked && (
+                        {canUploadDoc && (
                         <Button size="sm" variant="outline" type="button" onClick={() => openDocModal()}>
                             <Plus className="h-3.5 w-3.5 mr-1" />
                             Upload
@@ -1758,7 +1777,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                             <Button variant="ghost" size="icon" className="h-7 w-7" title="Download" asChild>
                                                 <a href={`/documents/${doc.id}/download`} download><Download className="h-3.5 w-3.5" /></a>
                                             </Button>
-                                            {canDeleteDocuments && !matterLocked && (
+                                            {canDeleteDoc && (
                                                 <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" title="Delete" onClick={() => deleteDocument(doc)}>
                                                     <Trash2 className="h-3.5 w-3.5" />
                                                 </Button>
@@ -1795,8 +1814,8 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                                 <button
                                                     type="button"
                                                     title={`Upload to ${node.name}`}
-                                                    onClick={() => !matterLocked && openDocModal(node.fullPath)}
-                                                    disabled={matterLocked}
+                                                    onClick={() => canUploadDoc && openDocModal(node.fullPath)}
+                                                    disabled={!canUploadDoc}
                                                     className="rounded-md p-1.5 text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-primary focus-visible:opacity-100 group-hover:opacity-100"
                                                 >
                                                     <Plus className="h-3.5 w-3.5" />
@@ -1855,7 +1874,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                 <div className="space-y-4">
                     <div className="flex items-center justify-between">
                         <p className="text-sm text-muted-foreground">{tasks.length} total · {tasks.filter((t: any) => t.status !== 'done').length} open</p>
-                        {!matterLocked && (
+                        {canAddTask && (
                         <Button size="sm" variant="outline" type="button" onClick={openTaskModal}>
                             <Plus className="h-3.5 w-3.5 mr-1" />
                             Add Task
@@ -1923,7 +1942,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                                     <Select
                                                         value={task.status}
                                                         onValueChange={(v) => cycleTaskStatus({ ...task, _overrideStatus: v })}
-                                                        disabled={matterLocked}
+                                                        disabled={!canEditTask}
                                                     >
                                                         <SelectTrigger className={cn(
                                                             'h-7 w-32 text-xs font-medium border-0 shadow-none shrink-0 focus:ring-1',
@@ -1942,7 +1961,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                                         </SelectContent>
                                                     </Select>
                                                     <div className="flex items-center gap-1 shrink-0">
-                                                        {!matterLocked && (
+                                                        {canEditTask && (
                                                         <button
                                                             type="button"
                                                             className="flex items-center justify-center h-7 w-7 rounded-md border border-border hover:bg-muted transition-colors"
@@ -1952,7 +1971,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                                             <Pencil className="h-3.5 w-3.5" />
                                                         </button>
                                                         )}
-                                                        {!matterLocked && (
+                                                        {canDeleteTask && (
                                                         <button
                                                             type="button"
                                                             className="flex items-center justify-center h-7 w-7 rounded-md border border-border hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-colors"
@@ -2058,7 +2077,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                     <CardHeader className="flex flex-row items-center justify-between pb-3">
                         <div>
                             <CardTitle className="text-base tracking-tight flex items-center gap-2">
-                                <Wallet className="h-4 w-4" /> Client Trust Account
+                                <Wallet className="h-4 w-4" /> Client Account
                             </CardTitle>
                             <p className="text-xs text-muted-foreground mt-0.5">
                                 Current balance: <span className={cn('font-semibold', trustBalance >= 0 ? 'text-success' : 'text-destructive')}>
@@ -2104,7 +2123,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                         ) : (
                             <div className="px-6 py-10 text-center text-sm text-muted-foreground">
                                 <Wallet className="h-8 w-8 mx-auto mb-2 text-muted-foreground/30" />
-                                No trust transactions yet.
+                                No account transactions yet.
                             </div>
                         )}
                     </CardContent>
@@ -2165,7 +2184,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                     <div className="min-w-0 flex-1">
                                         <div className="flex items-center justify-between gap-2">
                                             <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Hearing</p>
-                                            {!matterLocked && (
+                                            {canEditDates && (
                                             <button
                                                 type="button"
                                                 onClick={openHearingDialog}
@@ -2245,7 +2264,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                     { label: 'Total Invoiced', value: formatCurrency(totalInvoiced), icon: Receipt, bg: 'bg-blue-50', border: 'border-blue-100', color: 'text-blue-600' },
                                     { label: 'Total Paid', value: formatCurrency(totalPaid), icon: Wallet, bg: 'bg-emerald-50', border: 'border-emerald-100', color: 'text-emerald-600' },
                                     { label: 'Outstanding', value: formatCurrency(totalOutstanding), icon: TrendingUp, bg: 'bg-orange-50', border: 'border-orange-100', color: 'text-orange-600' },
-                                    { label: 'Trust Balance', value: formatCurrency(trustBalance), icon: Landmark, bg: 'bg-violet-50', border: 'border-violet-100', color: 'text-violet-600' },
+                                    { label: 'Account Balance', value: formatCurrency(trustBalance), icon: Landmark, bg: 'bg-violet-50', border: 'border-violet-100', color: 'text-violet-600' },
                                 ].map((item) => (
                                     <div key={item.label} className="flex items-center justify-between gap-3 px-3 py-3 rounded-[10px] hover:bg-muted/20 transition-colors">
                                         <div className="flex items-center gap-2.5 min-w-0">

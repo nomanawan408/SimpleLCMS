@@ -1,4 +1,4 @@
-import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,8 +7,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, Trash2 } from 'lucide-react';
-import type { Contact } from '@/types';
-import { CONTACT_TYPE_LABELS, LEAD_STATUS_LABELS, PREFIX_OPTIONS } from '@/lib/utils';
+import type { Contact, PageProps } from '@/types';
+import { CONTACT_TYPE_LABELS, LEAD_STATUS_LABELS, PREFIX_OPTIONS, hasAnyPermission } from '@/lib/utils';
 
 const SOURCE_DETAIL_LABELS: Record<string, { label: string; placeholder: string }> = {
     social_media:  { label: 'Platform', placeholder: 'e.g. LinkedIn, Facebook, Instagram…' },
@@ -25,6 +25,9 @@ interface Props {
 }
 
 export default function EditContact({ contact }: Props) {
+    const { auth } = usePage<PageProps>().props;
+    // Backend ContactPolicy::delete mirrors this (delete_contacts).
+    const canDeleteContact = hasAnyPermission(auth.user?.permissions, ['delete_contacts', 'manage_contacts']);
     const { data, setData, put, processing, errors } = useForm({
         type: contact.type,
         prefix: contact.prefix || '',
@@ -95,10 +98,12 @@ export default function EditContact({ contact }: Props) {
                             Back to Contact
                         </Link>
                     </Button>
+                    {canDeleteContact && (
                     <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={handleDelete}>
                         <Trash2 className="h-4 w-4 mr-2" />
                         Delete
                     </Button>
+                    )}
                 </div>
 
                 <Card className="surface-card">

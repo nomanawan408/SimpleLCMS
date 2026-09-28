@@ -1,4 +1,4 @@
-import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,9 +13,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, Mail, CreditCard, CheckCircle, Printer, XCircle, Send, Download, Trash2 } from 'lucide-react';
-import { cn, formatCurrency, formatDate, isOverdueDate } from '@/lib/utils';
+import { cn, formatCurrency, formatDate, isOverdueDate, hasPermission } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import type { Invoice } from '@/types';
+import type { Invoice, PageProps } from '@/types';
 
 interface InvoiceContact {
     id: string;
@@ -67,6 +67,12 @@ const METHOD_LABELS: Record<string, string> = {
 };
 
 export default function ShowInvoice({ invoice }: Props) {
+    const { auth } = usePage<PageProps>().props;
+    // Backend invoice endpoints mirror this (manage_finances plus matter
+    // assignment and the closed-file freeze, checked server-side).
+    const userRoles = auth.user?.roles ?? [];
+    const canManageInvoice = userRoles.includes('firm_admin') || userRoles.includes('super_admin')
+        || hasPermission(auth.user?.permissions, 'manage_finances');
     const [paymentOpen, setPaymentOpen] = useState(false);
     const [emailOpen, setEmailOpen] = useState(false);
     const { data, setData, post, processing, errors, reset } = useForm({
@@ -309,6 +315,7 @@ export default function ShowInvoice({ invoice }: Props) {
                 </Card>
 
                 {/* Action buttons */}
+                {canManageInvoice && (
                 <div className="flex flex-wrap gap-3 mb-6">
                     <Button onClick={() => setEmailOpen(true)} className="gap-2 bg-gradient-to-r from-primary to-primary/90 text-primary-foreground shadow-md shadow-primary/20 rounded-lg font-semibold">
                         <Send className="h-4 w-4" />
@@ -343,6 +350,7 @@ export default function ShowInvoice({ invoice }: Props) {
                         </Button>
                     )}
                 </div>
+                )}
 
                 {/* Email Invoice Modal */}
                 <Dialog open={emailOpen} onOpenChange={setEmailOpen}>

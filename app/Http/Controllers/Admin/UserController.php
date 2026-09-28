@@ -81,7 +81,10 @@ class UserController extends Controller
             'email_verified_at' => now(),
         ]);
 
-        $user->assignRole($roleName);
+        // Resolve by ID, never by bare name: two firms may both own a role
+        // called e.g. "paralegal", and name-based attach would cross the
+        // firm boundary. Validation already passed; this re-checks ownership.
+        $user->assignRole($this->resolveGrantableRole($request->user(), $roleName));
         $this->syncFinancialFlags($user, $financeFlags);
 
         activity()->causedBy($request->user())->performedOn($user)->log('user_created');
@@ -96,8 +99,9 @@ class UserController extends Controller
         $validated = $request->validated();
 
         if (isset($validated['role'])) {
-            $user->syncRoles([$validated['role']]);
-            $user->role = $validated['role'];
+            $role = $this->resolveGrantableRole($request->user(), $validated['role']);
+            $user->syncRoles([$role]);
+            $user->role = $role->name;
             unset($validated['role']);
         }
         unset($validated['can_view_finances'], $validated['can_manage_finances']);
@@ -110,6 +114,32 @@ class UserController extends Controller
         activity()->causedBy($request->user())->performedOn($user)->log('user_updated');
 
         return back()->with('success', 'User updated.');
+    }
+
+    /**
+     * Resolve a grantable role row for this firm. The firm's own row wins
+     * over a shared same-named row; anything else (another firm's role,
+     * platform roles) fails closed. Mirrors AssignableRole's validation so
+     * the validated name can never resolve to a different row than checked.
+     */
+    private function resolveGrantableRole(User $actor, string $name): Role
+    {
+        $role = Role::where('name', $name)
+            ->where('guard_name', 'web')
+            ->where(fn ($q) => $q
+                ->where('firm_id', $actor->firm_id)
+                ->orWhereNull('firm_id'))
+            ->orderByRaw('firm_id IS NULL')
+            ->first();
+
+        abort_unless($role, 403);
+        abort_unless(
+            in_array($name, \App\Rules\AssignableRole::GRANTABLE_ROLES, true)
+                || $role->firm_id === $actor->firm_id,
+            403
+        );
+
+        return $role;
     }
 
     /**

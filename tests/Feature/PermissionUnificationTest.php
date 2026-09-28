@@ -1,0 +1,139 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\Matter;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
+use Tests\TestCase;
+
+/**
+ * Unified enforcement: permission (role) unlocks the module, assignment
+ * unlocks the record, open-state unlocks mutation. Each gate is proven
+ * independently: holding two of the three is still refused.
+ */
+class PermissionUnificationTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private function customRoleUser(string $firmId, array $permissions): User
+    {
+        foreach ($permissions as $name) {
+            Permission::firstOrCreate(['name' => $name, 'guard_name' => 'web']);
+        }
+        $role = Role::create(['name' => 'Custom', 'guard_name' => 'web', 'firm_id' => $firmId]);
+        $role->syncPermissions($permissions);
+        $user = User::factory()->forFirm(\App\Models\Firm::find($firmId))->create(['role' => 'Custom']);
+        $user->assignRole($role);
+
+        return $user->fresh();
+    }
+
+    public function test_permission_without_assignment_cannot_view_matter(): void
+    {
+        [$firm, $admin] = $this->createFirmAndAdmin();
+        $matter = Matter::factory()->forFirm($firm)->create(['status' => 'open']);
+        $user = $this->customRoleUser($firm->id, ['view_matters']);
+
+        $this->actingAsUser($user)->get("/matters/{$matter->id}")->assertForbidden();
+        $this->actingAsUser($user)->get('/matters')->assertOk();
+    }
+
+    public function test_assignment_without_permission_cannot_update_matter(): void
+    {
+        [$firm, $admin] = $this->createFirmAndAdmin();
+        $matter = Matter::factory()->forFirm($firm)->create(['status' => 'open']);
+        $user = $this->customRoleUser($firm->id, ['view_matters']);
+        $this->assignToMatter($user, $matter);
+
+        $this->actingAsUser($user)->get("/matters/{$matter->id}")->assertOk();
+        $this->actingAsUser($user)
+            ->put("/matters/{$matter->id}", ['name' => 'Sneaky'])
+            ->assertForbidden();
+        $this->assertDatabaseMissing('matters', ['id' => $matter->id, 'name' => 'Sneaky']);
+    }
+
+    public function test_lawyer_default_can_create_matter_and_work_assigned_timer(): void
+    {
+        [$firm, $lawyer] = $this->createFirmAndUser(['role' => 'lawyer']);
+        $contact = \App\Models\Contact::factory()->forFirm($firm)->create();
+
+        $this->actingAsUser($lawyer)->post('/matters', [
+            'name' => 'Lawyer matter',
+            'practice_area' => 'litigation',
+            'fee_arrangement' => 'hourly_rate',
+            'responsible_user_id' => $lawyer->id,
+            'contact_ids' => [$contact->id],
+        ])->assertRedirect();
+
+        $matter = Matter::where('name', 'Lawyer matter')->firstOrFail();
+
+        // Timer runs on the assigned matter and checking out ends it.
+        $this->actingAsUser($lawyer)
+            ->postJson('/time/checkin', ['matter_id' => $matter->id])
+            ->assertOk();
+        $this->actingAsUser($lawyer)->postJson('/time/checkout')->assertOk();
+        $this->assertDatabaseMissing('time_sessions', ['user_id' => $lawyer->id]);
+    }
+
+    /**
+     * The reported bug: a contacts-only custom role must see exactly one
+     * module. Menus are filtered client-side from the same permission set,
+     * so the backend matrix below is what guarantees the restriction.
+     */
+    public function test_contacts_only_user_is_confined_to_contacts(): void
+    {
+        [$firm, $admin] = $this->createFirmAndAdmin();
+        $matter = Matter::factory()->forFirm($firm)->create(['status' => 'open']);
+        $contact = \App\Models\Contact::factory()->forFirm($firm)->create();
+        $matter->contacts()->attach($contact->id, ['role' => 'client']);
+
+        $user = $this->customRoleUser($firm->id, ['view_contacts', 'create_contacts']);
+        $this->assignToMatter($user, $matter);
+
+        // Landing page stays reachable (scoped, empty of money).
+        $this->actingAsUser($user)->get('/dashboard')->assertOk();
+
+        // The one permitted module.
+        $this->actingAsUser($user)->get('/contacts')->assertOk();
+        $this->actingAsUser($user)->get("/contacts/{$contact->id}")->assertOk();
+
+        // Everything else refuses, even with a matter assignment in hand.
+        $this->actingAsUser($user)->get('/matters')->assertForbidden();
+        $this->actingAsUser($user)->get("/matters/{$matter->id}")->assertForbidden();
+        $this->actingAsUser($user)->get('/documents')->assertForbidden();
+        $this->actingAsUser($user)->get('/time')->assertForbidden();
+        $this->actingAsUser($user)->get('/calendar')->assertForbidden();
+        $this->actingAsUser($user)->get('/tasks')->assertForbidden();
+        $this->actingAsUser($user)->get('/billing')->assertForbidden();
+        $this->actingAsUser($user)->get('/transactions')->assertForbidden();
+        $this->actingAsUser($user)->get('/accounts')->assertForbidden();
+        $this->actingAsUser($user)->get('/ledger/cash-sheet')->assertForbidden();
+        $this->actingAsUser($user)->get('/ledger/reconciliations')->assertForbidden();
+        $this->actingAsUser($user)->get('/reports')->assertForbidden();
+        $this->actingAsUser($user)->get('/activities')->assertForbidden();
+
+        // Search surfaces contacts only — never matters, documents or tasks.
+        $response = $this->actingAsUser($user)->getJson('/search?q=' . substr($contact->name, 0, 4));
+        $response->assertOk();
+        $keys = array_keys($response->json('results'));
+        $this->assertContains('contacts', $keys);
+        $this->assertNotContains('matters', $keys);
+        $this->assertNotContains('documents', $keys);
+        $this->assertNotContains('tasks', $keys);
+    }
+
+    public function test_custom_role_without_time_permission_cannot_check_in(): void
+    {
+        [$firm, $admin] = $this->createFirmAndAdmin();
+        $matter = Matter::factory()->forFirm($firm)->create(['status' => 'open']);
+        $user = $this->customRoleUser($firm->id, ['view_matters', 'view_time_entries']);
+        $this->assignToMatter($user, $matter);
+
+        $this->actingAsUser($user)
+            ->postJson('/time/checkin', ['matter_id' => $matter->id])
+            ->assertForbidden();
+    }
+}

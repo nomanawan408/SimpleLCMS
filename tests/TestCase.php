@@ -27,10 +27,22 @@ abstract class TestCase extends BaseTestCase
     {
         app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 
-        // Three-role world: lawyers carry no permissions by default. Visibility
-        // comes from matter assignment; money visibility from the two grants
-        // below, handed out per user by firm admins.
-        foreach (['view_finances', 'manage_finances'] as $permission) {
+        // Mirrors production (RolePermissionSeeder): the lawyer working set.
+        // Visibility still comes from matter assignment and money visibility
+        // from the two grants below — permissions unlock modules, assignment
+        // unlocks records. Tests needing other vocabulary rows create them
+        // on demand via firstOrCreate.
+        foreach (array_merge([
+            'view_dashboard',
+            'view_matters', 'create_matters', 'edit_matters',
+            'view_contacts', 'create_contacts', 'edit_contacts',
+            'view_time_entries', 'create_time_entries', 'edit_time_entries',
+            'create_expenses', 'edit_expenses', 'delete_expenses',
+            'view_documents', 'upload_documents',
+            'view_calendar', 'create_events', 'edit_events',
+            'view_tasks', 'create_tasks', 'edit_tasks',
+            'view_ledger', 'post_ledger',
+        ], ['view_finances', 'manage_finances']) as $permission) {
             Permission::firstOrCreate(['name' => $permission, 'guard_name' => 'web']);
         }
 
@@ -44,7 +56,17 @@ abstract class TestCase extends BaseTestCase
 
         $lawyer = Role::firstOrCreate(['name' => 'lawyer', 'guard_name' => 'web']);
         $lawyer->update(['is_system' => true]);
-        $lawyer->syncPermissions([]);
+        $lawyer->syncPermissions([
+            'view_dashboard',
+            'view_matters', 'create_matters', 'edit_matters',
+            'view_contacts', 'create_contacts', 'edit_contacts',
+            'view_time_entries', 'create_time_entries', 'edit_time_entries',
+            'create_expenses', 'edit_expenses', 'delete_expenses',
+            'view_documents', 'upload_documents',
+            'view_calendar', 'create_events', 'edit_events',
+            'view_tasks', 'create_tasks', 'edit_tasks',
+            'view_ledger', 'post_ledger',
+        ]);
     }
 
     protected function createFirmAndAdmin(array $firmAttrs = [], array $userAttrs = []): array

@@ -16,6 +16,12 @@ class CalendarController extends Controller
     public function index(Request $request): Response
     {
         abort_unless($request->user()->is_active, 403);
+        abort_unless(
+            $request->user()->isFirmAdmin()
+                || $request->user()->hasPermissionTo('view_calendar')
+                || $request->user()->hasPermissionTo('manage_calendar'),
+            403
+        );
 
         $firmId = $request->user()->firm_id;
         $year   = (int) ($request->query('year', now()->year));
@@ -96,6 +102,12 @@ class CalendarController extends Controller
     public function store(Request $request): JsonResponse
     {
         abort_unless($request->user()->is_active, 403);
+        abort_unless(
+            $request->user()->isFirmAdmin()
+                || $request->user()->hasPermissionTo('create_events')
+                || $request->user()->hasPermissionTo('manage_calendar'),
+            403
+        );
 
         $firmId = $request->user()->firm_id;
 
@@ -154,7 +166,7 @@ class CalendarController extends Controller
             $validated['end_at'] = \Carbon\Carbon::parse($validated['start_at'])->addHour();
         }
 
-        $this->authorizeEvent($request, $event);
+        $this->authorizeEvent($request, $event, 'edit_events');
 
         // Moving to another matter needs visibility of the destination too.
         // Detaching to a personal event only needs the access just checked.
@@ -183,12 +195,16 @@ class CalendarController extends Controller
      * creator-only, matter events require a visible AND open matter (closed
      * files are a frozen archive for lawyers).
      */
-    private function authorizeEvent(Request $request, CalendarEvent $event): void
+    private function authorizeEvent(Request $request, CalendarEvent $event, string $permission): void
     {
         $user = $request->user();
         if ($user->isFirmAdmin()) {
             return;
         }
+        abort_unless(
+            $user->hasPermissionTo($permission) || $user->hasPermissionTo('manage_calendar'),
+            403
+        );
         if ($event->matter_id === null) {
             abort_unless($event->created_by_id === $user->id, 403);
             return;
@@ -206,7 +222,7 @@ class CalendarController extends Controller
             abort(403);
         }
 
-        $this->authorizeEvent($request, $event);
+        $this->authorizeEvent($request, $event, 'delete_events');
 
         activity()->causedBy($request->user())->performedOn($event)->log('deleted');
 

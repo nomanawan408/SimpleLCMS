@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -10,9 +10,9 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { cn, formatCurrency, formatDate } from '@/lib/utils';
+import { cn, formatCurrency, formatDate, hasPermission } from '@/lib/utils';
 import { ArrowLeft, TriangleAlert, CircleCheck } from 'lucide-react';
-import type { BankReconciliation, PaginatedData } from '@/types';
+import type { BankReconciliation, PaginatedData, PageProps } from '@/types';
 
 interface Props {
     reconciliations: PaginatedData<BankReconciliation>;
@@ -23,6 +23,11 @@ function gbp(value: string | number): string {
 }
 
 export default function Reconciliations({ reconciliations }: Props) {
+    const { auth } = usePage<PageProps>().props;
+    // Backend reconcile-run mirrors this (manage_finances).
+    const userRoles = auth.user?.roles ?? [];
+    const canRunReconciliation = userRoles.includes('firm_admin') || userRoles.includes('super_admin')
+        || hasPermission(auth.user?.permissions, 'manage_finances');
     const [open, setOpen] = useState(false);
     const [form, setForm] = useState({ as_at_date: new Date().toISOString().slice(0, 10), paper_statement_balance: '', notes: '' });
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -59,9 +64,11 @@ export default function Reconciliations({ reconciliations }: Props) {
                         <p className="mt-0.5 text-sm text-muted-foreground">Bank statement = cash sheet = aggregate client ledgers (SRA Rule 8.5)</p>
                     </div>
                 </div>
+                {canRunReconciliation && (
                 <Button size="sm" className="gap-2" onClick={() => { setFormErrors({}); setOpen(true); }}>
                     Run Reconciliation
                 </Button>
+                )}
             </div>
 
             <Card className="rounded-2xl border border-border/60 bg-card shadow-sm overflow-hidden">

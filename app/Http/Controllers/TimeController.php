@@ -21,6 +21,12 @@ class TimeController extends Controller
     public function index(Request $request): Response
     {
         abort_unless($request->user()->is_active, 403);
+        abort_unless(
+            $request->user()->isFirmAdmin()
+                || $request->user()->hasPermissionTo('view_time_entries')
+                || $request->user()->hasPermissionTo('manage_time_entries'),
+            403
+        );
 
         $user   = $request->user();
         $firmId = $user->firm_id;
@@ -147,6 +153,12 @@ class TimeController extends Controller
     public function store(Request $request): SymfonyResponse
     {
         abort_unless($request->user()->is_active, 403);
+        abort_unless(
+            $request->user()->isFirmAdmin()
+                || $request->user()->hasPermissionTo('create_time_entries')
+                || $request->user()->hasPermissionTo('manage_time_entries'),
+            403
+        );
 
         $user = $request->user();
 
@@ -197,6 +209,12 @@ class TimeController extends Controller
     public function update(Request $request, TimeEntry $entry): SymfonyResponse
     {
         abort_unless($request->user()->is_active, 403);
+        abort_unless(
+            $request->user()->isFirmAdmin()
+                || $request->user()->hasPermissionTo('edit_time_entries')
+                || $request->user()->hasPermissionTo('manage_time_entries'),
+            403
+        );
 
         if ($entry->firm_id !== $request->user()->firm_id) abort(404);
         abort_unless($request->user()->isFirmAdmin() || $entry->user_id === $request->user()->id, 403);
@@ -235,6 +253,12 @@ class TimeController extends Controller
     public function destroy(Request $request, TimeEntry $entry): SymfonyResponse
     {
         abort_unless($request->user()->is_active, 403);
+        abort_unless(
+            $request->user()->isFirmAdmin()
+                || $request->user()->hasPermissionTo('delete_time_entries')
+                || $request->user()->hasPermissionTo('manage_time_entries'),
+            403
+        );
 
         if ($entry->firm_id !== $request->user()->firm_id) abort(404);
         abort_unless($request->user()->isFirmAdmin() || $entry->user_id === $request->user()->id, 403);
@@ -259,6 +283,12 @@ class TimeController extends Controller
     public function checkIn(Request $request): JsonResponse
     {
         abort_unless($request->user()->is_active, 403);
+        abort_unless(
+            $request->user()->isFirmAdmin()
+                || $request->user()->hasPermissionTo('create_time_entries')
+                || $request->user()->hasPermissionTo('manage_time_entries'),
+            403
+        );
         $user = $request->user();
         $key  = 'active_timer_' . $user->id;
 
@@ -328,6 +358,12 @@ class TimeController extends Controller
     public function checkOut(Request $request): SymfonyResponse
     {
         abort_unless($request->user()->is_active, 403);
+        abort_unless(
+            $request->user()->isFirmAdmin()
+                || $request->user()->hasPermissionTo('create_time_entries')
+                || $request->user()->hasPermissionTo('manage_time_entries'),
+            403
+        );
         $user = $request->user();
         $key  = 'active_timer_' . $user->id;
         $sess = session($key);
@@ -408,6 +444,12 @@ class TimeController extends Controller
     public function discardSession(Request $request): JsonResponse
     {
         abort_unless($request->user()->is_active, 403);
+        abort_unless(
+            $request->user()->isFirmAdmin()
+                || $request->user()->hasPermissionTo('create_time_entries')
+                || $request->user()->hasPermissionTo('manage_time_entries'),
+            403
+        );
         $key  = 'active_timer_' . $request->user()->id;
         $sess = session($key) ?? $this->restoreSessionFromDb($request->user());
         $dbExists = TimeSession::where('user_id', $request->user()->id)->exists();
@@ -424,6 +466,12 @@ class TimeController extends Controller
     public function pauseSession(Request $request): JsonResponse
     {
         abort_unless($request->user()->is_active, 403);
+        abort_unless(
+            $request->user()->isFirmAdmin()
+                || $request->user()->hasPermissionTo('create_time_entries')
+                || $request->user()->hasPermissionTo('manage_time_entries'),
+            403
+        );
         $key  = 'active_timer_' . $request->user()->id;
         $sess = session($key);
 
@@ -453,6 +501,12 @@ class TimeController extends Controller
     public function resumeSession(Request $request): JsonResponse
     {
         abort_unless($request->user()->is_active, 403);
+        abort_unless(
+            $request->user()->isFirmAdmin()
+                || $request->user()->hasPermissionTo('create_time_entries')
+                || $request->user()->hasPermissionTo('manage_time_entries'),
+            403
+        );
         $key  = 'active_timer_' . $request->user()->id;
         $sess = session($key);
 
@@ -486,6 +540,12 @@ class TimeController extends Controller
     public function startTimer(Request $request): JsonResponse
     {
         abort_unless($request->user()->is_active, 403);
+        abort_unless(
+            $request->user()->isFirmAdmin()
+                || $request->user()->hasPermissionTo('create_time_entries')
+                || $request->user()->hasPermissionTo('manage_time_entries'),
+            403
+        );
         $validated = $request->validate([
             'matter_id' => ['required', 'uuid', Rule::exists('matters', 'id')->where(fn ($q) => $q->where('firm_id', $request->user()->firm_id))],
         ]);
@@ -530,6 +590,12 @@ class TimeController extends Controller
     public function stopTimer(Request $request): JsonResponse
     {
         abort_unless($request->user()->is_active, 403);
+        abort_unless(
+            $request->user()->isFirmAdmin()
+                || $request->user()->hasPermissionTo('create_time_entries')
+                || $request->user()->hasPermissionTo('manage_time_entries'),
+            403
+        );
         $key   = 'active_timer_' . $request->user()->id;
         $timer = session($key);
 

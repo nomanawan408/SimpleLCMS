@@ -24,9 +24,29 @@ use Spatie\Permission\Models\Role;
  */
 return new class extends Migration
 {
-    private const KEEP_ROLES = ['super_admin', 'firm_admin', 'lawyer'];
-
-    private const KEEP_PERMISSIONS = ['view_finances', 'manage_finances'];
+    /**
+     * Full permission vocabulary the application gates on. Ensured to exist
+     * (never deleted): custom roles carry subsets of these, granted from the
+     * Roles screen. Mirrors RolePermissionSeeder's list; both must agree.
+     */
+    private const PERMISSION_VOCABULARY = [
+        'view_dashboard',
+        'manage_matters', 'view_matters', 'create_matters', 'edit_matters', 'delete_matters',
+        'manage_contacts', 'view_contacts', 'create_contacts', 'edit_contacts', 'delete_contacts',
+        'manage_time_entries', 'view_time_entries', 'create_time_entries', 'edit_time_entries', 'delete_time_entries',
+        'manage_expenses', 'view_expenses', 'create_expenses', 'edit_expenses', 'delete_expenses',
+        'manage_expenses', 'view_expenses', 'create_expenses', 'edit_expenses', 'delete_expenses',
+        'manage_invoices', 'view_invoices', 'create_invoices', 'edit_invoices', 'delete_invoices',
+        'manage_trust', 'view_trust', 'create_trust_entries', 'edit_trust_entries', 'delete_trust_entries',
+        'manage_documents', 'view_documents', 'upload_documents', 'delete_documents',
+        'manage_users', 'view_users', 'create_users', 'edit_users', 'delete_users',
+        'manage_firm', 'view_firm_settings', 'edit_firm_settings',
+        'manage_calendar', 'view_calendar', 'create_events', 'edit_events', 'delete_events',
+        'manage_tasks', 'view_tasks', 'create_tasks', 'edit_tasks', 'delete_tasks',
+        'view_reports', 'export_data',
+        'view_ledger', 'post_ledger', 'transfer_client_funds', 'reverse_ledger_entries', 'run_reconciliation',
+        'view_finances', 'manage_finances',
+    ];
 
     public function up(): void
     {
@@ -74,65 +94,42 @@ return new class extends Migration
         }
     }
 
+    /**
+     * Additive only, by design: firm custom roles and their grants are never
+     * touched here (the firm admin owns them from the application). This only
+     * guarantees the built-in roles and the permission vocabulary exist, so
+     * any deploy is self-sufficient and permission gates never hit missing
+     * rows (Spatie throws on unknown permission names).
+     */
     private function rebuildRolesAndPermissions(): void
     {
         app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 
-        foreach (self::KEEP_PERMISSIONS as $name) {
+        foreach (self::PERMISSION_VOCABULARY as $name) {
             Permission::firstOrCreate(['name' => $name, 'guard_name' => 'web']);
         }
 
-        Role::firstOrCreate(['name' => 'lawyer', 'guard_name' => 'web']);
+        foreach (['super_admin', 'firm_admin', 'lawyer'] as $name) {
+            Role::firstOrCreate(['name' => $name, 'guard_name' => 'web']);
+        }
 
-        DB::transaction(function () {
-            $morph = (new User)->getMorphClass();
-            $deletedRoleIds = Role::whereNotIn('name', self::KEEP_ROLES)->pluck('id');
-            $deletedRoleNames = Role::whereNotIn('name', self::KEEP_ROLES)->pluck('name')->all();
-
-            DB::table('model_has_roles')
-                ->where('model_type', $morph)
-                ->whereIn('role_id', $deletedRoleIds)
-                ->select('model_id')
-                ->distinct()
-                ->orderBy('model_id')
-                ->chunk(500, function ($rows) use ($deletedRoleNames) {
-                    foreach ($rows as $row) {
-                        $user = User::find($row->model_id);
-                        if (! $user) {
-                            continue;
-                        }
-                        if (! $user->hasAnyRole(['super_admin', 'firm_admin'])) {
-                            $user->assignRole('lawyer');
-                            if (in_array($user->role, $deletedRoleNames, true)) {
-                                $user->forceFill(['role' => 'lawyer'])->save();
-                            }
-                        }
-                    }
-                });
-
-            Role::whereNotIn('name', self::KEEP_ROLES)->delete();
-            Permission::whereNotIn('name', self::KEEP_PERMISSIONS)->delete();
-
-            // Fail closed: nobody may reference a role that no longer exists.
-            $orphaned = DB::table('model_has_roles as mhr')
-                ->leftJoin('roles', 'roles.id', '=', 'mhr.role_id')
-                ->whereNull('roles.id')
-                ->count();
-
-            if ($orphaned > 0) {
-                throw new \RuntimeException(
-                    "Role purge verification failed: {$orphaned} assignments reference missing roles. Transaction rolled back — no grants were changed."
-                );
+        // The two platform roles always hold the whole vocabulary: gates call
+        // hasPermissionTo directly, so an admin must never 403 on a permission
+        // row that was added after their last seed. Custom roles are untouched.
+        foreach (['super_admin', 'firm_admin'] as $name) {
+            $role = Role::where('name', $name)->where('guard_name', 'web')->first();
+            if ($role) {
+                $role->syncPermissions(Permission::where('guard_name', 'web')->pluck('name')->all());
             }
-        });
+        }
 
         app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
     }
 
     public function down(): void
     {
-        // Destructive by design: deleted roles, permissions and their grants
-        // cannot be faithfully reconstructed, and the matter_user assignments
-        // must survive regardless.
+        // Only the matter_user pivot is dropped. Roles, permissions and their
+        // grants are firm-owned data and are never removed by a rollback.
+        Schema::dropIfExists('matter_user');
     }
 };

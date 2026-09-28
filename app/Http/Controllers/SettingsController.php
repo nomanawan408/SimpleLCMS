@@ -54,6 +54,41 @@ class SettingsController extends Controller
                 ->orderBy('name')
                 ->get(['id', 'name', 'description', 'is_system']);
 
+            // Roles tab: same data as Admin\RoleController@index so the
+            // embedded manager matches the standalone page exactly.
+            $team['roles'] = \Spatie\Permission\Models\Role::where(function ($q) use ($firmId) {
+                    $q->where('firm_id', $firmId)->orWhereNull('firm_id');
+                })
+                ->whereNotIn('name', \App\Rules\AssignableRole::PLATFORM_ROLES)
+                ->withCount('permissions')
+                ->withCount('users')
+                ->orderByDesc('is_system')
+                ->orderBy('name')
+                ->get(['id', 'name', 'guard_name', 'description', 'is_system', 'firm_id', 'permissions_count', 'users_count'])
+                ->map(function ($role) {
+                    $role->load('permissions:id,name');
+                    return [
+                        'id' => $role->id,
+                        'name' => $role->name,
+                        'description' => $role->description,
+                        'is_system' => $role->is_system,
+                        'is_builtin' => in_array($role->name, \App\Http\Controllers\Admin\RoleController::BUILT_IN_ROLES),
+                        'firm_id' => $role->firm_id,
+                        'permissions_count' => $role->permissions_count,
+                        'users_count' => $role->users_count,
+                        'permissions' => $role->permissions->pluck('name')->toArray(),
+                    ];
+                });
+            $team['groupedPermissions'] = \Spatie\Permission\Models\Permission::where('guard_name', 'web')
+                ->orderBy('name')
+                ->get(['id', 'name'])
+                ->groupBy(function ($p) {
+                    $parts = explode('_', $p->name, 2);
+                    return $parts[1] ?? 'other';
+                })
+                ->map(fn ($perms) => $perms->map(fn ($p) => ['id' => $p->id, 'name' => $p->name])->values()->toArray())
+                ->toArray();
+
         }
 
         return Inertia::render('Settings/Index', [

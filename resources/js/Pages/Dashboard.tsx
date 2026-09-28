@@ -1,15 +1,15 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { TaskDueBadge } from '@/components/ui/task-due-badge';
 import { Button } from '@/components/ui/button';
-import { formatCurrency, formatDate, MATTER_STATUS_LABELS } from '@/lib/utils';
+import { formatCurrency, formatDate, MATTER_STATUS_LABELS, hasPermission } from '@/lib/utils';
 import {
     AlertTriangle, Archive, ArrowDownLeft, ArrowRight, Briefcase, CheckSquare,
     Clock, Loader, Pause, Plus, PoundSterling, TrendingUp,
 } from 'lucide-react';
-import type { Matter, Task } from '@/types';
+import type { Matter, PageProps, Task } from '@/types';
 
 interface Stats {
     hours_today: number;
@@ -168,6 +168,8 @@ function getGreeting(): string {
 }
 
 export default function Dashboard({ stats, viewFinancial, recentMatters, upcomingTasks }: Props) {
+    const { auth } = usePage<PageProps>().props;
+    const canCreateMatter = hasPermission(auth.user?.permissions, 'create_matters');
     const greeting = getGreeting();
     const matterKpis: KpiCard[] = [
         { label: 'Opened Matters', value: String(stats.opened_matters), href: '/matters?category=open', icon: Briefcase, tone: 'violet' },
@@ -196,9 +198,11 @@ export default function Dashboard({ stats, viewFinancial, recentMatters, upcomin
                     <h1 className="text-[1.65rem] font-bold tracking-[-0.03em] text-foreground">{greeting}</h1>
                     <p className="mt-1 text-sm text-muted-foreground">Here's what's happening across your matters today.</p>
                 </div>
+                {canCreateMatter && (
                 <Button asChild className="h-10 rounded-xl px-5 shadow-sm bg-primary hover:bg-primary-hover text-white font-medium">
                     <Link href="/matters/create"><Plus className="mr-2 h-4 w-4" />New matter</Link>
                 </Button>
+                )}
             </div>
 
             {/* Matter states */}
@@ -224,9 +228,11 @@ export default function Dashboard({ stats, viewFinancial, recentMatters, upcomin
                                 </div>
                                 <p className="font-semibold text-foreground">No matters yet</p>
                                 <p className="mt-1 text-sm text-muted-foreground">Create your first matter to get started</p>
+                                {canCreateMatter && (
                                 <Button asChild size="sm" className="mt-5 rounded-xl">
                                     <Link href="/matters/create"><Plus className="h-4 w-4 mr-1.5" />New matter</Link>
                                 </Button>
+                                )}
                             </div>
                         ) : (
                             <div className="divide-y divide-border/40">

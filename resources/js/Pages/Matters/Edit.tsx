@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
+import { hasAnyPermission } from '@/lib/utils';
 import { ArrowLeft, Trash2, Info } from 'lucide-react';
 import type { User, Contact, Matter, PageProps } from '@/types';
 
@@ -30,6 +31,8 @@ export default function EditMatter({ matter, users, contacts, viewFinancial }: P
     // Assignment grants file access: firm admins only. Everyone else keeps
     // editing everything else; the server refuses grant attempts anyway.
     const canManageAssignment = auth.user?.roles?.includes('firm_admin') || auth.user?.roles?.includes('super_admin') || false;
+    // Backend MatterPolicy::delete mirrors this (delete_matters).
+    const canDeleteMatter = hasAnyPermission(auth.user?.permissions, ['delete_matters']);
 
     const { data, setData, put, processing, errors } = useForm({
         name: matter.name,
@@ -80,10 +83,12 @@ export default function EditMatter({ matter, users, contacts, viewFinancial }: P
                             Back to Matter
                         </Link>
                     </Button>
+                    {canDeleteMatter && (
                     <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={handleDelete}>
                         <Trash2 className="h-4 w-4 mr-2" />
                         Delete
                     </Button>
+                    )}
                 </div>
 
                 <Card className="surface-card">

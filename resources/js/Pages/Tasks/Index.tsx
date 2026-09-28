@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -14,9 +14,9 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Combobox } from '@/components/ui/combobox';
 import { Textarea } from '@/components/ui/textarea';
-import { formatDate, cn, matterComboboxOptions } from '@/lib/utils';
+import { formatDate, cn, matterComboboxOptions, hasAnyPermission } from '@/lib/utils';
 import { Plus, Pencil, Trash2, Search, X, CheckSquare } from 'lucide-react';
-import type { Task, PaginatedData } from '@/types';
+import type { Task, PaginatedData, PageProps } from '@/types';
 
 function useDebounce(value: string, delay: number) {
     const [debounced, setDebounced] = useState(value);
@@ -78,6 +78,13 @@ const emptyForm = {
 };
 
 export default function TasksIndex({ tasks, users, matters, filters }: Props) {
+    const { auth } = usePage<PageProps>().props;
+    // Backend TaskController mirrors these (module permission plus matter
+    // assignment and the closed-file freeze, checked server-side).
+    const can = (perms: string[]) => hasAnyPermission(auth.user?.permissions, perms);
+    const canCreateTask = can(['create_tasks', 'manage_tasks']);
+    const canEditTask = can(['edit_tasks', 'manage_tasks']);
+    const canDeleteTask = can(['delete_tasks', 'manage_tasks']);
     const [modalOpen, setModalOpen] = useState(false);
     const [editing, setEditing] = useState<Task | null>(null);
     const [form, setForm] = useState({ ...emptyForm });
@@ -168,10 +175,12 @@ export default function TasksIndex({ tasks, users, matters, filters }: Props) {
 
             <div className="flex items-center justify-between mb-6">
                 <h1 className="text-2xl font-extrabold tracking-tight">Tasks</h1>
+                {canCreateTask && (
                 <Button onClick={openCreate} className="gap-2">
                     <Plus className="h-4 w-4" />
                     New Task
                 </Button>
+                )}
             </div>
 
             {/* Filters */}
@@ -286,6 +295,7 @@ export default function TasksIndex({ tasks, users, matters, filters }: Props) {
                                                 <Select
                                                     value={task.status}
                                                     onValueChange={(v) => handleStatusChange(task.id, v)}
+                                                    disabled={!canEditTask}
                                                 >
                                                     <SelectTrigger className={cn(
                                                         'h-7 w-36 text-xs font-medium border-0 shadow-none focus:ring-1',
@@ -306,14 +316,18 @@ export default function TasksIndex({ tasks, users, matters, filters }: Props) {
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex items-center gap-2 justify-end">
+                                                    {canEditTask && (
                                                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(task)}
                                                     >
                                                         <Pencil className="h-3.5 w-3.5" />
                                                     </Button>
+                                                    )}
+                                                    {canDeleteTask && (
                                                     <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" disabled={deleting === task.id} onClick={() => handleDelete(task.id)}
                                                     >
                                                         <Trash2 className="h-3.5 w-3.5" />
                                                     </Button>
+                                                    )}
                                                 </div>
                                             </TableCell>
                                         </TableRow>
@@ -429,9 +443,11 @@ export default function TasksIndex({ tasks, users, matters, filters }: Props) {
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setModalOpen(false)} disabled={saving}>Cancel</Button>
+                        {(editing ? canEditTask : canCreateTask) && (
                         <Button onClick={handleSave} disabled={saving || !form.title.trim()}>
                             {saving ? 'Saving…' : 'Save'}
                         </Button>
+                        )}
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

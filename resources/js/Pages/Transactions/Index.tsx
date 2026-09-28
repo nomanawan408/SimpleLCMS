@@ -1,4 +1,4 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,9 +13,9 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Combobox } from '@/components/ui/combobox';
 import { Separator } from '@/components/ui/separator';
-import { cn, formatCurrency, formatDate, matterComboboxOptions } from '@/lib/utils';
+import { cn, formatCurrency, formatDate, matterComboboxOptions, hasPermission } from '@/lib/utils';
 import { PoundSterling, TrendingUp, Clock, AlertCircle, Plus, CreditCard } from 'lucide-react';
-import type { PaginatedData } from '@/types';
+import type { PaginatedData, PageProps } from '@/types';
 
 interface TransactionRow {
     id: string;
@@ -76,6 +76,11 @@ const METHOD_COLOURS: Record<string, string> = {
 };
 
 export default function TransactionsIndex({ transactions, stats, matters, openInvoices, filters }: Props) {
+    const { auth } = usePage<PageProps>().props;
+    // Backend TransactionController@store mirrors this (manage_finances).
+    const userRoles = auth.user?.roles ?? [];
+    const canRecordPayment = userRoles.includes('firm_admin') || userRoles.includes('super_admin')
+        || hasPermission(auth.user?.permissions, 'manage_finances');
     const [recordOpen, setRecordOpen] = useState(false);
     const [recForm, setRecForm] = useState({
         invoice_id: '',
@@ -122,10 +127,12 @@ export default function TransactionsIndex({ transactions, stats, matters, openIn
 
             <div className="flex items-center justify-between mb-6">
                 <h1 className="text-2xl font-extrabold tracking-tight">Transactions</h1>
+                {canRecordPayment && (
                 <Button onClick={() => setRecordOpen(true)} className="gap-2">
                     <Plus className="h-4 w-4" />
                     Record Payment
                 </Button>
+                )}
             </div>
 
             {/* Stats - enterprise matter style */}

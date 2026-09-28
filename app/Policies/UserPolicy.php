@@ -39,4 +39,9 @@ class UserPolicy
     {
         return $this->isFirmManager($user);
     }
+
+    public function deleteAny(User $user): bool
+    {
+        return $this->isFirmManager($user);
+    }
 }

@@ -113,8 +113,14 @@ class SettingsTest extends TestCase
             ->assertInertia(fn ($page) => $page
                 ->where('availableRoles', fn ($roles) => collect($roles)->pluck('name')->doesntContain('super_admin')));
 
-        // Role management no longer exists as a firm feature.
-        $this->actingAsUser($admin)->get('/admin/roles')->assertNotFound();
+        // Role management is a firm feature again: the index loads, and the
+        // settings page carries the roles tab data for firm admins.
+        $this->actingAsUser($admin)->get('/admin/roles')->assertOk();
+        $this->actingAsUser($admin)->get('/settings')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->has('roles')
+                ->has('groupedPermissions'));
     }
 
     public function test_removed_firm_endpoint_stays_gone(): void

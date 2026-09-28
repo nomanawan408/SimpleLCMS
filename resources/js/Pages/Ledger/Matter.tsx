@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { cn, formatCurrency, formatDate, hasPermission } from '@/lib/utils';
+import { cn, formatCurrency, formatDate, hasPermission, hasAnyPermission } from '@/lib/utils';
 import { ArrowLeft, Plus, Minus, ArrowRightLeft, Undo2 } from 'lucide-react';
 import type { LedgerPosting, PageProps } from '@/types';
 
@@ -46,8 +46,11 @@ export default function MatterLedger({ matter, postings, balances }: Props) {
     // stay behind the manage flag (firm admins always pass).
     const userRoles = auth.user?.roles ?? [];
     const isFirmAdmin = userRoles.includes('firm_admin') || userRoles.includes('super_admin');
-    const canPost = !!auth.user;
-    const canTransfer = isFirmAdmin || hasPermission(auth.user?.permissions, 'manage_finances');
+    // Backend LedgerController mirrors these exactly: receipts/payments need
+    // post_ledger, transfers need transfer_client_funds plus the manage flag.
+    const can = (perms: string[]) => hasAnyPermission(auth.user?.permissions, perms);
+    const canPost = isFirmAdmin || can(['post_ledger']);
+    const canTransfer = isFirmAdmin || (can(['transfer_client_funds']) && hasPermission(auth.user?.permissions, 'manage_finances'));
     const canReverse = isFirmAdmin || hasPermission(auth.user?.permissions, 'manage_finances');
     // Closed matters are a frozen archive for lawyers; firm admins keep control.
     const ledgerLocked = (matter.status === 'closed' || matter.status === 'archived') && !isFirmAdmin;

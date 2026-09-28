@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { getDateUrgency } from '@/components/ui/urgency-dot';
 import { daysUntilDate, formatDate, isOverdueDate, splitDateTime, MATTER_STATUS_LABELS, MATTER_PRIORITY_LABELS, MATTER_PRIORITY_STYLES, PRACTICE_AREA_LABELS } from '@/lib/utils';
+import { hasPermission } from '@/lib/utils';
 import { UserAvatar } from '@/components/ui/user-avatar';
 import { Plus, Search, X, Calendar, Clock, ListTodo, Briefcase, Flag, Trash2 } from 'lucide-react';
 import type { Matter, PaginatedData, PageProps } from '@/types';
@@ -81,6 +82,8 @@ const statusBadgeStyles: Record<string, string> = {
 export default function MattersIndex({ matters, filters, counts, buckets, tablePreferences }: Props) {
     const { auth } = usePage<PageProps>().props;
     const isFirmAdmin = auth.user?.roles?.includes('firm_admin') || auth.user?.roles?.includes('super_admin') || false;
+    // Backend MatterPolicy::create mirrors this exactly (create_matters).
+    const canCreateMatter = hasPermission(auth.user?.permissions, 'create_matters');
     const [search, setSearch]   = useState(filters.search ?? '');
     const [status, setStatus]   = useState(filters.status ?? '_all');
     const [area, setArea]       = useState(filters.practice_area ?? '_all');
@@ -423,7 +426,7 @@ export default function MattersIndex({ matters, filters, counts, buckets, tableP
             <div className="flex flex-col gap-3 mb-6">
                 <div className="flex items-center justify-between">
                     <h1 className="text-2xl font-extrabold tracking-tight">Matters</h1>
-                    {isFirmAdmin && (
+                    {canCreateMatter && (
                         <Button asChild className="gap-2">
                             <Link href="/matters/create"><Plus className="h-4 w-4" />New Matter</Link>
                         </Button>
@@ -525,7 +528,7 @@ export default function MattersIndex({ matters, filters, counts, buckets, tableP
                             <p className="text-muted-foreground text-sm mb-4">
                                 {hasFilters ? 'Try adjusting your search or filters' : 'Get started by creating your first matter'}
                             </p>
-                            {isFirmAdmin && (
+                            {canCreateMatter && (
                                 <Button asChild>
                                     <Link href="/matters/create"><Plus className="h-4 w-4 mr-2" />New Matter</Link>
                                 </Button>

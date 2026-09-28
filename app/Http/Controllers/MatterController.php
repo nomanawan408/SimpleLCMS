@@ -114,9 +114,12 @@ class MatterController extends Controller
         }
 
         return Inertia::render('Matters/Create', [
+            // Every active firm user: assignment is controlled separately
+            // (firm-admin-only changes, self-only creation), so custom roles
+            // must appear here or they can never be staffed on matters.
             'users' => User::where('firm_id', $firmId)
                 ->where('is_active', true)
-                ->whereHas('roles', fn ($q) => $q->whereIn('name', ['firm_admin', 'lawyer']))
+                ->orderBy('full_name')
                 ->get(['id', 'full_name', 'role']),
             'contacts' => Contact::where('firm_id', $firmId)
                 ->orderBy('name')
@@ -129,6 +132,18 @@ class MatterController extends Controller
     public function store(StoreMatterRequest $request): RedirectResponse
     {
         $this->authorize('create', Matter::class);
+
+        // Opening a matter with a team grants file access, so non-admin
+        // creators may only staff themselves; a firm admin assigns the team
+        // (or reassigns afterwards). Fail before any write happens.
+        if (! $request->user()->isFirmAdmin()) {
+            $validated = $request->validated();
+            $others = array_values(array_unique(array_filter(array_merge(
+                [(string) ($validated['responsible_user_id'] ?? '')],
+                array_map(strval(...), (array) ($validated['assignee_ids'] ?? []))
+            ), fn ($id) => $id !== '' && $id !== (string) $request->user()->id)));
+            abort_if($others !== [], 403, 'Only a firm admin can assign other users when opening a matter.');
+        }
 
         $firm   = $request->user()->firm;
         $number = $firm->nextInvoiceNumber();
@@ -253,9 +268,12 @@ class MatterController extends Controller
 
         return Inertia::render('Matters/Edit', [
             'matter' => $matter,
+            // Every active firm user: assignment is controlled separately
+            // (firm-admin-only changes, self-only creation), so custom roles
+            // must appear here or they can never be staffed on matters.
             'users' => User::where('firm_id', $firmId)
                 ->where('is_active', true)
-                ->whereHas('roles', fn ($q) => $q->whereIn('name', ['firm_admin', 'lawyer']))
+                ->orderBy('full_name')
                 ->get(['id', 'full_name', 'role']),
             'contacts' => Contact::where('firm_id', $firmId)
                 ->orderBy('name')
@@ -267,6 +285,7 @@ class MatterController extends Controller
     public function update(UpdateMatterRequest $request, Matter $matter): RedirectResponse
     {
         $this->authorize('update', $matter);
+        $matter->ensureMutableBy($request->user());
 
         $validated = $request->validated();
 
@@ -389,6 +408,7 @@ class MatterController extends Controller
     public function destroy(Matter $matter, Request $request): RedirectResponse
     {
         $this->authorize('delete', $matter);
+        $matter->ensureMutableBy($request->user());
 
         $matter->delete();
 

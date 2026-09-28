@@ -304,17 +304,19 @@ class UserModuleTest extends TestCase
         ])->assertStatus(403);
     }
 
-    // ── Role routes removed ───────────────────────────────────────
-    // Custom roles no longer exist (super_admin / firm_admin / staff only),
-    // so every role-management endpoint must be gone, not merely gated.
+    // ── Role routes restored ──────────────────────────────────────
+    // Firm admins manage their own roles (create, set permissions, assign).
+    // Lawyers never reach these endpoints (admin-panel gate).
 
-    public function test_role_routes_do_not_exist(): void
+    public function test_role_routes_exist_and_are_admin_only(): void
     {
         [$firm, $admin] = $this->createFirmAndAdmin();
+        [$firm2, $lawyer] = $this->createFirmAndUser(['role' => 'lawyer']);
 
-        $this->actingAsUser($admin)->get('/admin/roles')->assertNotFound();
-        $this->actingAsUser($admin)->post('/admin/roles', [])->assertNotFound();
-        $this->actingAsUser($admin)->put('/admin/roles/1', [])->assertNotFound();
-        $this->actingAsUser($admin)->delete('/admin/roles/1')->assertNotFound();
+        $this->actingAsUser($admin)->get('/admin/roles')->assertOk();
+        $this->actingAsUser($lawyer)->get('/admin/roles')->assertForbidden();
+        $this->actingAsUser($lawyer)->post('/admin/roles', [])->assertForbidden();
+        $this->actingAsUser($lawyer)->put('/admin/roles/1', [])->assertForbidden();
+        $this->actingAsUser($lawyer)->delete('/admin/roles/1')->assertForbidden();
     }
 }

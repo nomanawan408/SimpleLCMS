@@ -22,6 +22,12 @@ class DocumentController extends Controller
     public function index(Request $request): Response
     {
         abort_unless($request->user()->is_active, 403);
+        abort_unless(
+            $request->user()->isFirmAdmin()
+                || $request->user()->hasPermissionTo('view_documents')
+                || $request->user()->hasPermissionTo('manage_documents'),
+            403
+        );
 
         $firmId = $request->user()->firm_id;
 
@@ -63,8 +69,14 @@ class DocumentController extends Controller
         if ($matter->firm_id !== $request->user()->firm_id) {
             abort(404);
         }
-        // Staff may only file into matters they can see, and never into
-        // a closed archive.
+        // Filing needs the upload permission; staff may only file into
+        // matters they can see, and never into a closed archive.
+        abort_unless(
+            $request->user()->isFirmAdmin()
+                || $request->user()->hasPermissionTo('upload_documents')
+                || $request->user()->hasPermissionTo('manage_documents'),
+            403
+        );
         if (! $request->user()->isFirmAdmin()) {
             abort_unless(
                 Matter::where('id', $matter->id)->visibleTo($request->user())->exists(),
@@ -145,6 +157,11 @@ class DocumentController extends Controller
         }
         abort_unless(
             $document->matter && Matter::where('id', $document->matter_id)->visibleTo($user)->exists(),
+            403
+        );
+        abort_unless(
+            $user->hasPermissionTo($forWrite ? 'delete_documents' : 'view_documents')
+                || $user->hasPermissionTo('manage_documents'),
             403
         );
         if ($forWrite) {

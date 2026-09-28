@@ -19,6 +19,12 @@ class TaskController extends Controller
     public function index(Request $request): Response
     {
         abort_unless($request->user()->is_active, 403);
+        abort_unless(
+            $request->user()->isFirmAdmin()
+                || $request->user()->hasPermissionTo('view_tasks')
+                || $request->user()->hasPermissionTo('manage_tasks'),
+            403
+        );
 
         $firmId = $request->user()->firm_id;
 
@@ -70,6 +76,12 @@ class TaskController extends Controller
     public function store(Request $request): SymfonyResponse
     {
         abort_unless($request->user()->is_active, 403);
+        abort_unless(
+            $request->user()->isFirmAdmin()
+                || $request->user()->hasPermissionTo('create_tasks')
+                || $request->user()->hasPermissionTo('manage_tasks'),
+            403
+        );
 
         $firmId = $request->user()->firm_id;
 
@@ -113,7 +125,7 @@ class TaskController extends Controller
 
     public function update(Request $request, Task $task): SymfonyResponse
     {
-        $this->authorizeTask($request, $task);
+        $this->authorizeTask($request, $task, 'edit_tasks');
 
         $firmId = $request->user()->firm_id;
 
@@ -161,7 +173,7 @@ class TaskController extends Controller
 
     public function destroy(Request $request, Task $task): SymfonyResponse
     {
-        $this->authorizeTask($request, $task);
+        $this->authorizeTask($request, $task, 'delete_tasks');
 
         activity()->causedBy($request->user())->performedOn($task)->log('deleted');
 
@@ -179,13 +191,17 @@ class TaskController extends Controller
      * see (assigned, created, or on an assigned matter). Route-model binding
      * already 404s cross-firm rows via the tenant scope.
      */
-    private function authorizeTask(Request $request, Task $task): void
+    private function authorizeTask(Request $request, Task $task, string $permission): void
     {
         $user = $request->user();
         abort_unless($user->is_active, 403);
         if ($user->isFirmAdmin()) {
             return;
         }
+        abort_unless(
+            $user->hasPermissionTo($permission) || $user->hasPermissionTo('manage_tasks'),
+            403
+        );
         abort_unless(
             Task::where('id', $task->id)->visibleTo($user)->exists(),
             403

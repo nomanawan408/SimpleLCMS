@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -12,9 +12,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Combobox } from '@/components/ui/combobox';
-import { formatDate, cn, matterComboboxOptions } from '@/lib/utils';
+import { formatDate, cn, matterComboboxOptions, hasAnyPermission } from '@/lib/utils';
 import { ArrowLeft, ChevronDown, Download, Eye, FileText, Folder, FolderOpen, Paperclip, Trash2, Upload, X } from 'lucide-react';
-import type { Document, PaginatedData } from '@/types';
+import type { Document, PaginatedData, PageProps } from '@/types';
 import { useUploadQueue } from '@/hooks/useUploadQueue';
 import { UploadQueueList } from '@/components/documents/UploadQueueList';
 
@@ -37,6 +37,12 @@ const visibilityBadgeStyles: Record<string, string> = {
 };
 
 export default function DocumentsIndex({ documents, matters, filters }: Props) {
+    const { auth } = usePage<PageProps>().props;
+    // Backend DocumentController mirrors these (module permission plus
+    // matter assignment and the closed-file freeze, checked server-side).
+    const can = (perms: string[]) => hasAnyPermission(auth.user?.permissions, perms);
+    const canUploadDoc = can(['upload_documents', 'manage_documents']);
+    const canDeleteDoc = can(['delete_documents', 'manage_documents']);
     const [uploadModalOpen, setUploadModalOpen] = useState(false);
     const fileRef = useRef<HTMLInputElement>(null);
     const [viewerDoc, setViewerDoc] = useState<{ id: string; name: string; mime_type?: string } | null>(null);
@@ -129,10 +135,12 @@ export default function DocumentsIndex({ documents, matters, filters }: Props) {
                     <h1 className="text-2xl font-extrabold tracking-tight">Documents</h1>
                     <p className="text-sm text-muted-foreground mt-1">All matters share a dedicated folder — uploads from a matter go to its own folder automatically.</p>
                 </div>
+                {canUploadDoc && (
                 <Button onClick={openUploadModal} className="rounded-xl gap-2 bg-primary shadow-md hover:bg-primary-hover hover:shadow-lg transition-all">
                     <Upload className="h-4 w-4" />
                     Upload
                 </Button>
+                )}
             </div>
 
             {/* Filters */}
@@ -304,9 +312,11 @@ export default function DocumentsIndex({ documents, matters, filters }: Props) {
                                                                     <Download className="h-3.5 w-3.5" />
                                                                 </a>
                                                             </Button>
+                                                            {canDeleteDoc && (
                                                             <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => handleDelete(doc.id)}>
                                                                 <Trash2 className="h-3.5 w-3.5" />
                                                             </Button>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 ))}

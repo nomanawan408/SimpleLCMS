@@ -30,7 +30,8 @@ class LedgerController extends Controller
     /** Combined matter ledger: client + business columns with running balances. */
     public function matterLedger(Request $request, string $matter): Response
     {
-        abort_unless($request->user()->is_active, 403);
+        // Money surface: financial permission first, then assignment scope.
+        abort_unless($request->user()->is_active && $request->user()->canViewFinances(), 403);
 
         $record = Matter::where('firm_id', $request->user()->firm_id)->visibleTo($request->user())->findOrFail($matter);
         $svc = $this->service($request);
@@ -57,7 +58,7 @@ class LedgerController extends Controller
     /** System cash sheets (client + business), filterable by date range. */
     public function cashSheet(Request $request): Response
     {
-        abort_unless($request->user()->is_active, 403);
+        abort_unless($request->user()->is_active && $request->user()->canViewFinances(), 403);
 
         $validated = $request->validate([
             'account'   => ['nullable', 'in:client,business'],
@@ -101,13 +102,23 @@ class LedgerController extends Controller
 
     public function store(StoreLedgerEntryRequest $request): RedirectResponse
     {
+        // Receipts/payments: posting permission. Transfers move client money
+        // to office: transfer permission AND the manage-finances flag.
         $needMoneyFlag = $request->input('transaction_type') === 'client_to_office_transfer';
-        abort_unless(
-            $request->user()->isFirmAdmin()
-                || (! $needMoneyFlag && $request->user()->is_active)
-                || ($needMoneyFlag && $request->user()->canManageFinances()),
-            403
-        );
+        abort_unless($request->user()->is_active, 403);
+        if ($needMoneyFlag) {
+            abort_unless(
+                $request->user()->isFirmAdmin()
+                    || ($request->user()->hasPermissionTo('transfer_client_funds') && $request->user()->canManageFinances()),
+                403
+            );
+        } else {
+            abort_unless(
+                $request->user()->isFirmAdmin()
+                    || $request->user()->hasPermissionTo('post_ledger'),
+                403
+            );
+        }
 
         $data = $request->validated();
 
@@ -154,7 +165,7 @@ class LedgerController extends Controller
 
     public function reconciliations(Request $request): Response
     {
-        abort_unless($request->user()->is_active, 403);
+        abort_unless($request->user()->is_active && $request->user()->canViewFinances(), 403);
 
         $records = BankReconciliation::where('firm_id', $request->user()->firm_id)
             ->with('performer:id,full_name')

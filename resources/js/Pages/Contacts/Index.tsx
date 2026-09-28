@@ -1,4 +1,4 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Card, CardContent } from '@/components/ui/card';
@@ -8,9 +8,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { formatDate, initials, CONTACT_TYPE_LABELS, LEAD_STATUS_LABELS } from '@/lib/utils';
+import { formatDate, initials, CONTACT_TYPE_LABELS, LEAD_STATUS_LABELS, hasPermission } from '@/lib/utils';
 import { Plus, Search, X, Users, Mail, Phone } from 'lucide-react';
-import type { Contact, PaginatedData } from '@/types';
+import type { Contact, PaginatedData, PageProps } from '@/types';
 
 function useDebounce(value: string, delay: number) {
     const [debounced, setDebounced] = useState(value);
@@ -42,6 +42,9 @@ const leadBadgeStyles: Record<string, string> = {
 };
 
 export default function ContactsIndex({ contacts, filters, tablePreferences }: Props) {
+    const { auth } = usePage<PageProps>().props;
+    // Backend ContactPolicy::create mirrors this exactly (create_contacts).
+    const canCreateContact = hasPermission(auth.user?.permissions, 'create_contacts');
     const [search, setSearch] = useState(filters.search ?? '');
     const [type, setType] = useState(filters.type ?? '_all');
     const debounced = useDebounce(search, 300);
@@ -225,9 +228,11 @@ export default function ContactsIndex({ contacts, filters, tablePreferences }: P
             <div className="flex flex-col gap-3 mb-6">
                 <div className="flex items-center justify-between">
                     <h1 className="text-2xl font-extrabold tracking-tight">Contacts</h1>
+                    {canCreateContact && (
                     <Button asChild className="gap-2">
                         <Link href="/contacts/create"><Plus className="h-4 w-4" />New Contact</Link>
                     </Button>
+                    )}
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                     <div className="relative flex-1 min-w-[200px]">
@@ -272,9 +277,11 @@ export default function ContactsIndex({ contacts, filters, tablePreferences }: P
                             <p className="text-muted-foreground text-sm mb-4">
                                 {hasFilters ? 'Try adjusting your search or filters' : 'Add your first contact to get started'}
                             </p>
+                            {canCreateContact && (
                             <Button asChild>
                                 <Link href="/contacts/create"><Plus className="h-4 w-4 mr-2" />New Contact</Link>
                             </Button>
+                            )}
                         </div>
                     ) : (
                         <DynamicTable

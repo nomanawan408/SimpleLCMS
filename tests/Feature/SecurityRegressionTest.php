@@ -48,23 +48,73 @@ class SecurityRegressionTest extends TestCase
         $this->assertDatabaseMissing('users', ['email' => 'backdoor@example.com']);
     }
 
-    /** SL-02 */
-    public function test_firm_admin_cannot_edit_a_platform_wide_role(): void
+    /** SL-02: firm admin creates a role, sets its permissions, assigns it. */
+    public function test_firm_admin_can_create_role_with_permissions_and_assign_it(): void
     {
-        [$firmA, $adminA] = $this->createFirmAndAdmin();
+        [$firm, $admin] = $this->createFirmAndAdmin();
 
-        // Custom roles are gone: the endpoints must not exist at all.
-        $this->actingAsUser($adminA)->put('/admin/roles/1', ['name' => 'x'])->assertNotFound();
+        $perm = \Spatie\Permission\Models\Permission::firstOrCreate(['name' => 'view_matters', 'guard_name' => 'web']);
+        $admin->givePermissionTo($perm);
 
+        $this->actingAsUser($admin)->post('/admin/roles', [
+            'name' => 'Paralegal',
+            'description' => 'Support staff',
+            'permissions' => ['view_matters'],
+        ])->assertRedirect();
+
+        $role = \Spatie\Permission\Models\Role::where('name', 'Paralegal')->firstOrFail();
+        $this->assertSame($firm->id, $role->firm_id);
+        $this->assertFalse((bool) $role->is_system);
+        $this->assertTrue($role->hasPermissionTo('view_matters'));
+
+        $this->actingAsUser($admin)->post('/admin/users', [
+            'full_name' => 'Para User', 'email' => 'para@example.com',
+            'password' => 'Password123!', 'password_confirmation' => 'Password123!',
+            'role' => 'Paralegal',
+        ])->assertRedirect();
+
+        $user = \App\Models\User::where('email', 'para@example.com')->firstOrFail();
+        $this->assertTrue($user->hasRole('Paralegal'));
+        $this->assertSame('Paralegal', $user->role);
+
+        // The role index lists the custom role with its permission.
+        $this->actingAsUser($admin)->get('/admin/roles')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('roles', fn ($data) => collect($data)->contains(
+                    fn ($r) => $r['name'] === 'Paralegal' && $r['permissions'] === ['view_matters']
+                )));
     }
 
-    /** SL-02 */
-    public function test_firm_admin_cannot_delete_a_platform_wide_role(): void
+    /** SL-02: built-in and foreign roles are untouchable from a firm. */
+    public function test_firm_admin_cannot_edit_or_delete_builtin_or_foreign_roles(): void
     {
         [$firmA, $adminA] = $this->createFirmAndAdmin();
+        [$firmB, $adminB] = $this->createFirmAndAdmin();
 
-        $this->actingAsUser($adminA)->delete('/admin/roles/1')->assertNotFound();
+        $lawyer = \Spatie\Permission\Models\Role::where('name', 'lawyer')->firstOrFail();
 
+        // Shared built-in lawyer: refused, never edited.
+        $this->actingAsUser($adminA)
+            ->put("/admin/roles/{$lawyer->id}", ['name' => 'lawyer', 'permissions' => []])
+            ->assertSessionHasErrors('name');
+        $this->actingAsUser($adminA)->delete("/admin/roles/{$lawyer->id}")
+            ->assertSessionHasErrors('name');
+
+        // Another firm's custom role: fail closed without confirming it exists.
+        $foreign = \Spatie\Permission\Models\Role::create([
+            'name' => 'Foreign', 'guard_name' => 'web', 'firm_id' => $firmB->id,
+        ]);
+        $this->actingAsUser($adminA)
+            ->put("/admin/roles/{$foreign->id}", ['name' => 'Foreign', 'permissions' => []])
+            ->assertForbidden();
+        $this->actingAsUser($adminA)->delete("/admin/roles/{$foreign->id}")
+            ->assertForbidden();
+
+        // Lawyers never reach role management at all.
+        [$firmC, $lawyerUser] = $this->createFirmAndUser(['role' => 'lawyer']);
+        $this->actingAsUser($lawyerUser)->get('/admin/roles')->assertForbidden();
+        $this->actingAsUser($lawyerUser)->post('/admin/roles', ['name' => 'X', 'permissions' => []])->assertForbidden();
     }
 
     /** SL-03 */
@@ -82,6 +132,28 @@ class SecurityRegressionTest extends TestCase
 
         $this->assertDatabaseMissing('users', ['email' => 'buser@example.com']);
 
+    }
+
+    /** SL-03 sibling: a firm cannot poach another firm's custom role by name. */
+    public function test_firm_cannot_assign_another_firms_custom_role_by_name(): void
+    {
+        [$firmA, $adminA] = $this->createFirmAndAdmin();
+        [$firmB, $adminB] = $this->createFirmAndAdmin();
+
+        $foreign = \Spatie\Permission\Models\Role::create([
+            'name' => 'Paralegal', 'guard_name' => 'web', 'firm_id' => $firmB->id,
+        ]);
+
+        // Same display name, different firm: the grant must fail validation…
+        $this->actingAsUser($adminA)->post('/admin/users', [
+            'full_name' => 'Poached', 'email' => 'poached@example.com',
+            'password' => 'Password123!', 'password_confirmation' => 'Password123!',
+            'role' => 'Paralegal',
+        ])->assertSessionHasErrors('role');
+        $this->assertDatabaseMissing('users', ['email' => 'poached@example.com']);
+
+        // …and even a validated name can never resolve to another firm's row.
+        $this->assertFalse($foreign->users()->exists());
     }
 
     /** SL-02 sibling: no privilege escalation by delegation */

@@ -49,9 +49,17 @@ class LedgerHttpTest extends TestCase
         $matter = Matter::factory()->forFirm($firm, $admin)->create();
         $secretary = $this->plainStaff($firm);
 
+        // Money surfaces need the financial permission: unflagged, everything
+        // money is closed, even the listing pages.
+        $this->actingAsUser($secretary)->get('/ledger/cash-sheet')->assertForbidden();
+        $this->actingAsUser($secretary)->get('/ledger/reconciliations')->assertForbidden();
+        $this->actingAsUser($secretary)->get("/ledger/matters/{$matter->id}")->assertForbidden();
+
+        // View-flagged but unassigned: listings open (scoped), the matter
+        // page itself stays closed, and nothing can be posted or run.
+        $this->grantFinances($secretary);
         $this->actingAsUser($secretary)->get('/ledger/cash-sheet')->assertOk();
         $this->actingAsUser($secretary)->get('/ledger/reconciliations')->assertOk();
-        // Not assigned to the matter: the ledger page itself is closed.
         $this->actingAsUser($secretary)->get("/ledger/matters/{$matter->id}")->assertNotFound();
 
         $this->actingAsUser($secretary)->post('/ledger/entries', $this->entryPayload($matter->id))->assertForbidden();
@@ -65,6 +73,7 @@ class LedgerHttpTest extends TestCase
         [$firm, $admin] = $this->createFirmAndAdmin();
         $matter = Matter::factory()->forFirm($firm, $admin)->create();
         $solicitor = $this->staffOn($matter, $firm);
+        $this->grantFinances($solicitor);
 
         $this->actingAsUser($solicitor)->get("/ledger/matters/{$matter->id}")->assertOk();
 
