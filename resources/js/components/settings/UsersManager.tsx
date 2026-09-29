@@ -1,4 +1,4 @@
-import { useForm, router } from '@inertiajs/react';
+import { useForm, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -12,8 +12,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import {
     Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
-import { formatDate, initials } from '@/lib/utils';
+import { formatDate, initials, hasAnyPermission } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import type { PageProps } from '@/types';
 import { Plus, Pencil, Trash2, KeyRound, Eye, EyeOff } from 'lucide-react';
 
 export interface RoleOption {
@@ -46,6 +47,12 @@ interface UsersManagerProps {
 }
 
 export default function UsersManager({ users, availableRoles }: UsersManagerProps) {
+    const { auth } = usePage<PageProps>().props;
+    // Backend UserPolicy mirrors these (delegated user-management verbs).
+    const can = (perms: string[]) => hasAnyPermission(auth.user?.permissions, perms);
+    const canCreateUser = can(['create_users', 'manage_users']);
+    const canEditUser = can(['edit_users', 'manage_users']);
+    const canDeleteUser = can(['delete_users', 'manage_users']);
     const [createOpen, setCreateOpen] = useState(false);
     const [editOpen, setEditOpen] = useState(false);
     const [passwordOpen, setPasswordOpen] = useState(false);
@@ -149,10 +156,12 @@ export default function UsersManager({ users, availableRoles }: UsersManagerProp
                         <h1 className="text-2xl font-extrabold tracking-tight">Users</h1>
                         <p className="text-sm text-muted-foreground mt-1">{users.length} member{users.length !== 1 ? 's' : ''} in your firm</p>
                     </div>
+                    {canCreateUser && (
                     <Button onClick={() => { createForm.reset(); setCreateOpen(true); }}>
                         <Plus className="h-4 w-4 mr-2" />
                         Add User
                     </Button>
+                    )}
                 </div>
 
                 <Card className="rounded-2xl border border-border/60 bg-card shadow-sm overflow-hidden">
@@ -160,10 +169,12 @@ export default function UsersManager({ users, availableRoles }: UsersManagerProp
                         {users.length === 0 ? (
                             <div className="py-16 text-center">
                                 <p className="text-muted-foreground text-sm mb-4">No users yet.</p>
+{canCreateUser && (
                                 <Button size="sm" onClick={() => setCreateOpen(true)}>
                                     <Plus className="h-4 w-4 mr-2" />
                                     Add your first user
                                 </Button>
+                                )}
                             </div>
                         ) : (
                             <div className="overflow-x-auto">
@@ -227,15 +238,21 @@ export default function UsersManager({ users, availableRoles }: UsersManagerProp
                                                 </TableCell>
                                                 <TableCell>
                                                     <div className="flex items-center justify-end gap-1">
+                                                        {canEditUser && (
                                                         <Button variant="outline" size="sm" className="h-7 w-7 p-0" onClick={() => openEdit(user)} title="Edit user">
                                                             <Pencil className="h-3.5 w-3.5" />
                                                         </Button>
+                                                        )}
+                                                        {canEditUser && (
                                                         <Button variant="outline" size="sm" className="h-7 w-7 p-0" onClick={() => openPasswordReset(user)} title="Reset password">
                                                             <KeyRound className="h-3.5 w-3.5" />
                                                         </Button>
+                                                        )}
+                                                        {canDeleteUser && (
                                                         <Button variant="outline" size="sm" className="h-7 w-7 p-0 text-destructive hover:text-destructive" onClick={() => openDelete(user)} title="Delete user">
                                                             <Trash2 className="h-3.5 w-3.5" />
                                                         </Button>
+                                                        )}
                                                     </div>
                                                 </TableCell>
                                             </TableRow>

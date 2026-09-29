@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, Plus, Info } from 'lucide-react';
 import type { User, Contact, PageProps } from '@/types';
-import { PREFIX_OPTIONS } from '@/lib/utils';
+import { PREFIX_OPTIONS, hasAnyPermission } from '@/lib/utils';
 
 interface Props {
     users: User[];
@@ -34,6 +34,9 @@ export default function CreateMatter({ users, contacts, prefill_contact_id, view
     // same): everyone else opens the matter for themselves, and the admin
     // assigns the team afterwards.
     const isFirmAdmin = auth.user?.roles?.includes('firm_admin') || auth.user?.roles?.includes('super_admin') || false;
+    // Backend creation gate mirrors this (firm admin or manage_assignments).
+    const canManageAssignment = isFirmAdmin
+        || hasAnyPermission(auth.user?.permissions, ['manage_assignments']);
     const ownId = auth.user?.id ?? '';
     const [contactList, setContactList] = useState<Contact[]>(contacts);
     const [contactModalOpen, setContactModalOpen] = useState(false);
@@ -58,7 +61,7 @@ export default function CreateMatter({ users, contacts, prefill_contact_id, view
         fee_arrangement: '',
         priority: 'medium' as string,
         status: 'open' as string,
-        responsible_user_id: isFirmAdmin ? '' : ownId,
+        responsible_user_id: canManageAssignment ? '' : ownId,
         assignee_ids: [] as string[],
         contact_ids: (prefill_contact_id ? [prefill_contact_id] : []) as string[],
         court: '',
@@ -307,13 +310,13 @@ export default function CreateMatter({ users, contacts, prefill_contact_id, view
 
                                 <div className="space-y-3">
                                     <Label className="text-sm font-medium">Responsible User *</Label>
-                                    {!isFirmAdmin && (
+                                    {!canManageAssignment && (
                                         <p className="text-xs text-muted-foreground">You open the matter for yourself — a firm admin assigns the team.</p>
                                     )}
                                     <Select
                                         value={data.responsible_user_id}
                                         onValueChange={(v) => setData('responsible_user_id', v)}
-                                        disabled={!isFirmAdmin}
+                                        disabled={!canManageAssignment}
                                     >
                                         <SelectTrigger className="h-11">
                                             <SelectValue placeholder="Assign to…" />
@@ -327,7 +330,7 @@ export default function CreateMatter({ users, contacts, prefill_contact_id, view
                                     {errors.responsible_user_id && <p className="text-xs text-destructive mt-1">{errors.responsible_user_id}</p>}
                                 </div>
 
-                                {isFirmAdmin && (
+                                {canManageAssignment && (
                                 <div className="space-y-3">
                                     <Label className="text-sm font-medium">Additional Team <span className="font-normal text-muted-foreground">(responsible user is always assigned)</span></Label>
                                     <div className="space-y-1.5 rounded-lg border border-border/60 bg-muted/20 p-3">

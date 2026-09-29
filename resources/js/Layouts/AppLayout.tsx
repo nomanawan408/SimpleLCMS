@@ -52,7 +52,7 @@ const navItems: NavItem[] = [
     { label: 'Calendar',     href: '/calendar',     icon: Calendar,    routeName: 'calendar.index',     permission: 'view_calendar' },
     { label: 'Tasks',      href: '/tasks',        icon: CheckSquare,     routeName: 'tasks.index',      permission: 'view_tasks' },
     { label: 'Activities', href: '/activities',   icon: Activity,        routeName: 'activities.index', adminOnly: true },
-    { label: 'Reports',    href: '/reports',      icon: BarChart2,       routeName: 'reports.index',   adminOnly: true },
+    { label: 'Reports',    href: '/reports',      icon: BarChart2,       routeName: 'reports.index',   permission: 'view_reports' },
 ];
 
 // All settings live in one place: the Admin section's Settings submenu.
@@ -60,7 +60,7 @@ const adminItems: NavItem[] = [
     { label: 'Settings',   href: '/settings',     icon: Settings,        routeName: 'settings.index',
         children: [
             { label: 'General',    href: '/settings',                   icon: UserRound,  routeName: 'settings.general' },
-            { label: 'Users',      href: '/settings?section=users',     icon: Users,      routeName: 'settings.users', adminOnly: true },
+            { label: 'Users',      href: '/settings?section=users',     icon: Users,      routeName: 'settings.users', permission: ['view_users', 'manage_users'] },
             { label: 'Roles',      href: '/settings?section=roles',     icon: Shield,      routeName: 'settings.roles', adminOnly: true },
             { label: 'Firm Setup', href: '/settings?section=company',   icon: Building2,  routeName: 'settings.company', adminOnly: true },
         ] },

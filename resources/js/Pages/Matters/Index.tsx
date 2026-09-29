@@ -11,10 +11,10 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { getDateUrgency } from '@/components/ui/urgency-dot';
-import { daysUntilDate, formatDate, isOverdueDate, splitDateTime, MATTER_STATUS_LABELS, MATTER_PRIORITY_LABELS, MATTER_PRIORITY_STYLES, PRACTICE_AREA_LABELS } from '@/lib/utils';
-import { hasPermission } from '@/lib/utils';
+import { daysUntilDate, formatDate, isOverdueDate, splitDateTime, MATTER_STATUS_LABELS, MATTER_PRIORITY_LABELS, MATTER_PRIORITY_STYLES, PRACTICE_AREA_LABELS, ROLE_LABELS } from '@/lib/utils';
+import { hasPermission, hasAnyPermission } from '@/lib/utils';
 import { UserAvatar } from '@/components/ui/user-avatar';
-import { Plus, Search, X, Calendar, Clock, ListTodo, Briefcase, Flag, Trash2 } from 'lucide-react';
+import { Plus, Search, X, Calendar, Clock, ListTodo, Briefcase, Flag, Trash2, Pencil, Check } from 'lucide-react';
 import type { Matter, PaginatedData, PageProps } from '@/types';
 
 interface Props {
@@ -23,6 +23,8 @@ interface Props {
     counts: { all: number; open: number; closed: number };
     buckets: { opened: number; in_progress: number; on_hold: number; closed: number };
     tablePreferences?: TablePreferences | null;
+    users: { id: string; full_name: string; role: string }[];
+    assignedMatterIds: string[];
 }
 
 const PER_PAGE_OPTIONS = [10, 20, 25, 50, 100];
@@ -79,11 +81,21 @@ const statusBadgeStyles: Record<string, string> = {
     archived: 'bg-zinc-100 text-zinc-600 border-zinc-200',
 };
 
-export default function MattersIndex({ matters, filters, counts, buckets, tablePreferences }: Props) {
+export default function MattersIndex({ matters, filters, counts, buckets, tablePreferences, users, assignedMatterIds }: Props) {
     const { auth } = usePage<PageProps>().props;
     const isFirmAdmin = auth.user?.roles?.includes('firm_admin') || auth.user?.roles?.includes('super_admin') || false;
     // Backend MatterPolicy::create mirrors this exactly (create_matters).
     const canCreateMatter = hasPermission(auth.user?.permissions, 'create_matters');
+    const can = (perms: string[]) => hasAnyPermission(auth.user?.permissions, perms);
+    // Inline editors mirror the dedicated endpoints exactly: assignment
+    // rights for responsible (firm admin or manage_assignments, on matters
+    // the user can already update), matter-edit rights for status.
+    const canManageAssignment = isFirmAdmin || can(['manage_assignments']);
+    const canEditMatter = isFirmAdmin || can(['edit_matters', 'manage_matters']);
+    const isOpenMatter = (m: Matter) => m.status !== 'closed' && m.status !== 'archived';
+    const isAssigned = (m: Matter) => isFirmAdmin || (assignedMatterIds ?? []).includes(m.id);
+    const canAssignRow = (m: Matter) => canManageAssignment && (isFirmAdmin || (isOpenMatter(m) && isAssigned(m)));
+    const canStatusRow = (m: Matter) => canEditMatter && (isFirmAdmin || (isOpenMatter(m) && isAssigned(m)));
     const [search, setSearch]   = useState(filters.search ?? '');
     const [status, setStatus]   = useState(filters.status ?? '_all');
     const [area, setArea]       = useState(filters.practice_area ?? '_all');
@@ -98,6 +110,57 @@ export default function MattersIndex({ matters, filters, counts, buckets, tableP
     const debouncedSearch       = useDebounce(search, 300);
     const isFirstRun            = useRef(true);
     const [editingHearing, setEditingHearing] = useState<Matter | null>(null);
+    // Inline editors: responsible + status, straight from the index table.
+    const [editingResponsible, setEditingResponsible] = useState<Matter | null>(null);
+    const [responsibleUserId, setResponsibleUserId] = useState('');
+    const [responsibleSearch, setResponsibleSearch] = useState('');
+    const [responsibleSaving, setResponsibleSaving] = useState(false);
+    const [responsibleError, setResponsibleError] = useState<string | null>(null);
+    const [editingStatus, setEditingStatus] = useState<Matter | null>(null);
+    const [statusValue, setStatusValue] = useState('');
+    const [statusSaving, setStatusSaving] = useState(false);
+    const [statusError, setStatusError] = useState<string | null>(null);
+
+    const openResponsibleModal = (matter: Matter) => {
+        setEditingResponsible(matter);
+        setResponsibleUserId(matter.responsible_user_id ?? '');
+        setResponsibleSearch('');
+        setResponsibleError(null);
+    };
+    const openStatusModal = (matter: Matter) => {
+        setEditingStatus(matter);
+        setStatusValue(matter.status);
+        setStatusError(null);
+    };
+    const filteredUsers = users.filter((u) =>
+        u.full_name.toLowerCase().includes(responsibleSearch.trim().toLowerCase())
+    );
+    function saveResponsible() {
+        if (!editingResponsible || !responsibleUserId) return;
+        setResponsibleSaving(true);
+        setResponsibleError(null);
+        router.put(`/matters/${editingResponsible.id}/responsible`, {
+            responsible_user_id: responsibleUserId,
+        }, {
+            preserveScroll: true,
+            onSuccess: () => { setEditingResponsible(null); router.reload({ only: ['matters'] }); },
+            onError: (errors) => setResponsibleError(Object.values(errors).flat().join(' ') || 'Could not save.'),
+            onFinish: () => setResponsibleSaving(false),
+        });
+    }
+    function saveStatus() {
+        if (!editingStatus || !statusValue) return;
+        setStatusSaving(true);
+        setStatusError(null);
+        router.put(`/matters/${editingStatus.id}/status`, {
+            status: statusValue,
+        }, {
+            preserveScroll: true,
+            onSuccess: () => { setEditingStatus(null); router.reload({ only: ['matters'] }); },
+            onError: (errors) => setStatusError(Object.values(errors).flat().join(' ') || 'Could not save.'),
+            onFinish: () => setStatusSaving(false),
+        });
+    }
     // Closed matters are read-only for lawyers; firm admins keep full control.
     const hearingLocked = !!editingHearing && (editingHearing.status === 'closed' || editingHearing.status === 'archived') && !isFirmAdmin;
     const [hearingDate, setHearingDate] = useState('');
@@ -159,23 +222,49 @@ export default function MattersIndex({ matters, filters, counts, buckets, tableP
         },
         {
             id: 'responsible', header: 'Responsible', defaultWidth: 160, minWidth: 120, maxWidth: 260,
-            cell: (matter) => matter.responsible_user?.full_name ? (
-                <span className="inline-flex items-center gap-2">
-                    <UserAvatar user={matter.responsible_user} />
-                    <span className="whitespace-nowrap text-sm text-muted-foreground">{matter.responsible_user.full_name}</span>
-                </span>
-            ) : (
-                <span className="text-sm text-muted-foreground">—</span>
-            ),
+            cell: (matter) => {
+                const inner = matter.responsible_user?.full_name ? (
+                    <span className="inline-flex items-center gap-2">
+                        <UserAvatar user={matter.responsible_user} />
+                        <span className="whitespace-nowrap text-sm text-muted-foreground">{matter.responsible_user.full_name}</span>
+                    </span>
+                ) : (
+                    <span className="text-sm text-muted-foreground">—</span>
+                );
+                return canAssignRow(matter) ? (
+                    <button
+                        type="button"
+                        title="Change responsible user"
+                        onClick={(e) => { e.stopPropagation(); openResponsibleModal(matter); }}
+                        className="inline-flex items-center gap-1.5 rounded-md px-1 py-0.5 transition-colors hover:bg-muted"
+                    >
+                        {inner}
+                        <Pencil className="h-3 w-3 shrink-0 text-muted-foreground/60" />
+                    </button>
+                ) : inner;
+            },
         },
         {
             id: 'status', header: 'Status', defaultWidth: 190, minWidth: 140, maxWidth: 300,
-            cell: (matter) => (
-                <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded border px-2.5 py-1 text-xs font-medium leading-none ${statusBadgeStyles[matter.status] ?? 'bg-muted text-muted-foreground border-border'}`}>
-                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-current" aria-hidden />
-                    {MATTER_STATUS_LABELS[matter.status] ?? matter.status.replace(/_/g, ' ')}
-                </span>
-            ),
+            cell: (matter) => {
+                const badge = (
+                    <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded border px-2.5 py-1 text-xs font-medium leading-none ${statusBadgeStyles[matter.status] ?? 'bg-muted text-muted-foreground border-border'}`}>
+                        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-current" aria-hidden />
+                        {MATTER_STATUS_LABELS[matter.status] ?? matter.status.replace(/_/g, ' ')}
+                    </span>
+                );
+                return canStatusRow(matter) ? (
+                    <button
+                        type="button"
+                        title="Change status"
+                        onClick={(e) => { e.stopPropagation(); openStatusModal(matter); }}
+                        className="inline-flex items-center gap-1.5 rounded-md px-1 py-0.5 transition-colors hover:bg-muted"
+                    >
+                        {badge}
+                        <Pencil className="h-3 w-3 shrink-0 text-muted-foreground/60" />
+                    </button>
+                ) : badge;
+            },
         },
         {
             id: 'priority', header: 'Priority', defaultWidth: 120, minWidth: 100, maxWidth: 180,
@@ -792,6 +881,102 @@ export default function MattersIndex({ matters, filters, counts, buckets, tableP
                         {hearingLocked && (
                             <p className="text-xs text-amber-700">This matter is closed — read-only.</p>
                         )}
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Responsible User Dialog */}
+            <Dialog open={!!editingResponsible} onOpenChange={(open) => { if (!open) setEditingResponsible(null); }}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <UserAvatar user={{ full_name: editingResponsible?.responsible_user?.full_name ?? '?' } as any} className="h-5 w-5" />
+                            Responsible User
+                        </DialogTitle>
+                        <DialogDescription>
+                            {editingResponsible?.matter_number} — {editingResponsible?.name}. The responsible user is
+                            always assigned and can see the whole file.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-2 py-2">
+                        <div className="relative">
+                            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/60" />
+                            <Input
+                                value={responsibleSearch}
+                                onChange={(e) => setResponsibleSearch(e.target.value)}
+                                placeholder="Search team members…"
+                                className="pl-8"
+                            />
+                        </div>
+                        <div className="max-h-64 space-y-1 overflow-y-auto py-1">
+                            {filteredUsers.length === 0 ? (
+                                <p className="px-3 py-4 text-center text-sm text-muted-foreground">No team members match.</p>
+                            ) : (
+                                filteredUsers.map((u) => {
+                                    const selected = u.id === responsibleUserId;
+                                    return (
+                                        <button
+                                            key={u.id}
+                                            type="button"
+                                            onClick={() => setResponsibleUserId(u.id)}
+                                            className={`flex w-full items-center gap-2.5 rounded-lg border px-3 py-2 text-left transition-colors ${selected ? 'border-primary bg-primary/5' : 'border-border/60 hover:bg-muted/40'}`}
+                                        >
+                                            <UserAvatar user={u} className="h-7 w-7" fallbackClassName="text-[10px]" />
+                                            <span className="min-w-0 flex-1">
+                                                <span className="block truncate text-sm font-medium text-foreground">{u.full_name}</span>
+                                                <span className="block text-xs capitalize text-muted-foreground">{ROLE_LABELS[u.role] ?? u.role}</span>
+                                            </span>
+                                            {selected && <Check className="h-4 w-4 shrink-0 text-primary" />}
+                                        </button>
+                                    );
+                                })
+                            )}
+                        </div>
+                        {responsibleError && <p className="text-xs text-destructive">{responsibleError}</p>}
+                    </div>
+                    <DialogFooter className="gap-2">
+                        <Button variant="outline" onClick={() => setEditingResponsible(null)} disabled={responsibleSaving}>
+                            Cancel
+                        </Button>
+                        <Button disabled={!responsibleUserId || responsibleSaving} onClick={saveResponsible}>
+                            {responsibleSaving ? 'Saving…' : 'Save'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Status Dialog */}
+            <Dialog open={!!editingStatus} onOpenChange={(open) => { if (!open) setEditingStatus(null); }}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Status</DialogTitle>
+                        <DialogDescription>
+                            {editingStatus?.matter_number} — {editingStatus?.name}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-2 py-2">
+                        <Select value={statusValue} onValueChange={setStatusValue}>
+                            <SelectTrigger className="h-11">
+                                <SelectValue placeholder="Select status…" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {Object.keys(MATTER_STATUS_LABELS).map((st) => (
+                                    <SelectItem key={st} value={st}>{MATTER_STATUS_LABELS[st]}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        {(statusValue === 'closed' || statusValue === 'archived') && (
+                            <p className="text-xs text-amber-700">Closing makes the file read-only for lawyers. Only a firm admin can reopen it.</p>
+                        )}
+                        {statusError && <p className="text-xs text-destructive">{statusError}</p>}
+                    </div>
+                    <DialogFooter className="gap-2">
+                        <Button variant="outline" onClick={() => setEditingStatus(null)} disabled={statusSaving}>
+                            Cancel
+                        </Button>
+                        <Button disabled={!statusValue || statusSaving} onClick={saveStatus}>
+                            {statusSaving ? 'Saving…' : 'Save'}
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

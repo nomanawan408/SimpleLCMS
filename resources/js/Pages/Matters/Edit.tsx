@@ -30,7 +30,9 @@ export default function EditMatter({ matter, users, contacts, viewFinancial }: P
     const { auth } = usePage<PageProps>().props;
     // Assignment grants file access: firm admins only. Everyone else keeps
     // editing everything else; the server refuses grant attempts anyway.
-    const canManageAssignment = auth.user?.roles?.includes('firm_admin') || auth.user?.roles?.includes('super_admin') || false;
+    // Backend assignment gates mirror this (firm admin or manage_assignments).
+    const canManageAssignment = auth.user?.roles?.includes('firm_admin') || auth.user?.roles?.includes('super_admin')
+        || hasAnyPermission(auth.user?.permissions, ['manage_assignments']) || false;
     // Backend MatterPolicy::delete mirrors this (delete_matters).
     const canDeleteMatter = hasAnyPermission(auth.user?.permissions, ['delete_matters']);
 

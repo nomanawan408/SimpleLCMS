@@ -31,12 +31,13 @@ return new class extends Migration
      */
     /**
      * Every name here is enforced by a policy or controller gate (verified by
-     * test: no decorative permissions). Removed 2026-09-29: user/invoice/
-     * trust verbs (covered by admin-panel, finance flags, ledger gates),
-     * firm-settings verbs (FirmPolicy), view_reports and export_data
-     * (reports are firm_admin-only), view_ledger, reverse_ledger_entries and
+     * test: no decorative permissions). Removed 2026-09-29: invoice/trust
+     * verbs (covered by finance flags and ledger gates), firm-settings verbs
+     * (FirmPolicy), view_ledger, reverse_ledger_entries and
      * run_reconciliation (ledger reads/writes ride the finance flags plus
-     * post_ledger / transfer_client_funds).
+     * post_ledger / transfer_client_funds). Reintroduced on request:
+     * reports/export (ReportController), manage_assignments (matter
+     * assignment gates), user verbs (user administration).
      */
     private const PERMISSION_VOCABULARY = [
         'view_dashboard',
@@ -48,6 +49,9 @@ return new class extends Migration
         'manage_calendar', 'view_calendar', 'create_events', 'edit_events', 'delete_events',
         'manage_tasks', 'view_tasks', 'create_tasks', 'edit_tasks', 'delete_tasks',
         'post_ledger', 'transfer_client_funds',
+        'view_reports', 'export_data',
+        'manage_assignments',
+        'manage_users', 'view_users', 'create_users', 'edit_users', 'delete_users',
         'view_finances', 'manage_finances',
     ];
 

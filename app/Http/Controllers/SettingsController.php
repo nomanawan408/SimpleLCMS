@@ -23,8 +23,13 @@ class SettingsController extends Controller
         $firmId = $user->firm_id;
 
         $canEditFirm = $firm ? $user->can('update', $firm) : false;
-        // Same gate as the sidebar Admin section.
-        $canManageTeam = ! $user->hasRole('super_admin') && $user->hasRole('firm_admin');
+        // Team tab: firm admins plus delegated user-managers (any user verb).
+        // Roles tab stays firm_admin-only (canManageRoles): handing out
+        // permissions stays an admin act even when user admin is delegated.
+        $canManageTeam = ! $user->hasRole('super_admin') && ($user->hasRole('firm_admin')
+            || $user->hasPermissionTo('view_users')
+            || $user->hasPermissionTo('manage_users'));
+        $canManageRoles = ! $user->hasRole('super_admin') && $user->hasRole('firm_admin');
 
         // Team data mirrors Admin\UserController@index / Admin\RoleController@index
         // so the embedded managers show exactly what their standalone pages show.
@@ -60,7 +65,10 @@ class SettingsController extends Controller
                 ->get(['id', 'name', 'description', 'is_system']);
 
             // Roles tab: same data as Admin\RoleController@index so the
-            // embedded manager matches the standalone page exactly.
+            // embedded manager matches the standalone page exactly. Firm
+            // admins only -- delegated user-managers must never see the
+            // permission catalogue they cannot manage.
+            if ($canManageRoles) {
             $team['roles'] = \Spatie\Permission\Models\Role::where(function ($q) use ($firmId) {
                     $q->where('firm_id', $firmId)->orWhereNull('firm_id');
                 })
@@ -97,6 +105,7 @@ class SettingsController extends Controller
                 })
                 ->map(fn ($perms) => $perms->map(fn ($p) => ['id' => $p->id, 'name' => $p->name])->values()->toArray())
                 ->toArray();
+            }
 
         }
 
@@ -104,6 +113,7 @@ class SettingsController extends Controller
             'preferences' => $user->preferences ?? ['theme' => 'light'],
             'canEditFirm' => $canEditFirm,
             'canManageTeam' => $canManageTeam,
+            'canManageRoles' => $canManageRoles,
             'firm' => $canEditFirm ? $firm : null,
             'isSuperAdmin' => $user->hasRole('super_admin'),
             ...$team,

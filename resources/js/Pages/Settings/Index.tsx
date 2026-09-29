@@ -29,6 +29,7 @@ interface Props {
     availableRoles?: RoleOption[];
     roles?: RoleData[];
     groupedPermissions?: Record<string, { id: number; name: string }[]>;
+    canManageRoles?: boolean;
 }
 
 type Category = 'account' | 'firm';
@@ -57,7 +58,7 @@ function sectionCategory(section: SectionKey): Category {
 }
 
 export default function SettingsIndex({
-    preferences, canEditFirm, canManageTeam, firm, isSuperAdmin,
+    preferences, canEditFirm, canManageTeam, canManageRoles, firm, isSuperAdmin,
     users, availableRoles, roles, groupedPermissions,
 }: Props) {
     const { auth, theme: activeTheme } = usePage<PageProps>().props;
@@ -66,7 +67,7 @@ export default function SettingsIndex({
     const firmSections: Section[] = [
         ...(canEditFirm && firm ? [{ key: 'company', label: 'Company', icon: Building2 } as Section] : []),
         ...(canManageTeam && users && availableRoles ? [{ key: 'users', label: 'Users', icon: Users } as Section] : []),
-        ...(canManageTeam && roles && groupedPermissions ? [{ key: 'roles', label: 'Roles', icon: ShieldCheck } as Section] : []),
+        ...(canManageRoles && roles && groupedPermissions ? [{ key: 'roles', label: 'Roles', icon: ShieldCheck } as Section] : []),
     ];
     const showFirmCategory = firmSections.length > 0;
 
@@ -291,7 +292,7 @@ export default function SettingsIndex({
                     {section === 'users' && canManageTeam && users && availableRoles && (
                         <UsersManager users={users} availableRoles={availableRoles} />
                     )}
-                    {section === 'roles' && canManageTeam && roles && groupedPermissions && (
+                    {section === 'roles' && canManageRoles && roles && groupedPermissions && (
                         <RolesManager roles={roles} groupedPermissions={groupedPermissions} />
                     )}
                 </div>

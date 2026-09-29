@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Head, router } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableHeader, TableHeaderRow, TableBody, TableFooter, TableRow, TableHead, TableCell } from '@/components/ui/table';
@@ -9,8 +9,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Combobox } from '@/components/ui/combobox';
-import { formatCurrency, formatDuration, PRACTICE_AREA_LABELS, cn, matterComboboxOptions } from '@/lib/utils';
+import { formatCurrency, formatDuration, PRACTICE_AREA_LABELS, cn, matterComboboxOptions, hasAnyPermission } from '@/lib/utils';
 import { Download, TrendingUp, Users, Briefcase, Calendar, Filter, X, PoundSterling, Clock, BarChart3, PieChart } from 'lucide-react';
+import type { PageProps } from '@/types';
 
 interface FinancialSummary {
     total_invoiced: number;
@@ -35,6 +36,10 @@ const TIMEFRAMES = [
 ];
 
 export default function ReportsIndex({ financialSummary, timeByUser, mattersByPracticeArea, filters, filterOptions }: Props) {
+    const { auth } = usePage<PageProps>().props;
+    // Backend mirrors this (export_data): viewing reports and taking their
+    // data out of the system are separate grants.
+    const canExport = hasAnyPermission(auth.user?.permissions, ['export_data']);
     const [tab, setTab] = useState(filters.tab ?? 'financial');
     const [timeframe, setTimeframe] = useState(filters.timeframe ?? 'all');
     const [dateFrom, setDateFrom] = useState(filters.date_from ?? '');
@@ -112,9 +117,11 @@ export default function ReportsIndex({ financialSummary, timeByUser, mattersByPr
                     <h1 className="text-2xl font-extrabold tracking-tight">Reports</h1>
                     <p className="text-sm text-muted-foreground mt-1">Financial, time and matter analytics — filter by timeframe, matter, and team.</p>
                 </div>
+                {canExport && (
                 <Button variant="outline" className="gap-2 rounded-xl" asChild>
                     <a href={exportHref}><Download className="h-4 w-4" /> Export CSV</a>
                 </Button>
+                )}
             </div>
 
             {/* Enterprise Filter Bar */}

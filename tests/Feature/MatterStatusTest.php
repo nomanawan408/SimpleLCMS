@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Contact;
 use App\Models\Matter;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -228,5 +229,47 @@ class MatterStatusTest extends TestCase
         $this->actingAsUser($admin)
             ->get('/matters?status=awaiting_third_party')
             ->assertInertia(fn ($page) => $page->where('matters.total', 1));
+    }
+    public function test_inline_status_endpoint_changes_open_matter_and_stamps_close(): void
+    {
+        [$firmX, $lawyer] = $this->createFirmAndUser(['role' => 'lawyer']);
+        $admin = User::factory()->forFirm($firmX)->firmAdmin()->create();
+        $admin->assignRole('firm_admin');
+        $matter = Matter::factory()->forFirm($firmX)->create(['status' => 'open']);
+        $this->assignToMatter($lawyer, $matter);
+
+        // Assigned lawyer with the edit right moves open → on_hold.
+        $this->actingAsUser($lawyer)
+            ->put("/matters/{$matter->id}/status", ['status' => 'on_hold'])
+            ->assertRedirect();
+        $this->assertSame('on_hold', $matter->fresh()->status);
+        $this->assertNull($matter->fresh()->closed_at);
+
+        // Closing stamps closed_at.
+        $this->actingAsUser($lawyer)
+            ->put("/matters/{$matter->id}/status", ['status' => 'closed'])
+            ->assertRedirect();
+        $this->assertSame('closed', $matter->fresh()->status);
+        $this->assertNotNull($matter->fresh()->closed_at);
+
+        // A closed file cannot be reopened by a lawyer (admin-only).
+        $this->actingAsUser($lawyer)
+            ->put("/matters/{$matter->id}/status", ['status' => 'open'])
+            ->assertForbidden();
+
+        // Unknown statuses are validation errors, not server errors.
+        $this->actingAsUser($admin)
+            ->put("/matters/{$matter->id}/status", ['status' => 'nope'])
+            ->assertSessionHasErrors('status');
+    }
+
+    public function test_inline_status_endpoint_refuses_unassigned_lawyer(): void
+    {
+        [$firm, $lawyer] = $this->createFirmAndUser(['role' => 'lawyer']);
+        $matter = Matter::factory()->forFirm($firm)->create(['status' => 'open']);
+
+        $this->actingAsUser($lawyer)
+            ->put("/matters/{$matter->id}/status", ['status' => 'on_hold'])
+            ->assertForbidden();
     }
 }

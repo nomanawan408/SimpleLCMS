@@ -64,6 +64,9 @@ class RolePermissionSeeder extends Seeder
             'delete_tasks',
             'post_ledger',
             'transfer_client_funds',
+            'view_reports', 'export_data',
+            'manage_assignments',
+            'manage_users', 'view_users', 'create_users', 'edit_users', 'delete_users',
             'view_finances',
             'manage_finances',
         ];

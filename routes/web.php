@@ -142,6 +142,8 @@ Route::middleware(['auth', 'verified', 'set.tenant', 'requires.two.factor', 'red
     Route::post('/matters/{matter}/hearing-dates', [MatterController::class, 'storeHearingDate'])->name('matters.hearing-dates.store');
     Route::delete('/matters/{matter}/hearing-dates/{event}', [MatterController::class, 'destroyHearingDate'])->name('matters.hearing-dates.destroy');
     Route::put('/matters/{matter}/deadline', [MatterController::class, 'updateDeadline'])->name('matters.deadline');
+    Route::put('/matters/{matter}/responsible', [MatterController::class, 'updateResponsible'])->name('matters.responsible');
+    Route::put('/matters/{matter}/status', [MatterController::class, 'updateStatus'])->name('matters.status');
     Route::post('/matters/{matter}/notes', [MatterNoteController::class, 'store'])->name('matters.notes.store');
     Route::post('/matters/{matter}/time-entries', [MatterTimeEntryController::class, 'store'])->name('matters.time-entries.store');
     Route::post('/matters/{matter}/expenses', [MatterExpenseController::class, 'store'])->name('matters.expenses.store');

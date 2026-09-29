@@ -19,8 +19,6 @@ return new class extends Migration
 {
     private const DECORATIVE = [
         'manage_firm', 'view_firm_settings', 'edit_firm_settings',
-        'view_reports', 'export_data',
-        'manage_users', 'view_users', 'create_users', 'edit_users', 'delete_users',
         'manage_invoices', 'view_invoices', 'create_invoices', 'edit_invoices', 'delete_invoices',
         'manage_trust', 'view_trust', 'create_trust_entries', 'edit_trust_entries', 'delete_trust_entries',
         'view_expenses',

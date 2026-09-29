@@ -11,6 +11,7 @@ use App\Models\TablePreference;
 use App\Models\Task;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Validation\Rule;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -91,12 +92,30 @@ class MatterController extends Controller
             ->where('table_key', 'matters.index')
             ->value('preferences');
 
+        // Inline editors (responsible + status) need the firm directory and
+        // the assignment set; both are names/ids only, and every mutation
+        // re-checks server-side. Admins act on any row by role.
+        $firmId = $request->user()->firm_id;
+        $assignedMatterIds = $request->user()->isFirmAdmin() ? [] : Matter::where('firm_id', $firmId)
+            ->where(function ($q) use ($request) {
+                $q->whereHas('assignees', fn ($qq) => $qq->where('users.id', $request->user()->id))
+                    ->orWhere('responsible_user_id', $request->user()->id);
+            })
+            ->pluck('id')
+            ->map(fn ($id) => (string) $id)
+            ->all();
+
         return Inertia::render('Matters/Index', [
             'matters' => $matters,
             'filters' => [...$request->only('status', 'practice_area', 'priority', 'search'), 'category' => $category, 'per_page' => $perPage],
             'counts' => $counts,
             'buckets' => $buckets,
             'tablePreferences' => $tablePreferences,
+            'users' => User::where('firm_id', $firmId)
+                ->where('is_active', true)
+                ->orderBy('full_name')
+                ->get(['id', 'full_name', 'role']),
+            'assignedMatterIds' => $assignedMatterIds,
         ]);
     }
 
@@ -133,10 +152,11 @@ class MatterController extends Controller
     {
         $this->authorize('create', Matter::class);
 
-        // Opening a matter with a team grants file access, so non-admin
-        // creators may only staff themselves; a firm admin assigns the team
-        // (or reassigns afterwards). Fail before any write happens.
-        if (! $request->user()->isFirmAdmin()) {
+        // Opening a matter with a team grants file access, so creators
+        // without assignment rights may only staff themselves; a firm admin
+        // (or manage_assignments holder) assigns the team, or reassigns
+        // afterwards. Fail before any write happens.
+        if (! ($request->user()->isFirmAdmin() || $request->user()->hasPermissionTo('manage_assignments'))) {
             $validated = $request->validated();
             $others = array_values(array_unique(array_filter(array_merge(
                 [(string) ($validated['responsible_user_id'] ?? '')],
@@ -345,7 +365,9 @@ class MatterController extends Controller
      */
     private function ensureAssignmentUnchanged(User $user, Matter $matter, array $validated, array $previousAssignees): void
     {
-        if ($user->isFirmAdmin()) {
+        // Assignment is delegable: firm admins and holders of
+        // manage_assignments may grant file access; the grant is logged.
+        if ($user->isFirmAdmin() || $user->hasPermissionTo('manage_assignments')) {
             return;
         }
 
@@ -622,6 +644,60 @@ class MatterController extends Controller
         }
 
         return back()->with('success', 'Deadline updated.');
+    }
+
+    /**
+     * Inline responsible change from the matters index. Same assignment rule
+     * as the full update (diff-aware: admins and manage_assignments holders
+     * only), plus the update policy (assigned, open, matter-edit right).
+     * Returns back() so the index stays put; the row refreshes client-side.
+     */
+    public function updateResponsible(Request $request, Matter $matter): RedirectResponse
+    {
+        $this->authorize('update', $matter);
+
+        $validated = $request->validate([
+            'responsible_user_id' => ['required', 'uuid', Rule::exists('users', 'id')->where(fn ($q) => $q->where('firm_id', $request->user()->firm_id))],
+        ]);
+
+        $previousAssignees = $matter->assignees()->pluck('users.id')->map(fn ($id) => (string) $id)->all();
+        $this->ensureAssignmentUnchanged($request->user(), $matter, $validated, $previousAssignees);
+
+        $previousResponsible = (string) $matter->responsible_user_id;
+        $matter->responsible_user_id = $validated['responsible_user_id'];
+        $matter->save();
+
+        // The person running the file must never lose it from their list.
+        $matter->assignees()->syncWithoutDetaching([$matter->responsible_user_id]);
+
+        $this->logAssigneeChanges($request->user(), $matter, $previousResponsible, $previousAssignees);
+
+        return back()->with('success', 'Responsible user updated.');
+    }
+
+    /**
+     * Inline status change from the matters index. Same rule as the full
+     * update (assigned, open, matter-edit right; admins unrestricted), with
+     * closed_at kept in step. Returns back() so the index stays put.
+     */
+    public function updateStatus(Request $request, Matter $matter): RedirectResponse
+    {
+        $this->authorize('update', $matter);
+        $matter->ensureMutableBy($request->user());
+
+        $validated = $request->validate([
+            'status' => ['required', Rule::in(Matter::ALL_STATUSES)],
+        ]);
+
+        $matter->status = $validated['status'];
+        if ($matter->isDirty('status')) {
+            $matter->closed_at = $matter->isClosed() ? ($matter->closed_at ?? now()) : null;
+        }
+        $matter->save();
+
+        activity()->causedBy($request->user())->performedOn($matter)->log('updated');
+
+        return back()->with('success', 'Matter status updated.');
     }
 
     private function generateMatterNumber(string $firmId, ?string $contactId = null): string

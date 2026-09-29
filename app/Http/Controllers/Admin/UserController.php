@@ -77,20 +77,30 @@ class UserController extends Controller
         ];
         unset($validated['can_view_finances'], $validated['can_manage_finances']);
 
-        $user = User::create([
-            ...$validated,
-            'firm_id'  => $firmId,
-            'password' => $validated['password'],
-            // The administrator entered this address and set the password, so
-            // the account starts verified rather than emailing the new user.
-            'email_verified_at' => now(),
-        ]);
+        // Every authorization decision happens before the first write: a
+        // refused grant must never leave a half-created user behind.
+        $role = $this->resolveGrantableRole($request->user(), $roleName);
+        $this->assertRoleAssignable($request->user(), $role);
+        $this->assertFlaggable($request->user(), $financeFlags);
 
-        // Resolve by ID, never by bare name: two firms may both own a role
-        // called e.g. "paralegal", and name-based attach would cross the
-        // firm boundary. Validation already passed; this re-checks ownership.
-        $user->assignRole($this->resolveGrantableRole($request->user(), $roleName));
-        $this->syncFinancialFlags($user, $financeFlags);
+        $user = \Illuminate\Support\Facades\DB::transaction(function () use ($validated, $firmId, $role, $financeFlags) {
+            $user = User::create([
+                ...$validated,
+                'firm_id'  => $firmId,
+                'password' => $validated['password'],
+                // The administrator entered this address and set the password, so
+                // the account starts verified rather than emailing the new user.
+                'email_verified_at' => now(),
+            ]);
+
+            // Resolve by ID, never by bare name: two firms may both own a role
+            // called e.g. "paralegal", and name-based attach would cross the
+            // firm boundary. Validation already passed; this re-checks ownership.
+            $user->assignRole($role);
+            $this->syncFinancialFlags($user, $financeFlags);
+
+            return $user;
+        });
 
         activity()->causedBy($request->user())->performedOn($user)->log('user_created');
 
@@ -100,16 +110,43 @@ class UserController extends Controller
     public function update(UpdateUserRequest $request, User $user): RedirectResponse
     {
         $this->authorize('update', $user);
+        $this->ensureManageableTarget($request->user(), $user);
 
         $validated = $request->validated();
 
         if (isset($validated['role'])) {
             $role = $this->resolveGrantableRole($request->user(), $validated['role']);
+            $this->assertRoleAssignable($request->user(), $role, $user);
             $user->syncRoles([$role]);
             $user->role = $role->name;
             unset($validated['role']);
         }
+
+        // Deactivation switches an account off: as destructive as deletion,
+        // it needs the delete verb, not just edit.
+        if (array_key_exists('is_active', $validated)
+            && (bool) $validated['is_active'] !== (bool) $user->is_active) {
+            abort_unless(
+                $request->user()->isFirmAdmin()
+                    || $request->user()->hasPermissionTo('delete_users')
+                    || $request->user()->hasPermissionTo('manage_users'),
+                403
+            );
+        }
         unset($validated['can_view_finances'], $validated['can_manage_finances']);
+
+        $this->assertFlaggable($request->user(), $request->validated());
+
+        // Non-admins can never change their own access: no self-promotion to
+        // another role, no self-granted finance flags. Admins are exempt.
+        if (! $request->user()->isFirmAdmin() && $user->id === $request->user()->id) {
+            $flags = $request->validated();
+            $flagChange = (array_key_exists('can_view_finances', $flags)
+                    && (bool) $flags['can_view_finances'] !== $user->canViewFinances())
+                || (array_key_exists('can_manage_finances', $flags)
+                    && (bool) $flags['can_manage_finances'] !== $user->canManageFinances());
+            abort_if($flagChange, 403, 'You cannot change your own financial access.');
+        }
 
         $user->fill($validated);
         $user->save();
@@ -148,10 +185,64 @@ class UserController extends Controller
     }
 
     /**
+     * Delegated user-managers must never touch platform/firm admins:
+     * password resets and deactivation on those accounts stay firm_admin
+     * only. firm_admin actors bypass (they own the firm).
+     */
+    private function ensureManageableTarget(User $actor, User $target): void
+    {
+        if ($actor->isFirmAdmin()) {
+            return;
+        }
+        abort_if(
+            $target->hasRole('super_admin') || $target->hasRole('firm_admin'),
+            403
+        );
+    }
+
+    /**
+     * A non-admin may only assign roles that cannot escalate past them:
+     * never firm_admin/super_admin, and never a role change on themselves
+     * (no self-promotion). Ordinary assignments stay open so delegated
+     * user management actually works.
+     */
+    private function assertRoleAssignable(User $actor, Role $role, ?User $target = null): void
+    {
+        if ($actor->isFirmAdmin()) {
+            return;
+        }
+        abort_if(
+            in_array($role->name, ['firm_admin', 'super_admin'], true),
+            403,
+            'Only a firm admin can grant this role.'
+        );
+        if ($target && $target->id === $actor->id
+            && ! in_array($role->name, $target->roles->pluck('name')->all(), true)) {
+            abort(403, 'You cannot change your own role.');
+        }
+    }
+
+    /**
      * Financial access is granted per user (never by role): firm admins flip
      * these two flags on the user record. Only present keys are touched so
      * partial updates never wipe the other flag.
      */
+    /**
+     * Pre-check run before any write: non-admins may only switch on flags
+     * they hold themselves (switching off is always safe). Otherwise user
+     * management becomes a backdoor into money powers -- and the refusal
+     * must happen before the user row exists, not after.
+     */
+    private function assertFlaggable(User $actor, array $validated): void
+    {
+        foreach (['can_view_finances' => 'view_finances', 'can_manage_finances' => 'manage_finances'] as $input => $permission) {
+            if (! empty($validated[$input]) && ! $actor->isFirmAdmin()
+                && ! $actor->hasPermissionTo($permission)) {
+                abort(403, 'You cannot grant financial access you do not hold.');
+            }
+        }
+    }
+
     private function syncFinancialFlags(User $user, array $validated): void
     {
         $changed = false;
@@ -176,6 +267,7 @@ class UserController extends Controller
     public function destroy(Request $request, User $user): RedirectResponse
     {
         $this->authorize('delete', $user);
+        $this->ensureManageableTarget($request->user(), $user);
 
         $user->syncRoles([]);
         $user->delete();
@@ -188,6 +280,7 @@ class UserController extends Controller
     public function resetPassword(Request $request, User $user): RedirectResponse
     {
         $this->authorize('update', $user);
+        $this->ensureManageableTarget($request->user(), $user);
 
         $validated = $request->validate([
             'password' => ['required', 'confirmed', Password::min(12)],

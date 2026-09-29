@@ -203,4 +203,38 @@ class MatterAssignmentAccessTest extends TestCase
             ->where('subject_id', $matter->id)->firstOrFail();
         $this->assertContains($lawyer->id, array_column($logged->properties['added'] ?? [], 'id'));
     }
+    public function test_inline_responsible_endpoint_respects_assignment_gate(): void
+    {
+        [$firm, $lawyer, $matter, $outsider] = $this->openAssignedMatter();
+        $manager = User::factory()->forFirm($firm)->create(['role' => 'lawyer']);
+        $this->assignFirmRole($manager, 'lawyer');
+        $manager->givePermissionTo(['view_matters', 'edit_matters', 'manage_assignments']);
+        $this->assignToMatter($manager, $matter);
+
+        // Manager with the permission reassigns: works + audited.
+        $this->actingAsUser($manager)
+            ->put("/matters/{$matter->id}/responsible", ['responsible_user_id' => $outsider->id])
+            ->assertRedirect();
+        $this->assertSame($outsider->id, $matter->fresh()->responsible_user_id);
+        $this->assertTrue($matter->fresh()->isAssignedTo($outsider));
+        $this->assertSame(1, Activity::where('description', 'assignees_updated')
+            ->where('subject_id', $matter->id)->count());
+
+        // Plain lawyer without the permission: refused, nothing written.
+        $this->actingAsUser($lawyer)
+            ->put("/matters/{$matter->id}/responsible", ['responsible_user_id' => $lawyer->id])
+            ->assertForbidden();
+    }
+
+    public function test_inline_responsible_endpoint_rejects_cross_firm_user(): void
+    {
+        [$firm, $admin] = $this->createFirmAndAdmin();
+        $matter = Matter::factory()->forFirm($firm)->create(['status' => 'open']);
+        [$firmB] = $this->createFirmAndAdmin();
+        $foreign = User::factory()->forFirm($firmB)->create(['role' => 'lawyer']);
+
+        $this->actingAsUser($admin)
+            ->put("/matters/{$matter->id}/responsible", ['responsible_user_id' => $foreign->id])
+            ->assertSessionHasErrors('responsible_user_id');
+    }
 }

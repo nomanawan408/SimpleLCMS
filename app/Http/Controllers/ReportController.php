@@ -17,7 +17,14 @@ class ReportController extends Controller
 {
     public function index(Request $request)
     {
-        abort_unless($request->user()->is_active && $request->user()->isFirmAdmin(), 403);
+        // Reports are inherently firm-wide (that is their purpose): the
+        // view_reports permission, not assignment scoping, is the control.
+        // firm_admin holds every permission, so admins pass naturally.
+        abort_unless(
+            $request->user()->is_active
+                && ($request->user()->isFirmAdmin() || $request->user()->hasPermissionTo('view_reports')),
+            403
+        );
 
         $firmId = $request->user()->firm_id;
 
@@ -153,6 +160,13 @@ class ReportController extends Controller
         ];
 
         if ($request->input('export') === 'csv') {
+            // Exporting firm data out of the system is a separate grant from
+            // viewing it on screen.
+            abort_unless(
+                $request->user()->isFirmAdmin() || $request->user()->hasPermissionTo('export_data'),
+                403
+            );
+
             return $this->exportCsv($request->input('tab', 'financial'), $financialSummary, $timeByUser, $mattersByPracticeArea);
         }
 
