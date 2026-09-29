@@ -165,6 +165,36 @@ class PermissionUnificationTest extends TestCase
             ->assertSee('"component":"Error"', false);
     }
 
+    /**
+     * Structural guard against security theater: every permission row in the
+     * database must be enforced by a gate in application code. A permission
+     * offered on the Roles screen but checked nowhere implies control that
+     * does not exist. (Scans string literals, which covers the dynamic
+     * pass-throughs too — their names appear at the call sites.)
+     */
+    public function test_every_permission_is_enforced_somewhere(): void
+    {
+        static $haystack = null;
+        if ($haystack === null) {
+            $haystack = '';
+            $iterator = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator(app_path()));
+            foreach ($iterator as $file) {
+                if ($file->isFile() && $file->getExtension() === 'php') {
+                    $haystack .= file_get_contents($file->getPathname());
+                }
+            }
+        }
+
+        $unenforced = [];
+        foreach (\Spatie\Permission\Models\Permission::pluck('name')->all() as $name) {
+            if (! str_contains($haystack, "'{$name}'") && ! str_contains($haystack, "\"{$name}\"")) {
+                $unenforced[] = $name;
+            }
+        }
+
+        $this->assertSame([], $unenforced, 'Decorative permissions found: ' . implode(', ', $unenforced));
+    }
+
     public function test_custom_role_without_time_permission_cannot_check_in(): void
     {
         [$firm, $admin] = $this->createFirmAndAdmin();

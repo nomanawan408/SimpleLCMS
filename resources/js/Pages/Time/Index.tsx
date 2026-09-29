@@ -348,7 +348,7 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
         if (!ok) return;
         setSession(null);
         setDiscardConfirm(false);
-        setCheckInForm({ matter_id: '', activity_type: 'other', description: '' });
+        setCheckInForm({ matter_id: '', activity_type: 'other', description: '', rate: '' });
     }
 
     async function handleCheckOut() {
@@ -363,7 +363,7 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
         if (!ok) { alert(payload?.error || 'Checkout failed.'); return; }
         setSession(null);
         setCheckOutOpen(false);
-        setCheckInForm({ matter_id: '', activity_type: 'other', description: '' });
+        setCheckInForm({ matter_id: '', activity_type: 'other', description: '', rate: '' });
         router.reload({ only: ['entries', 'stats'] });
     }
 

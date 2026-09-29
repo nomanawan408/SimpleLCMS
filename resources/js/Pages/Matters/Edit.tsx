@@ -12,7 +12,7 @@ import { ArrowLeft, Trash2, Info } from 'lucide-react';
 import type { User, Contact, Matter, PageProps } from '@/types';
 
 interface Props {
-    matter: Matter & { contacts: Contact[] };
+    matter: Matter & { contacts: Contact[]; custom_fields?: Record<string, string> };
     users: User[];
     contacts: Contact[];
     viewFinancial: boolean;
@@ -126,7 +126,7 @@ export default function EditMatter({ matter, users, contacts, viewFinancial }: P
                             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                                 <div className="space-y-3">
                                     <Label className="text-sm font-medium">Status</Label>
-                                    <Select value={data.status} onValueChange={(v) => setData('status', v)}>
+                                    <Select value={data.status} onValueChange={(v) => setData('status', v as Matter['status'])}>
                                         <SelectTrigger className="h-11">
                                             <SelectValue placeholder="Select status…" />
                                         </SelectTrigger>
@@ -167,7 +167,7 @@ export default function EditMatter({ matter, users, contacts, viewFinancial }: P
                                     <Label className="text-sm font-medium">Practice area *</Label>
                                     <Select
                                         value={data.practice_area}
-                                        onValueChange={(v) => setData('practice_area', v)}
+                                        onValueChange={(v) => setData('practice_area', v as Matter['practice_area'])}
                                     >
                                         <SelectTrigger className="h-11">
                                             <SelectValue placeholder="Select area…" />
@@ -266,7 +266,7 @@ export default function EditMatter({ matter, users, contacts, viewFinancial }: P
                                     <Label className="text-sm font-medium">Billing type *</Label>
                                     <Select
                                         value={data.fee_arrangement}
-                                        onValueChange={(v) => setData('fee_arrangement', v)}
+                                        onValueChange={(v) => setData('fee_arrangement', v as Matter['fee_arrangement'])}
                                     >
                                         <SelectTrigger className="h-11">
                                             <SelectValue placeholder="Select…" />

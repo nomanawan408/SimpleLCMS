@@ -23,9 +23,10 @@ class User extends Authenticatable implements MustVerifyEmail
     public $incrementing = false;
 
     /**
-     * totp_secret / totp_enabled are deliberately NOT fillable: every write
-     * goes through forceFill in TwoFactorController, so no request payload
-     * can ever flip second-factor state via mass assignment.
+     * totp_secret / totp_enabled / totp_recovery_codes are deliberately NOT
+     * fillable: every write goes through forceFill in TwoFactorController,
+     * so no request payload can ever flip second-factor state via mass
+     * assignment. Recovery codes are stored as bcrypt hashes, shown once.
      */
     protected $fillable = [
         'firm_id',
@@ -49,6 +50,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'password',
         'remember_token',
         'totp_secret',
+        'totp_recovery_codes',
     ];
 
     protected function casts(): array
@@ -59,6 +61,7 @@ class User extends Authenticatable implements MustVerifyEmail
             'locked_until'      => 'datetime',
             'password'          => 'hashed',
             'totp_secret'       => 'encrypted',
+            'totp_recovery_codes' => 'array',
             'totp_enabled'      => 'boolean',
             'is_active'         => 'boolean',
             'rate_per_hour'     => 'decimal:2',

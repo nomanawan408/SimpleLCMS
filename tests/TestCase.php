@@ -41,7 +41,7 @@ abstract class TestCase extends BaseTestCase
             'view_documents', 'upload_documents',
             'view_calendar', 'create_events', 'edit_events',
             'view_tasks', 'create_tasks', 'edit_tasks',
-            'view_ledger', 'post_ledger',
+            'post_ledger',
         ], ['view_finances', 'manage_finances']) as $permission) {
             Permission::firstOrCreate(['name' => $permission, 'guard_name' => 'web']);
         }

@@ -20,6 +20,7 @@ import type { Invoice, PageProps } from '@/types';
 interface InvoiceContact {
     id: string;
     name: string;
+    full_name?: string;
     pivot?: { role: string };
 }
 

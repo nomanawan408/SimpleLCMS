@@ -219,6 +219,11 @@ class TimeController extends Controller
         if ($entry->firm_id !== $request->user()->firm_id) abort(404);
         abort_unless($request->user()->isFirmAdmin() || $entry->user_id === $request->user()->id, 403);
 
+        // Closed matters are frozen archive even for the entry owner: an
+        // entry logged before the file closed cannot be rewritten after.
+        // Null-safe: if the matter itself is gone there is nothing to protect.
+        $entry->matter?->ensureMutableBy($request->user());
+
         if ($entry->is_locked || $entry->billed) {
             if ($request->expectsJson()) {
                 return response()->json(['error' => 'Entry is locked or already billed.'], 422);
@@ -262,6 +267,9 @@ class TimeController extends Controller
 
         if ($entry->firm_id !== $request->user()->firm_id) abort(404);
         abort_unless($request->user()->isFirmAdmin() || $entry->user_id === $request->user()->id, 403);
+
+        // Same freeze as update: owners cannot delete entries off closed files.
+        $entry->matter?->ensureMutableBy($request->user());
 
         if ($entry->is_locked || $entry->billed) {
             if ($request->expectsJson()) {

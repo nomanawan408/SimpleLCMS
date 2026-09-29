@@ -29,22 +29,25 @@ return new class extends Migration
      * (never deleted): custom roles carry subsets of these, granted from the
      * Roles screen. Mirrors RolePermissionSeeder's list; both must agree.
      */
+    /**
+     * Every name here is enforced by a policy or controller gate (verified by
+     * test: no decorative permissions). Removed 2026-09-29: user/invoice/
+     * trust verbs (covered by admin-panel, finance flags, ledger gates),
+     * firm-settings verbs (FirmPolicy), view_reports and export_data
+     * (reports are firm_admin-only), view_ledger, reverse_ledger_entries and
+     * run_reconciliation (ledger reads/writes ride the finance flags plus
+     * post_ledger / transfer_client_funds).
+     */
     private const PERMISSION_VOCABULARY = [
         'view_dashboard',
         'manage_matters', 'view_matters', 'create_matters', 'edit_matters', 'delete_matters',
         'manage_contacts', 'view_contacts', 'create_contacts', 'edit_contacts', 'delete_contacts',
         'manage_time_entries', 'view_time_entries', 'create_time_entries', 'edit_time_entries', 'delete_time_entries',
-        'manage_expenses', 'view_expenses', 'create_expenses', 'edit_expenses', 'delete_expenses',
-        'manage_expenses', 'view_expenses', 'create_expenses', 'edit_expenses', 'delete_expenses',
-        'manage_invoices', 'view_invoices', 'create_invoices', 'edit_invoices', 'delete_invoices',
-        'manage_trust', 'view_trust', 'create_trust_entries', 'edit_trust_entries', 'delete_trust_entries',
+        'manage_expenses', 'create_expenses', 'edit_expenses', 'delete_expenses',
         'manage_documents', 'view_documents', 'upload_documents', 'delete_documents',
-        'manage_users', 'view_users', 'create_users', 'edit_users', 'delete_users',
-        'manage_firm', 'view_firm_settings', 'edit_firm_settings',
         'manage_calendar', 'view_calendar', 'create_events', 'edit_events', 'delete_events',
         'manage_tasks', 'view_tasks', 'create_tasks', 'edit_tasks', 'delete_tasks',
-        'view_reports', 'export_data',
-        'view_ledger', 'post_ledger', 'transfer_client_funds', 'reverse_ledger_entries', 'run_reconciliation',
+        'post_ledger', 'transfer_client_funds',
         'view_finances', 'manage_finances',
     ];
 

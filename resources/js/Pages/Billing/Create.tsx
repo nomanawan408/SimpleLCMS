@@ -12,10 +12,10 @@ import { Combobox, type ComboboxOption } from '@/components/ui/combobox';
 import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, Plus, Trash2, Clock, Receipt, PlusCircle, Send, Save } from 'lucide-react';
 import { cn, formatCurrency, formatDuration } from '@/lib/utils';
-import type { Matter, TimeEntry, Expense } from '@/types';
+import type { Contact, Matter, TimeEntry, Expense } from '@/types';
 
 interface MatterWithContacts extends Matter {
-    contacts?: { id: string; name: string; pivot?: { role: string } }[];
+    contacts?: (Contact & { pivot?: { role: string } })[];
 }
 
 interface Props {

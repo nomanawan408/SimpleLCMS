@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -42,7 +43,7 @@ class TwoFactorController extends Controller
 
     public function verify(Request $request): RedirectResponse
     {
-        $request->validate(['code' => ['required', 'string', 'digits:6']]);
+        $request->validate(['code' => ['required', 'string', 'max:32']]);
 
         $user = $request->user();
 
@@ -52,6 +53,13 @@ class TwoFactorController extends Controller
 
         if ($user->isLocked()) {
             return $this->rejectAndLogout($request, 'Account is locked. Contact your firm administrator.');
+        }
+
+        // Six digits: authenticator app. Anything else: single-use recovery
+        // code (device lost). Recovery guesses count toward lockout exactly
+        // like TOTP guesses, so the codes cannot be brute-forced online.
+        if (! preg_match('/^\d{6}$/', $request->code)) {
+            return $this->verifyRecoveryCode($request, $user);
         }
 
         // verifyKeyNewer returns the timestamp slice of the matching code, or
@@ -69,26 +77,7 @@ class TwoFactorController extends Controller
         );
 
         if ($timestamp === false) {
-            $attempts = $user->totp_failed_count + 1;
-
-            activity()->causedBy($user)
-                ->withProperties(['ip' => $request->ip(), 'user_agent' => $request->userAgent(), 'attempt' => $attempts])
-                ->log('totp_failed');
-
-            if ($attempts >= self::MAX_ATTEMPTS) {
-                $user->forceFill([
-                    'totp_failed_count' => 0,
-                    'locked_until' => now()->addMinutes(15),
-                ])->save();
-
-                activity()->causedBy($user)->log('totp_locked');
-
-                return $this->rejectAndLogout($request, 'Too many incorrect codes. Your account is locked for 15 minutes.');
-            }
-
-            $user->forceFill(['totp_failed_count' => $attempts])->save();
-
-            return back()->withErrors(['code' => 'The verification code is invalid.']);
+            return $this->recordFailedAttempt($request, $user);
         }
 
         $user->forceFill([
@@ -105,6 +94,71 @@ class TwoFactorController extends Controller
         activity()->causedBy($user)->log('totp_verified');
 
         return redirect()->intended(route('dashboard'));
+    }
+
+    /**
+     * Single-use recovery-code path. The presented code is compared against
+     * bcrypt hashes and removed on first use; misses share the TOTP failure
+     * budget (lockout), so online guessing is no easier than guessing TOTP.
+     */
+    private function verifyRecoveryCode(Request $request, User $user): RedirectResponse
+    {
+        $hashes = $user->totp_recovery_codes ?? [];
+        $matched = null;
+        foreach ($hashes as $index => $hash) {
+            if (\Illuminate\Support\Facades\Hash::check($request->code, $hash)) {
+                $matched = $index;
+                break;
+            }
+        }
+
+        if ($matched === null) {
+            return $this->recordFailedAttempt($request, $user);
+        }
+
+        unset($hashes[$matched]);
+        $user->forceFill([
+            'totp_recovery_codes' => array_values($hashes),
+            'totp_failed_count' => 0,
+            'locked_until' => null,
+        ])->save();
+
+        $request->session()->regenerate();
+        $request->session()->put('totp_verified', true);
+
+        activity()->causedBy($user)
+            ->withProperties(['remaining' => count($hashes)])
+            ->log('totp_recovery_used');
+
+        return redirect()->intended(route('dashboard'));
+    }
+
+    /**
+     * Shared failure budget for TOTP and recovery guesses: audit, count,
+     * lock out at the threshold. A miss always ends the attempt here.
+     */
+    private function recordFailedAttempt(Request $request, User $user): RedirectResponse
+    {
+        $attempts = $user->totp_failed_count + 1;
+
+        activity()->causedBy($user)
+            ->withProperties(['ip' => $request->ip(), 'user_agent' => $request->userAgent(), 'attempt' => $attempts])
+            ->log('totp_failed');
+
+        if ($attempts >= self::MAX_ATTEMPTS) {
+            $user->forceFill([
+                'totp_failed_count' => 0,
+                'locked_until' => now()->addMinutes(15),
+            ])->save();
+
+            activity()->causedBy($user)->log('totp_locked');
+
+            return $this->rejectAndLogout($request, 'Too many incorrect codes. Your account is locked for 15 minutes.');
+        }
+
+        $user->forceFill(['totp_failed_count' => $attempts])->save();
+
+        return back()->withErrors(['code' => 'The verification code is invalid.']);
     }
 
     public function setup(Request $request): Response
@@ -153,10 +207,15 @@ class TwoFactorController extends Controller
             return back()->withErrors(['code' => 'The verification code is invalid.']);
         }
 
+        $plainCodes = $this->freshRecoveryCodes();
         $user->forceFill([
             'totp_enabled' => true,
             'totp_last_timestamp' => $timestamp,
             'totp_failed_count' => 0,
+            'totp_recovery_codes' => array_map(
+                fn ($code) => \Illuminate\Support\Facades\Hash::make($code),
+                $plainCodes
+            ),
         ])->save();
 
         // Enrolling proves possession of the device, so this session is
@@ -165,7 +224,79 @@ class TwoFactorController extends Controller
 
         activity()->causedBy($user)->log('totp_enabled');
 
-        return redirect()->route('dashboard')->with('success', '2FA has been enabled successfully.');
+        // Recovery codes travel in flash (one request only): the next page
+        // renders them once, and a revisit or bookmark finds nothing.
+        return redirect()->route('two-factor.recovery')->with('recovery_codes', $plainCodes);
+    }
+
+    /**
+     * One-time display of freshly generated recovery codes. Without flash
+     * data (revisit, bookmark, back-button) there is nothing to show, so
+     * this redirects away rather than rendering an empty page.
+     */
+    public function recovery(Request $request): Response|RedirectResponse
+    {
+        $codes = $request->session()->get('recovery_codes');
+        if (! is_array($codes) || $codes === []) {
+            return redirect()->route('dashboard');
+        }
+
+        return Inertia::render('Auth/RecoveryCodes', ['codes' => $codes]);
+    }
+
+    /**
+     * Rotate recovery codes: the old set dies with this request. Guarded
+     * like disable (password plus a live TOTP code) because rotation
+     * destroys the holder's only device-loss fallback.
+     */
+    public function regenerateRecovery(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'password' => ['required', 'current_password'],
+            'code' => ['required', 'string', 'digits:6'],
+        ]);
+
+        $user = $request->user();
+
+        $timestamp = $this->google2fa->verifyKeyNewer(
+            $user->totp_secret,
+            $request->code,
+            $user->totp_last_timestamp ?? 0,
+            self::WINDOW
+        );
+
+        if ($timestamp === false) {
+            return back()->withErrors(['code' => 'The verification code is invalid.']);
+        }
+
+        $plainCodes = $this->freshRecoveryCodes();
+        $user->forceFill([
+            'totp_recovery_codes' => array_map(
+                fn ($code) => \Illuminate\Support\Facades\Hash::make($code),
+                $plainCodes
+            ),
+        ])->save();
+
+        activity()->causedBy($user)->log('totp_recovery_regenerated');
+
+        return redirect()->route('two-factor.recovery')->with('recovery_codes', $plainCodes);
+    }
+
+    /**
+     * Eight single-use codes in a typable grouped format. Cryptographically
+     * random; stored only as bcrypt hashes by the callers.
+     *
+     * @return string[]
+     */
+    private function freshRecoveryCodes(): array
+    {
+        $codes = [];
+        for ($i = 0; $i < 8; $i++) {
+            $raw = strtoupper(\Illuminate\Support\Str::random(12));
+            $codes[] = substr($raw, 0, 4) . '-' . substr($raw, 4, 4) . '-' . substr($raw, 8, 4);
+        }
+
+        return $codes;
     }
 
     public function disable(Request $request): RedirectResponse
@@ -197,6 +328,7 @@ class TwoFactorController extends Controller
         $user->forceFill([
             'totp_enabled' => false,
             'totp_secret' => null,
+            'totp_recovery_codes' => null,
             'totp_last_timestamp' => null,
             'totp_failed_count' => 0,
         ])->save();

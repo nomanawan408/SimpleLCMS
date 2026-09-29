@@ -54,9 +54,13 @@ Route::middleware('guest')->group(function () {
     Route::post('/register', [RegisterController::class, 'store'])->name('register.store');
 
     Route::get('/forgot-password', [PasswordResetController::class, 'create'])->name('password.request');
-    Route::post('/forgot-password', [PasswordResetController::class, 'store'])->name('password.email');
+    Route::post('/forgot-password', [PasswordResetController::class, 'store'])
+        ->middleware('throttle:5,1')
+        ->name('password.email');
     Route::get('/reset-password/{token}', [PasswordResetController::class, 'edit'])->name('password.reset');
-    Route::post('/reset-password', [PasswordResetController::class, 'update'])->name('password.update');
+    Route::post('/reset-password', [PasswordResetController::class, 'update'])
+        ->middleware('throttle:5,1')
+        ->name('password.update');
 
     // Socialite routes removed to enforce simple email/password login
 });
@@ -86,6 +90,11 @@ Route::middleware('auth')->group(function () {
         Route::delete('/two-factor', [TwoFactorController::class, 'disable'])
             ->middleware('throttle:5,1')
             ->name('two-factor.disable');
+        Route::get('/two-factor/recovery-codes', [TwoFactorController::class, 'recovery'])
+            ->name('two-factor.recovery');
+        Route::post('/two-factor/recovery-codes', [TwoFactorController::class, 'regenerateRecovery'])
+            ->middleware('throttle:5,1')
+            ->name('two-factor.recovery.regenerate');
     });
 
     Route::post('/logout', [LoginController::class, 'destroy'])->name('logout');

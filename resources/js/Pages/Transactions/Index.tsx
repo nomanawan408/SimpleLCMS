@@ -32,7 +32,7 @@ interface TransactionRow {
             id: string;
             name: string;
             matter_number: string;
-            contacts?: { id: string; name: string }[];
+            contacts?: { id: string; name: string; full_name?: string }[];
         } | null;
     } | null;
 }

@@ -125,6 +125,53 @@ class ClosedMatterAccessTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_owner_cannot_update_or_delete_own_time_on_closed_matter(): void
+    {
+        [$firm, $lawyer, $matter] = $this->closedAssignedMatter();
+        $entry = \App\Models\TimeEntry::factory()->forFirm($firm)->create([
+            'matter_id' => $matter->id,
+            'user_id' => $lawyer->id,
+            'billed' => false,
+            'is_locked' => false,
+            'description' => 'Original',
+        ]);
+
+        // Update refused even by the owner with edit permission held.
+        $this->actingAsUser($lawyer)
+            ->putJson("/time/{$entry->id}", ['description' => 'Rewritten'])
+            ->assertForbidden();
+        $this->assertSame('Original', $entry->fresh()->description);
+
+        // Delete refused the same way.
+        $this->actingAsUser($lawyer)
+            ->deleteJson("/time/{$entry->id}")
+            ->assertForbidden();
+        $this->assertDatabaseHas('time_entries', ['id' => $entry->id]);
+    }
+
+    public function test_admin_keeps_time_control_on_closed_matter(): void
+    {
+        [$firm, $admin] = $this->createFirmAndAdmin();
+        $matter = Matter::factory()->forFirm($firm)->create(['status' => 'closed']);
+        $entry = \App\Models\TimeEntry::factory()->forFirm($firm)->create([
+            'matter_id' => $matter->id,
+            'user_id' => $admin->id,
+            'billed' => false,
+            'is_locked' => false,
+            'description' => 'Original',
+        ]);
+
+        $this->actingAsUser($admin)
+            ->putJson("/time/{$entry->id}", ['description' => 'Corrected'])
+            ->assertOk();
+        $this->assertSame('Corrected', $entry->fresh()->description);
+
+        $this->actingAsUser($admin)
+            ->deleteJson("/time/{$entry->id}")
+            ->assertOk();
+        $this->assertSoftDeleted('time_entries', ['id' => $entry->id]);
+    }
+
     public function test_closed_matter_view_is_audit_logged_for_lawyers_only(): void
     {
         // Create both firms up front: TenantContext follows the acting user,

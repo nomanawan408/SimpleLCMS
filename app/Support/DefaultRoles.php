@@ -22,6 +22,6 @@ class DefaultRoles
         'view_documents', 'upload_documents',
         'view_calendar', 'create_events', 'edit_events',
         'view_tasks', 'create_tasks', 'edit_tasks',
-        'view_ledger', 'post_ledger',
+        'post_ledger',
     ];
 }

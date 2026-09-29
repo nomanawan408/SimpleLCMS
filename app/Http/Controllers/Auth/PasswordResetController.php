@@ -27,14 +27,12 @@ class PasswordResetController extends Controller
     {
         $request->validate(['email' => ['required', 'email']]);
 
-        $status = Password::sendResetLink($request->only('email'));
+        Password::sendResetLink($request->only('email'));
 
-        if ($status === Password::RESET_LINK_SENT) {
-            return back()->with('status', __($status));
-        }
-
-        return back()->withInput($request->only('email'))
-            ->withErrors(['email' => __($status)]);
+        // Always respond identically: distinguishing unknown addresses would
+        // let attackers enumerate firm staff emails for targeted phishing.
+        // (Unknown addresses simply receive nothing.)
+        return back()->with('status', __('If an account exists for that address, a reset link is on its way.'));
     }
 
     public function edit(Request $request): Response

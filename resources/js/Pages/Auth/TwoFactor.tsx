@@ -7,6 +7,11 @@ import { Label } from '@/components/ui/label';
 export default function TwoFactor() {
     const { data, setData, post, processing, errors } = useForm({ code: '' });
 
+    // Six digits: authenticator app. Fourteen characters (XXXX-XXXX-XXXX):
+    // a single-use recovery code for a lost device. The backend consumes
+    // recovery codes on first use and counts misses toward lockout.
+    const looksComplete = data.code.length === 6 || data.code.length === 14;
+
     const submit = (e: React.FormEvent) => {
         e.preventDefault();
         post('/two-factor');
@@ -22,26 +27,26 @@ export default function TwoFactor() {
                     <Input
                         id="code"
                         type="text"
-                        inputMode="numeric"
-                        pattern="[0-9]{6}"
-                        maxLength={6}
+                        inputMode="text"
+                        maxLength={14}
                         autoFocus
                         autoComplete="one-time-code"
                         value={data.code}
-                        onChange={(e) => setData('code', e.target.value)}
+                        onChange={(e) => setData('code', e.target.value.toUpperCase())}
                         placeholder="000000"
                         className="text-center text-2xl tracking-[0.5em] font-mono"
                     />
                     {errors.code && <p className="text-xs text-destructive">{errors.code}</p>}
                 </div>
 
-                <Button type="submit" className="w-full" disabled={processing || data.code.length !== 6}>
+                <Button type="submit" className="w-full" disabled={processing || !looksComplete}>
                     {processing ? 'Verifying…' : 'Verify'}
                 </Button>
             </form>
 
             <p className="mt-4 text-center text-xs text-muted-foreground">
-                Open your authenticator app (e.g. Google Authenticator) and enter the current 6-digit code for Simple Lawyer.
+                Open your authenticator app and enter the current 6-digit code. Lost your device? Enter one of your
+                single-use recovery codes instead (each works exactly once).
             </p>
         </AuthLayout>
     );
