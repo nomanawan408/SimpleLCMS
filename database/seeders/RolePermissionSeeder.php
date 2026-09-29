@@ -109,21 +109,14 @@ class RolePermissionSeeder extends Seeder
         $firmAdmin->update(['is_system' => true, 'description' => 'Firm administrator with full operational, financial and administrative access']);
         $firmAdmin->syncPermissions(Permission::all());
 
-        // Lawyer: the default firm role. Day-to-day case work on assigned
-        // matters; money visibility comes from the financial grants instead.
+        // Lawyer template (shared row): the default firm role. Day-to-day
+        // case work on assigned matters; money visibility comes from the
+        // financial grants instead. Each firm gets its own editable copy on
+        // creation (ProvisionsFirmRoles); this shared row is never assigned.
+        // Single definition lives in DefaultRoles::LAWYER_PERMISSIONS.
         $lawyer = Role::firstOrCreate(['name' => 'lawyer', 'guard_name' => 'web']);
         $lawyer->update(['is_system' => true, 'description' => 'Lawyer. Sees only assigned matters; finances only with explicit grants.']);
-        $lawyer->syncPermissions([
-            'view_dashboard',
-            'view_matters', 'create_matters', 'edit_matters',
-            'view_contacts', 'create_contacts', 'edit_contacts',
-            'view_time_entries', 'create_time_entries', 'edit_time_entries',
-            'create_expenses', 'edit_expenses', 'delete_expenses',
-            'view_documents', 'upload_documents',
-            'view_calendar', 'create_events', 'edit_events',
-            'view_tasks', 'create_tasks', 'edit_tasks',
-            'view_ledger', 'post_ledger',
-        ]);
+        $lawyer->syncPermissions(\App\Support\DefaultRoles::LAWYER_PERMISSIONS);
 
         app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 

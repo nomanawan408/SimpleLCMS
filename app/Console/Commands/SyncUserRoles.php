@@ -47,8 +47,15 @@ class SyncUserRoles extends Command
                 continue;
             }
 
+            // Firm-scoped first: with per-firm role rows in play, a bare
+            // name lookup could attach another firm's row. Falls back to the
+            // shared row for built-ins (and firm-less platform users).
             $role = Role::where('name', $spatieRoleName)
                 ->where('guard_name', 'web')
+                ->where(fn ($q) => $q
+                    ->where('firm_id', $user->firm_id)
+                    ->orWhereNull('firm_id'))
+                ->orderByRaw('firm_id IS NULL')
                 ->first();
 
             if (!$role) {

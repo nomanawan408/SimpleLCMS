@@ -12,7 +12,7 @@ import { Separator } from '@/components/ui/separator';
 import { GlobalSearch } from '@/components/GlobalSearch';
 import { NotificationBell } from '@/components/NotificationBell';
 import { TimerPill } from '@/components/TimerPill';
-import { cn, hasPermission, initials, ROLE_LABELS } from '@/lib/utils';
+import { cn, hasPermission, hasAnyPermission, initials, ROLE_LABELS } from '@/lib/utils';
 import { applyTheme } from '@/lib/theme';
 import type { PageProps } from '@/types';
 
@@ -118,7 +118,7 @@ export default function AppLayout({ children, title }: AppLayoutProps) {
         if (item.roles && !item.roles.some((r) => user.roles?.includes(r))) return false;
         if (item.permission) {
             const needed = Array.isArray(item.permission) ? item.permission : [item.permission];
-            if (!needed.some((p) => hasPermission(user.permissions, p))) return false;
+            if (!hasAnyPermission(user.permissions, needed)) return false;
         }
         if (item.requiresFinances && !isFirmAdmin && !hasPermission(user.permissions, 'view_finances')) return false;
         return true;

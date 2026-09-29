@@ -92,14 +92,15 @@ class SecurityRegressionTest extends TestCase
         [$firmA, $adminA] = $this->createFirmAndAdmin();
         [$firmB, $adminB] = $this->createFirmAndAdmin();
 
-        $lawyer = \Spatie\Permission\Models\Role::where('name', 'lawyer')->firstOrFail();
+        $sharedLawyer = \Spatie\Permission\Models\Role::where('name', 'lawyer')
+            ->whereNull('firm_id')->firstOrFail();
 
-        // Shared built-in lawyer: refused, never edited.
+        // Shared template row: fail closed without confirming it exists.
         $this->actingAsUser($adminA)
-            ->put("/admin/roles/{$lawyer->id}", ['name' => 'lawyer', 'permissions' => []])
-            ->assertSessionHasErrors('name');
-        $this->actingAsUser($adminA)->delete("/admin/roles/{$lawyer->id}")
-            ->assertSessionHasErrors('name');
+            ->put("/admin/roles/{$sharedLawyer->id}", ['name' => 'lawyer', 'permissions' => ['view_matters']])
+            ->assertForbidden();
+        $this->actingAsUser($adminA)->delete("/admin/roles/{$sharedLawyer->id}")
+            ->assertForbidden();
 
         // Another firm's custom role: fail closed without confirming it exists.
         $foreign = \Spatie\Permission\Models\Role::create([
@@ -132,6 +133,91 @@ class SecurityRegressionTest extends TestCase
 
         $this->assertDatabaseMissing('users', ['email' => 'buser@example.com']);
 
+    }
+
+    /** SL-02: the firm's own lawyer role is editable (permissions only). */
+    public function test_firm_admin_can_adjust_firm_lawyer_permissions(): void
+    {
+        [$firmX, $lawyer] = $this->createFirmAndUser(['role' => 'lawyer']);
+        $firmLawyer = \Spatie\Permission\Models\Role::where('name', 'lawyer')
+            ->where('firm_id', $firmX->id)->firstOrFail();
+
+        // Baseline: the default set lets a lawyer open matters.
+        $contact = \App\Models\Contact::factory()->forFirm($firmX)->create();
+        $this->actingAsUser($lawyer)->post('/matters', [
+            'name' => 'M1', 'practice_area' => 'litigation', 'fee_arrangement' => 'hourly_rate',
+            'responsible_user_id' => $lawyer->id, 'contact_ids' => [$contact->id],
+        ])->assertRedirect();
+
+        // Firm admin removes matter creation from their lawyers.
+        $trimmed = array_values(array_diff(
+            $firmLawyer->permissions->pluck('name')->all(), ['create_matters']
+        ));
+
+        $adminOfFirm = \App\Models\User::factory()->forFirm($firmX)->firmAdmin()->create();
+        $adminOfFirm->assignRole('firm_admin');
+        $this->actingAsUser($adminOfFirm)->put("/admin/roles/{$firmLawyer->id}", [
+            'name' => 'lawyer', 'permissions' => $trimmed,
+        ])->assertRedirect();
+
+        $this->actingAsUser($lawyer->fresh())->post('/matters', [
+            'name' => 'M2', 'practice_area' => 'litigation', 'fee_arrangement' => 'hourly_rate',
+            'responsible_user_id' => $lawyer->id, 'contact_ids' => [$contact->id],
+        ])->assertForbidden();
+
+        // …and restoring it works the same way.
+        $this->actingAsUser($adminOfFirm)->put("/admin/roles/{$firmLawyer->id}", [
+            'name' => 'lawyer', 'permissions' => [...$trimmed, 'create_matters'],
+        ])->assertRedirect();
+        $this->actingAsUser($lawyer->fresh())->post('/matters', [
+            'name' => 'M3', 'practice_area' => 'litigation', 'fee_arrangement' => 'hourly_rate',
+            'responsible_user_id' => $lawyer->id, 'contact_ids' => [$contact->id],
+        ])->assertRedirect();
+    }
+
+    /** SL-02: the default lawyer row can be neither renamed nor deleted. */
+    public function test_firm_lawyer_row_cannot_be_renamed_or_deleted(): void
+    {
+        [$firm, $lawyer] = $this->createFirmAndUser(['role' => 'lawyer']);
+        [$firmA, $adminA] = $this->createFirmAndAdmin();
+        $admin = \App\Models\User::factory()->forFirm($firm)->firmAdmin()->create();
+        $admin->assignRole('firm_admin');
+        $firmLawyer = \Spatie\Permission\Models\Role::where('name', 'lawyer')
+            ->where('firm_id', $firm->id)->firstOrFail();
+
+        $this->actingAsUser($admin)->put("/admin/roles/{$firmLawyer->id}", [
+            'name' => 'Renamed', 'permissions' => ['view_matters'],
+        ])->assertRedirect();
+        $this->assertSame('lawyer', $firmLawyer->fresh()->name);
+
+        $this->actingAsUser($admin)->delete("/admin/roles/{$firmLawyer->id}")
+            ->assertSessionHasErrors('name');
+        $this->assertNotNull(
+            \Spatie\Permission\Models\Role::where('name', 'lawyer')->where('firm_id', $firm->id)->first()
+        );
+    }
+
+    /** SL-02: one firm's lawyer edits never touch another firm or the template. */
+    public function test_lawyer_edits_are_tenant_isolated(): void
+    {
+        [$firmA, $adminA] = $this->createFirmAndAdmin();
+        [$firmB, $adminB] = $this->createFirmAndAdmin();
+        $rowA = \Spatie\Permission\Models\Role::where('name', 'lawyer')->where('firm_id', $firmA->id)->firstOrFail();
+        $rowB = \Spatie\Permission\Models\Role::where('name', 'lawyer')->where('firm_id', $firmB->id)->firstOrFail();
+        $template = \Spatie\Permission\Models\Role::where('name', 'lawyer')->whereNull('firm_id')->firstOrFail();
+
+        $this->actingAsUser($adminA)->put("/admin/roles/{$rowA->id}", [
+            'name' => 'lawyer', 'permissions' => ['view_matters'],
+        ])->assertRedirect();
+
+        $this->assertSame(['view_matters'], $rowA->fresh()->permissions->pluck('name')->all());
+        $this->assertNotSame(['view_matters'], $rowB->fresh()->permissions->pluck('name')->all());
+        $this->assertNotSame(['view_matters'], $template->fresh()->permissions->pluck('name')->all());
+
+        // Foreign row by direct URL: fail closed.
+        $this->actingAsUser($adminB)->put("/admin/roles/{$rowA->id}", [
+            'name' => 'lawyer', 'permissions' => ['view_matters'],
+        ])->assertForbidden();
     }
 
     /** SL-03 sibling: a firm cannot poach another firm's custom role by name. */
@@ -597,7 +683,7 @@ class SecurityRegressionTest extends TestCase
     public function test_activity_log_requires_a_permission(): void
     {
         [$firm, $clerk] = $this->createFirmAndUser(['role' => 'lawyer']);
-        $clerk->syncRoles(['lawyer']);
+        $this->assignFirmRole($clerk, 'lawyer');
 
         $this->actingAsUser($clerk->fresh())->get('/activities')->assertStatus(403);
 
@@ -678,7 +764,7 @@ class SecurityRegressionTest extends TestCase
         $matter = Matter::factory()->forFirm($firm, $admin)->create();
         $other = Matter::factory()->forFirm($firm, $admin)->create();
         $staff = User::factory()->forFirm($firm)->create(['role' => 'lawyer']);
-        $staff->assignRole('lawyer');
+        $this->assignFirmRole($staff, 'lawyer');
         $matter->assignees()->syncWithoutDetaching([$staff->id]);
 
         // Assigned matter: full lifecycle works.
@@ -713,7 +799,7 @@ class SecurityRegressionTest extends TestCase
     {
         [$firm, $admin] = $this->createFirmAndAdmin();
         $user = User::factory()->forFirm($firm)->create(['role' => 'lawyer']);
-        $user->assignRole('lawyer');
+        $this->assignFirmRole($user, 'lawyer');
 
         $user->update(['totp_enabled' => true, 'totp_secret' => 'ATTACKER']);
         $this->assertFalse($user->fresh()->totp_enabled);
@@ -766,7 +852,7 @@ class SecurityRegressionTest extends TestCase
         [$firmA, $adminA] = $this->createFirmAndAdmin();
         [$firmB, $adminB] = $this->createFirmAndAdmin();
         $solicitor = User::factory()->forFirm($firmA)->create(['role' => 'lawyer']);
-        $solicitor->assignRole('lawyer');
+        $this->assignFirmRole($solicitor, 'lawyer');
 
         $superadmin = User::factory()->create(['role' => 'super_admin', 'firm_id' => null]);
         $superadmin->assignRole('super_admin');

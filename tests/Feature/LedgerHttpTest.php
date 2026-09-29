@@ -19,7 +19,7 @@ class LedgerHttpTest extends TestCase
     private function staffOn(Matter $matter, $firm): User
     {
         $user = User::factory()->forFirm($firm)->create(['role' => 'lawyer']);
-        $user->assignRole('lawyer');
+        $this->assignFirmRole($user, 'lawyer');
         $matter->assignees()->syncWithoutDetaching([$user->id]);
         return $user;
     }
@@ -27,7 +27,7 @@ class LedgerHttpTest extends TestCase
     private function plainStaff($firm): User
     {
         $user = User::factory()->forFirm($firm)->create(['role' => 'lawyer']);
-        $user->assignRole('lawyer');
+        $this->assignFirmRole($user, 'lawyer');
         return $user;
     }
 

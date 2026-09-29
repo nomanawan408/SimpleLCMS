@@ -125,6 +125,46 @@ class PermissionUnificationTest extends TestCase
         $this->assertNotContains('tasks', $keys);
     }
 
+    public function test_transactions_money_and_pickers_follow_assignment(): void
+    {
+        [$firm, $admin] = $this->createFirmAndAdmin();
+        $matterA = Matter::factory()->forFirm($firm)->create(['status' => 'open']);
+        $matterB = Matter::factory()->forFirm($firm)->create(['status' => 'open']);
+        $lawyer = User::factory()->forFirm($firm)->create(['role' => 'lawyer']);
+        $this->assignFirmRole($lawyer, 'lawyer');
+        $this->grantFinances($lawyer);
+        $this->assignToMatter($lawyer, $matterA);
+
+        $invoiceB = \App\Models\Invoice::factory()->forFirm($firm)->forMatter($matterB)
+            ->create(['status' => 'sent', 'total' => 500]);
+        \App\Models\Payment::create([
+            'firm_id' => $firm->id, 'invoice_id' => $invoiceB->id,
+            'amount' => 500, 'method' => 'cash', 'paid_at' => now()->toDateString(),
+        ]);
+
+        $this->actingAsUser($lawyer)->get('/transactions')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('stats.total_received', 0)
+                ->where('matters', fn ($matters) => collect($matters)->pluck('id')->contains($matterA->id)
+                    && ! collect($matters)->pluck('id')->contains($matterB->id))
+                ->where('openInvoices', fn ($invoices) => ! collect($invoices)->pluck('id')->contains($invoiceB->id)));
+    }
+
+    public function test_inertia_denial_renders_error_page(): void
+    {
+        [$firm, $admin] = $this->createFirmAndAdmin();
+        $user = $this->customRoleUser($firm->id, ['view_contacts']);
+
+        $version = hash_file('xxh128', public_path('build/manifest.json'));
+        $this->actingAsUser($user)
+            ->withHeader('X-Inertia', 'true')
+            ->withHeader('X-Inertia-Version', $version)
+            ->get('/matters')
+            ->assertForbidden()
+            ->assertSee('"component":"Error"', false);
+    }
+
     public function test_custom_role_without_time_permission_cannot_check_in(): void
     {
         [$firm, $admin] = $this->createFirmAndAdmin();

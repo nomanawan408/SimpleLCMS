@@ -54,19 +54,29 @@ abstract class TestCase extends BaseTestCase
         $firmAdmin->update(['is_system' => true]);
         $firmAdmin->syncPermissions(Permission::all());
 
+        // Shared template only: real assignment always uses the firm's own
+        // row (see assignFirmRole). Single perm definition in DefaultRoles.
         $lawyer = Role::firstOrCreate(['name' => 'lawyer', 'guard_name' => 'web']);
         $lawyer->update(['is_system' => true]);
-        $lawyer->syncPermissions([
-            'view_dashboard',
-            'view_matters', 'create_matters', 'edit_matters',
-            'view_contacts', 'create_contacts', 'edit_contacts',
-            'view_time_entries', 'create_time_entries', 'edit_time_entries',
-            'create_expenses', 'edit_expenses', 'delete_expenses',
-            'view_documents', 'upload_documents',
-            'view_calendar', 'create_events', 'edit_events',
-            'view_tasks', 'create_tasks', 'edit_tasks',
-            'view_ledger', 'post_ledger',
-        ]);
+        $lawyer->syncPermissions(\App\Support\DefaultRoles::LAWYER_PERMISSIONS);
+    }
+
+    /**
+     * Assign a role by ID, preferring the user's own firm row: with per-firm
+     * role rows in play, bare-name assignment could attach another firm's
+     * row (Spatie resolves by name globally). Falls back to the shared row
+     * for built-ins when the firm has none (e.g. super_admin users).
+     */
+    protected function assignFirmRole(User $user, string $name): void
+    {
+        $role = Role::where('name', $name)
+            ->where('guard_name', 'web')
+            ->where(fn ($q) => $q
+                ->where('firm_id', $user->firm_id)
+                ->orWhereNull('firm_id'))
+            ->orderByRaw('firm_id IS NULL')
+            ->firstOrFail();
+        $user->assignRole($role);
     }
 
     protected function createFirmAndAdmin(array $firmAttrs = [], array $userAttrs = []): array
@@ -83,7 +93,7 @@ abstract class TestCase extends BaseTestCase
         $user = User::factory()->forFirm($firm)->create($userAttrs);
         $role = $user->role;
         if (Role::where('name', $role)->exists()) {
-            $user->assignRole($role);
+            $this->assignFirmRole($user, $role);
         }
         return [$firm, $user];
     }

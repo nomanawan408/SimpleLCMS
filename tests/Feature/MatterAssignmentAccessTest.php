@@ -26,7 +26,7 @@ class MatterAssignmentAccessTest extends TestCase
             'responsible_user_id' => $lawyer->id,
         ]);
         $outsider = User::factory()->forFirm($firm)->create(['role' => 'lawyer']);
-        $outsider->assignRole('lawyer');
+        $this->assignFirmRole($outsider, 'lawyer');
 
         return [$firm, $lawyer, $matter, $outsider];
     }
@@ -92,7 +92,7 @@ class MatterAssignmentAccessTest extends TestCase
     {
         [$firm, $admin] = $this->createFirmAndAdmin();
         $lawyer = User::factory()->forFirm($firm)->create(['role' => 'lawyer']);
-        $lawyer->assignRole('lawyer');
+        $this->assignFirmRole($lawyer, 'lawyer');
         $matter = Matter::factory()->forFirm($firm)->create([
             'status' => 'open',
             'responsible_user_id' => $admin->id,
@@ -130,7 +130,7 @@ class MatterAssignmentAccessTest extends TestCase
     {
         [$firm, $admin] = $this->createFirmAndAdmin();
         $junior = User::factory()->forFirm($firm)->create(['role' => 'lawyer']);
-        $junior->assignRole('lawyer');
+        $this->assignFirmRole($junior, 'lawyer');
         // A custom role (e.g. "junior lawyer") must still appear: assignment
         // is controlled separately, never by hiding people from the picker.
         $custom = \Spatie\Permission\Models\Role::create([
@@ -149,7 +149,7 @@ class MatterAssignmentAccessTest extends TestCase
     {
         [$firm, $lawyer] = $this->createFirmAndUser(['role' => 'lawyer']);
         $other = User::factory()->forFirm($firm)->create(['role' => 'lawyer']);
-        $other->assignRole('lawyer');
+        $this->assignFirmRole($other, 'lawyer');
         $contact = \App\Models\Contact::factory()->forFirm($firm)->create();
         $base = [
             'name' => 'Self matter',
@@ -180,7 +180,7 @@ class MatterAssignmentAccessTest extends TestCase
     {
         [$firm, $admin] = $this->createFirmAndAdmin();
         $lawyer = User::factory()->forFirm($firm)->create(['role' => 'lawyer']);
-        $lawyer->assignRole('lawyer');
+        $this->assignFirmRole($lawyer, 'lawyer');
         $contact = \App\Models\Contact::factory()->forFirm($firm)->create();
 
         $this->actingAsUser($admin)

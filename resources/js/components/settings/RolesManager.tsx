@@ -19,6 +19,7 @@ export interface RoleData {
     description: string | null;
     is_system: boolean;
     is_builtin: boolean;
+    is_default?: boolean;
     firm_id: string | null;
     permissions_count: number;
     users_count: number;
@@ -163,17 +164,22 @@ export default function RolesManager({ roles, groupedPermissions }: RolesManager
                                             {role.is_builtin && (
                                                 <Badge variant="info" className="text-sm px-1.5 py-0 mt-0.5">System</Badge>
                                             )}
+                                            {role.is_default && (
+                                                <Badge variant="info" className="text-sm px-1.5 py-0 mt-0.5">Default</Badge>
+                                            )}
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-1">
-                                        {!role.is_builtin && (
+                                        {(!role.is_builtin || role.is_default) && (
                                             <>
-                                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(role)}>
+                                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(role)} title={role.is_default ? 'Adjust permissions' : 'Edit role'}>
                                                     <Pencil className="h-3.5 w-3.5" />
                                                 </Button>
+                                                {!role.is_default && (
                                                 <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => deleteRole(role)}>
                                                     <Trash2 className="h-3.5 w-3.5" />
                                                 </Button>
+                                                )}
                                             </>
                                         )}
                                         {role.is_builtin && (
@@ -212,7 +218,9 @@ export default function RolesManager({ roles, groupedPermissions }: RolesManager
                             {editingRole ? `Edit Role: ${editingRole.name.replace(/_/g, ' ')}` : 'Create New Role'}
                         </DialogTitle>
                         <DialogDescription>
-                            {editingRole?.is_builtin
+                            {editingRole?.is_default
+                                ? 'The default lawyer role: adjust its permissions freely. The name stays fixed so grants keep resolving.'
+                                : editingRole?.is_builtin
                                 ? 'Built-in roles cannot be renamed or deleted, but you can adjust permissions.'
                                 : 'Define a role name and select the permissions it should have.'}
                         </DialogDescription>
@@ -228,7 +236,7 @@ export default function RolesManager({ roles, groupedPermissions }: RolesManager
                                     value={data.name}
                                     onChange={(e) => setData('name', e.target.value)}
                                     placeholder="e.g. Junior Solicitor"
-                                    disabled={editingRole?.is_builtin}
+                                    disabled={editingRole?.is_builtin || editingRole?.is_default}
                                     autoFocus={!editingRole}
                                 />
                                 {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}

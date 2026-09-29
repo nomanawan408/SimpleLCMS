@@ -68,7 +68,7 @@ class AdminUserTest extends TestCase
     {
         [$firm, $admin] = $this->createFirmAndAdmin();
         $user = User::factory()->forFirm($firm)->create(['role' => 'lawyer']);
-        $user->assignRole('lawyer');
+        $this->assignFirmRole($user, 'lawyer');
 
         $this->actingAsUser($admin)->put("/admin/users/{$user->id}", [
             'role' => 'firm_admin',

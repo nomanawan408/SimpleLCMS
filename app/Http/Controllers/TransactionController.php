@@ -53,25 +53,33 @@ class TransactionController extends Controller
             ->pluck('paid_total', 'invoice_id');
         $outstanding = $outstandingInvoices->sum(fn ($inv) => max(0, (float) $inv->total - (float) ($paidPerInvoice[$inv->id] ?? 0)));
 
+        // Money stats follow the same assignment scope as the listing:
+        // non-admins see totals for their matters only.
+        $assignedScope = fn ($q) => $request->user()->isFirmAdmin()
+            ? $q
+            : $q->whereHas('invoice.matter', fn ($qq) => $qq->visibleTo($request->user()));
+
         $stats = [
-            'total_received'      => (float) Payment::where('firm_id', $firmId)->sum('amount'),
-            'received_this_month' => (float) Payment::where('firm_id', $firmId)
-                                         ->whereMonth('paid_at', now()->month)
+            'total_received'      => (float) $assignedScope(Payment::where('firm_id', $firmId))->sum('amount'),
+            'received_this_month' => (float) $assignedScope(Payment::where('firm_id', $firmId))
+                                         ->whereMonth('paid_at',  now()->month)
                                          ->whereYear('paid_at',  now()->year)
                                          ->sum('amount'),
-            'received_this_week'  => (float) Payment::where('firm_id', $firmId)
+            'received_this_week'  => (float) $assignedScope(Payment::where('firm_id', $firmId))
                                          ->whereBetween('paid_at', [now()->startOfWeek(), now()->endOfWeek()])
                                          ->sum('amount'),
             'outstanding'         => (float) $outstanding,
         ];
 
         $matters = Matter::where('firm_id', $firmId)
+            ->visibleTo($request->user())
             ->orderBy('name')
             ->get(['id', 'name', 'matter_number'])
             ->each(fn ($m) => $m->setAppends([]));
 
         $openInvoices = Invoice::with('matter')
             ->where('firm_id', $firmId)
+            ->visibleTo($request->user())
             ->whereNotIn('status', ['paid', 'cancelled'])
             ->orderBy('created_at', 'desc')
             ->get(['id', 'invoice_number', 'total', 'status', 'matter_id'])

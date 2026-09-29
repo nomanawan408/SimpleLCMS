@@ -74,7 +74,12 @@ class UserController extends Controller
         $validated = $request->validate([
             'full_name' => ['sometimes', 'string', 'max:255'],
             'email'     => ['sometimes', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
-            'role'      => ['sometimes', 'string', Rule::exists('roles', 'name')->where('guard_name', 'web')],
+            // Console manages platform/firm-admin accounts only: firm roles
+            // (lawyer, customs) are assigned from the firm itself. Besides
+            // matching the console's purpose, this keeps name-based attach
+            // unambiguous -- MANAGEABLE_ROLES rows are unique platform-wide,
+            // while firm role names repeat per firm.
+            'role'      => ['sometimes', 'string', Rule::in(self::MANAGEABLE_ROLES)],
             'is_active' => ['sometimes', 'boolean'],
             'firm_id'   => ['sometimes', 'nullable', 'string', 'exists:firms,id'],
         ]);

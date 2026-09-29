@@ -14,7 +14,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Combobox } from '@/components/ui/combobox';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
-import { cn, formatCurrency, formatDate, formatTime, matterComboboxOptions, hasAnyPermission } from '@/lib/utils';
+import { cn, formatCurrency, formatDate, formatTime, matterComboboxOptions } from '@/lib/utils';
+import { useCan } from '@/lib/authorization';
 import { Clock, LogIn, LogOut, Plus, Pencil, Trash2, Receipt, TrendingUp, AlertCircle, CheckCircle2, Timer, PoundSterling, X, CalendarDays, FileText, Search, SlidersHorizontal } from 'lucide-react';
 import type { PageProps, PaginatedData, TimeEntry } from '@/types';
 
@@ -129,10 +130,9 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
     // Timer + manual entry write to time entries server-side (403 without it).
     // Backend TimeController gates mirror these exactly (module permission
     // plus matter assignment and bill/lock state, checked server-side).
-    const can = (perms: string[]) => hasAnyPermission(auth.user?.permissions, perms);
-    const canCreateTime = can(['create_time_entries', 'manage_time_entries']);
-    const canEditTime = can(['edit_time_entries', 'manage_time_entries']);
-    const canDeleteTime = can(['delete_time_entries', 'manage_time_entries']);
+    const canCreateTime = useCan(['create_time_entries', 'manage_time_entries']);
+    const canEditTime = useCan(['edit_time_entries', 'manage_time_entries']);
+    const canDeleteTime = useCan(['delete_time_entries', 'manage_time_entries']);
     const [session, setSession] = useState<ActiveSession | null>(serverSession);
     const [elapsed, setElapsed] = useState(0);
     const [isPaused, setIsPaused] = useState(!!serverSession?.paused_at);

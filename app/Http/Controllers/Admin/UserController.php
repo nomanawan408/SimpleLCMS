@@ -28,10 +28,15 @@ class UserController extends Controller
 
         // Get available roles for the firm (firm-specific + global)
         // Platform roles (super_admin) are never offered for assignment here.
+        // The shared lawyer template is never offered: each firm assigns
+        // its own lawyer row (provisioned at firm creation).
         $roles = Role::where(function ($q) use ($firmId) {
                 $q->where('firm_id', $firmId)->orWhereNull('firm_id');
             })
             ->whereNotIn('name', \App\Rules\AssignableRole::PLATFORM_ROLES)
+            ->where(function ($q) {
+                $q->where('name', '!=', 'lawyer')->orWhereNotNull('firm_id');
+            })
             ->orderByDesc('is_system')
             ->orderBy('name')
             ->get(['id', 'name', 'description', 'is_system']);

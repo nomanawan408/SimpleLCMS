@@ -30,7 +30,7 @@ class SettingsTest extends TestCase
     {
         [$firm, $admin] = $this->createFirmAndAdmin();
         $user = User::factory()->forFirm($firm)->create(['role' => 'lawyer']);
-        $user->assignRole('lawyer');
+        $this->assignFirmRole($user, 'lawyer');
 
         $this->actingAsUser($user)->get('/settings')
             ->assertOk()

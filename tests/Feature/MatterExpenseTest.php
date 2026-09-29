@@ -193,7 +193,7 @@ class MatterExpenseTest extends TestCase
     {
         [$firm, $admin, $matter] = $this->matterAndAdmin();
         $staff = \App\Models\User::factory()->forFirm($firm)->create(['role' => 'lawyer']);
-        $staff->assignRole('lawyer');
+        $this->assignFirmRole($staff, 'lawyer');
 
         // Unassigned: refused even though the route exists.
         $this->actingAsUser($staff)->postJson("/matters/{$matter->id}/expenses", [

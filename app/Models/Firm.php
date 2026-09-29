@@ -56,6 +56,15 @@ class Firm extends Model
         return LogOptions::defaults()->logFillable()->logOnlyDirty();
     }
 
+    protected static function booted(): void
+    {
+        // Every firm owns an editable lawyer role from birth: the shared
+        // template row must never be assigned, so it is provisioned here at
+        // the single choke point all firm creation flows through (signup,
+        // superadmin console, seeders, factories). Idempotent by design.
+        static::created(fn (Firm $firm) => \App\Support\ProvisionsFirmRoles::for($firm));
+    }
+
     public function users(): HasMany
     {
         return $this->hasMany(User::class);

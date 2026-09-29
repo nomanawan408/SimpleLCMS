@@ -46,10 +46,15 @@ class SettingsController extends Controller
                 'created_at' => $u->created_at,
             ]);
             // Platform roles (super_admin) are never listed in a firm context.
+            // The shared lawyer template is never offered: each firm assigns
+            // its own lawyer row (provisioned at firm creation).
             $team['availableRoles'] = \Spatie\Permission\Models\Role::where(function ($q) use ($firmId) {
                     $q->where('firm_id', $firmId)->orWhereNull('firm_id');
                 })
                 ->whereNotIn('name', \App\Rules\AssignableRole::PLATFORM_ROLES)
+                ->where(function ($q) {
+                    $q->where('name', '!=', 'lawyer')->orWhereNotNull('firm_id');
+                })
                 ->orderByDesc('is_system')
                 ->orderBy('name')
                 ->get(['id', 'name', 'description', 'is_system']);
@@ -60,19 +65,23 @@ class SettingsController extends Controller
                     $q->where('firm_id', $firmId)->orWhereNull('firm_id');
                 })
                 ->whereNotIn('name', \App\Rules\AssignableRole::PLATFORM_ROLES)
+                ->where(function ($q) {
+                    $q->where('name', '!=', 'lawyer')->orWhereNotNull('firm_id');
+                })
                 ->withCount('permissions')
                 ->withCount('users')
                 ->orderByDesc('is_system')
                 ->orderBy('name')
                 ->get(['id', 'name', 'guard_name', 'description', 'is_system', 'firm_id', 'permissions_count', 'users_count'])
-                ->map(function ($role) {
+                ->map(function ($role) use ($firmId) {
                     $role->load('permissions:id,name');
                     return [
                         'id' => $role->id,
                         'name' => $role->name,
                         'description' => $role->description,
                         'is_system' => $role->is_system,
-                        'is_builtin' => in_array($role->name, \App\Http\Controllers\Admin\RoleController::BUILT_IN_ROLES),
+                        'is_builtin' => $role->firm_id === null && in_array($role->name, \App\Http\Controllers\Admin\RoleController::BUILT_IN_ROLES),
+                        'is_default' => $role->firm_id === $firmId && $role->name === 'lawyer',
                         'firm_id' => $role->firm_id,
                         'permissions_count' => $role->permissions_count,
                         'users_count' => $role->users_count,

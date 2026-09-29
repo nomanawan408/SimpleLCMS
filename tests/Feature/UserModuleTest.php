@@ -231,7 +231,7 @@ class UserModuleTest extends TestCase
     {
         [$firm, $admin] = $this->createFirmAndAdmin();
         $user = User::factory()->forFirm($firm)->create(['role' => 'lawyer']);
-        $user->assignRole('lawyer');
+        $this->assignFirmRole($user, 'lawyer');
 
         $this->actingAsUser($admin)->put("/admin/users/{$user->id}", [
             'role' => 'firm_admin',
@@ -244,7 +244,7 @@ class UserModuleTest extends TestCase
     {
         [$firm, $admin] = $this->createFirmAndAdmin();
         $user = User::factory()->forFirm($firm)->create(['role' => 'lawyer']);
-        $user->assignRole('lawyer');
+        $this->assignFirmRole($user, 'lawyer');
 
         $this->actingAsUser($admin)->put("/admin/users/{$user->id}", [
             'role' => 'firm_admin',
@@ -259,7 +259,7 @@ class UserModuleTest extends TestCase
     {
         [$firm, $admin] = $this->createFirmAndAdmin();
         $user = User::factory()->forFirm($firm)->create(['role' => 'lawyer']);
-        $user->assignRole('lawyer');
+        $this->assignFirmRole($user, 'lawyer');
 
         $this->actingAsUser($admin)->put("/admin/users/{$user->id}", [
             'role' => 'solicitor',
@@ -270,7 +270,7 @@ class UserModuleTest extends TestCase
     {
         [$firm, $admin] = $this->createFirmAndAdmin();
         $user = User::factory()->forFirm($firm)->create(['role' => 'lawyer', 'is_active' => true]);
-        $user->assignRole('lawyer');
+        $this->assignFirmRole($user, 'lawyer');
 
         $this->actingAsUser($admin)->put("/admin/users/{$user->id}", [
             'is_active' => false,
@@ -283,7 +283,7 @@ class UserModuleTest extends TestCase
     {
         [$firm, $admin] = $this->createFirmAndAdmin();
         $user = User::factory()->forFirm($firm)->create(['role' => 'lawyer', 'rate_per_hour' => 100]);
-        $user->assignRole('lawyer');
+        $this->assignFirmRole($user, 'lawyer');
 
         $this->actingAsUser($admin)->put("/admin/users/{$user->id}", [
             'rate_per_hour' => 200,

@@ -115,7 +115,7 @@ class ContactNoteTest extends TestCase
         ]);
 
         $colleague = \App\Models\User::factory()->forFirm($firm)->create(['role' => 'lawyer']);
-        $colleague->assignRole('lawyer');
+        $this->assignFirmRole($colleague, 'lawyer');
 
         $this->actingAsUser($colleague->fresh())
             ->putJson("/contacts/{$contact->id}/notes/{$note->id}", ['body' => 'Rewritten'])
@@ -173,7 +173,7 @@ class ContactNoteTest extends TestCase
         ]);
 
         $staff = \App\Models\User::factory()->forFirm($firm)->create(['role' => 'lawyer']);
-        $staff->assignRole('lawyer');
+        $this->assignFirmRole($staff, 'lawyer');
         // Assigned to the other matter only: contact visible, private.pdf hidden.
         $otherMatter->assignees()->syncWithoutDetaching([$staff->id]);
 

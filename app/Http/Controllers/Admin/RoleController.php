@@ -30,10 +30,15 @@ class RoleController extends Controller
         $firmId = $request->user()->firm_id;
 
         // The platform owner role is not manageable from a firm context.
+        // Neither is the shared lawyer template: each firm edits its own
+        // lawyer row instead (provisioned at firm creation).
         $roles = Role::where(function ($q) use ($firmId) {
                 $q->where('firm_id', $firmId)->orWhereNull('firm_id');
             })
             ->whereNotIn('name', \App\Rules\AssignableRole::PLATFORM_ROLES)
+            ->where(function ($q) {
+                $q->where('name', '!=', 'lawyer')->orWhereNotNull('firm_id');
+            })
             ->withCount('permissions')
             ->withCount('users')
             ->orderByDesc('is_system')
@@ -53,14 +58,15 @@ class RoleController extends Controller
             ->toArray();
 
         // Load permissions for each role
-        $rolesWithPerms = $roles->map(function ($role) {
+        $rolesWithPerms = $roles->map(function ($role) use ($firmId) {
             $role->load('permissions:id,name');
             return [
                 'id'                 => $role->id,
                 'name'               => $role->name,
                 'description'        => $role->description,
                 'is_system'          => $role->is_system,
-                'is_builtin'         => in_array($role->name, self::BUILT_IN_ROLES),
+                'is_builtin'         => $role->firm_id === null && in_array($role->name, self::BUILT_IN_ROLES),
+                'is_default'         => $role->firm_id === $firmId && $role->name === 'lawyer',
                 'firm_id'            => $role->firm_id,
                 'permissions_count'  => $role->permissions_count,
                 'users_count'        => $role->users_count,
@@ -124,16 +130,19 @@ class RoleController extends Controller
     {
         $this->authorize('editAny', \App\Models\User::class);
 
-        // Prevent editing built-in roles
-        if (in_array($role->name, self::BUILT_IN_ROLES)) {
-            return back()->withErrors(['name' => 'Built-in roles cannot be edited.']);
-        }
-
         // A firm may only edit roles it owns. Shared system roles (firm_id IS
         // NULL) are platform-wide -- editing one would change permissions for
         // every other firm on the platform.
         $firmId = $request->user()->firm_id;
         abort_unless($role->firm_id !== null && $role->firm_id === $firmId, 403);
+
+        // Prevent editing built-in roles, except the firm's own lawyer row:
+        // that one is the editable default (permissions + description only,
+        // the name stays fixed so grants keep resolving).
+        $isDefaultLawyer = $role->name === 'lawyer';
+        if (! $isDefaultLawyer && in_array($role->name, self::BUILT_IN_ROLES)) {
+            return back()->withErrors(['name' => 'Built-in roles cannot be edited.']);
+        }
 
         $validated = $request->validate([
             'name'        => ['required', 'string', 'max:255'],
@@ -142,13 +151,27 @@ class RoleController extends Controller
             'permissions.*' => ['string', 'exists:permissions,name'],
         ]);
 
+        // Renaming onto an existing role would violate the unique constraint
+        // (and silently merge two roles' meanings): refuse with a message.
+        $duplicate = Role::where('name', $validated['name'])
+            ->where('guard_name', 'web')
+            ->where('id', '!=', $role->id)
+            ->where(function ($q) use ($firmId) {
+                $q->where('firm_id', $firmId)->orWhereNull('firm_id');
+            })
+            ->exists();
+        if (! $isDefaultLawyer && $duplicate) {
+            return back()->withErrors(['name' => 'A role with this name already exists.']);
+        }
+
         $this->assertGrantable($request->user(), $validated['permissions']);
 
-        DB::transaction(function () use ($role, $validated) {
-            $role->update([
-                'name'        => $validated['name'],
-                'description' => $validated['description'] ?? null,
-            ]);
+        DB::transaction(function () use ($role, $validated, $isDefaultLawyer) {
+            $attrs = ['description' => $validated['description'] ?? null];
+            if (! $isDefaultLawyer) {
+                $attrs['name'] = $validated['name'];
+            }
+            $role->update($attrs);
 
             $role->syncPermissions($validated['permissions']);
         });
@@ -164,15 +187,17 @@ class RoleController extends Controller
     {
         $this->authorize('deleteAny', \App\Models\User::class);
 
-        // Prevent deleting built-in roles
+        // As in update(): shared system roles are platform-wide and are never
+        // deletable from a firm-scoped route -- fail closed first, so shared
+        // rows behave exactly like foreign rows (403, no existence signal).
+        $firmId = $request->user()->firm_id;
+        abort_unless($role->firm_id !== null && $role->firm_id === $firmId, 403);
+
+        // Prevent deleting built-in roles, including the firm's default
+        // lawyer row: users must always have a default role to fall back on.
         if (in_array($role->name, self::BUILT_IN_ROLES)) {
             return back()->withErrors(['name' => 'Built-in roles cannot be deleted.']);
         }
-
-        // As in update(): shared system roles are platform-wide and are never
-        // deletable from a firm-scoped route.
-        $firmId = $request->user()->firm_id;
-        abort_unless($role->firm_id !== null && $role->firm_id === $firmId, 403);
 
         $roleName = $role->name;
 

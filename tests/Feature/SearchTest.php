@@ -98,7 +98,7 @@ class SearchTest extends TestCase
         Invoice::factory()->forMatter($matter)->create(['invoice_number' => 'INV-2026-0099']);
 
         $staff = \App\Models\User::factory()->forFirm($firm)->create(['role' => 'lawyer']);
-        $staff->assignRole('lawyer');
+        $this->assignFirmRole($staff, 'lawyer');
         $this->assignToMatter($staff, $matter);
 
         // Assigned but no financial flag: no invoice results.

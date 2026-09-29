@@ -35,4 +35,26 @@ return Application::configure(basePath: dirname(__DIR__))
                 return response()->json(['message' => $e->getMessage()], 401);
             }
         });
+
+        // Page-access denials stay inside the SPA: an Inertia visit that the
+        // backend refuses renders a branded error page instead of dumping
+        // the user onto a blank Symfony error. API-style callers still get
+        // JSON. This is presentation only -- every refusal is decided by
+        // policies and controller gates before this ever runs.
+        $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\HttpException $e, $request) {
+            $status = $e->getStatusCode();
+            if (! in_array($status, [403, 404, 419, 500, 503], true)) {
+                return null;
+            }
+            if ($request->expectsJson()) {
+                return null;
+            }
+            if ($request->header('X-Inertia')) {
+                return \Inertia\Inertia::render('Error', ['status' => $status])
+                    ->toResponse($request)
+                    ->setStatusCode($status);
+            }
+
+            return null;
+        });
     })->create();
