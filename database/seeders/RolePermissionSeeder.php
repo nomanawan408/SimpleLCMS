@@ -75,11 +75,11 @@ class RolePermissionSeeder extends Seeder
             Permission::firstOrCreate(['name' => $permission, 'guard_name' => 'web']);
         }
 
-        $superAdmin = Role::firstOrCreate(['name' => 'super_admin', 'guard_name' => 'web']);
+        $superAdmin = Role::firstOrCreate(['name' => 'super_admin', 'guard_name' => 'web', 'firm_id' => null]);
         $superAdmin->update(['is_system' => true, 'description' => 'SaaS platform owner with full platform access']);
         $superAdmin->syncPermissions(Permission::all());
 
-        $firmAdmin = Role::firstOrCreate(['name' => 'firm_admin', 'guard_name' => 'web']);
+        $firmAdmin = Role::firstOrCreate(['name' => 'firm_admin', 'guard_name' => 'web', 'firm_id' => null]);
         $firmAdmin->update(['is_system' => true, 'description' => 'Firm administrator with full operational, financial and administrative access']);
         $firmAdmin->syncPermissions(Permission::all());
 
@@ -88,7 +88,7 @@ class RolePermissionSeeder extends Seeder
         // financial grants instead. Each firm gets its own editable copy on
         // creation (ProvisionsFirmRoles); this shared row is never assigned.
         // Single definition lives in DefaultRoles::LAWYER_PERMISSIONS.
-        $lawyer = Role::firstOrCreate(['name' => 'lawyer', 'guard_name' => 'web']);
+        $lawyer = Role::firstOrCreate(['name' => 'lawyer', 'guard_name' => 'web', 'firm_id' => null]);
         $lawyer->update(['is_system' => true, 'description' => 'Lawyer. Sees only assigned matters; finances only with explicit grants.']);
         $lawyer->syncPermissions(\App\Support\DefaultRoles::LAWYER_PERMISSIONS);
 

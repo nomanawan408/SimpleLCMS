@@ -46,17 +46,17 @@ abstract class TestCase extends BaseTestCase
             Permission::firstOrCreate(['name' => $permission, 'guard_name' => 'web']);
         }
 
-        $superAdmin = Role::firstOrCreate(['name' => 'super_admin', 'guard_name' => 'web']);
+        $superAdmin = Role::firstOrCreate(['name' => 'super_admin', 'guard_name' => 'web', 'firm_id' => null]);
         $superAdmin->update(['is_system' => true]);
         $superAdmin->syncPermissions(Permission::all());
 
-        $firmAdmin = Role::firstOrCreate(['name' => 'firm_admin', 'guard_name' => 'web']);
+        $firmAdmin = Role::firstOrCreate(['name' => 'firm_admin', 'guard_name' => 'web', 'firm_id' => null]);
         $firmAdmin->update(['is_system' => true]);
         $firmAdmin->syncPermissions(Permission::all());
 
         // Shared template only: real assignment always uses the firm's own
         // row (see assignFirmRole). Single perm definition in DefaultRoles.
-        $lawyer = Role::firstOrCreate(['name' => 'lawyer', 'guard_name' => 'web']);
+        $lawyer = Role::firstOrCreate(['name' => 'lawyer', 'guard_name' => 'web', 'firm_id' => null]);
         $lawyer->update(['is_system' => true]);
         $lawyer->syncPermissions(\App\Support\DefaultRoles::LAWYER_PERMISSIONS);
     }

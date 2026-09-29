@@ -116,8 +116,10 @@ return new class extends Migration
             Permission::firstOrCreate(['name' => $name, 'guard_name' => 'web']);
         }
 
+        // Shared rows only: an unscoped lookup could return (and then
+        // re-permission) a firm's own row of the same name.
         foreach (['super_admin', 'firm_admin', 'lawyer'] as $name) {
-            Role::firstOrCreate(['name' => $name, 'guard_name' => 'web']);
+            Role::firstOrCreate(['name' => $name, 'guard_name' => 'web', 'firm_id' => null]);
         }
 
         // The two platform roles always hold the whole vocabulary: gates call

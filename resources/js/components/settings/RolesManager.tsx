@@ -43,6 +43,12 @@ const ENTITY_LABELS: Record<string, string> = {
     events: 'Events',
     tasks: 'Tasks',
     reports: 'Reports',
+    assignments: 'Matter Assignment',
+    finances: 'Financial Access',
+    ledger: 'Client Ledger',
+    client_funds: 'Client Funds',
+    dashboard: 'Dashboard',
+    firm: 'Firm',
     trust: 'Trust',
     expenses: 'Expenses',
     data: 'Data Export',
@@ -57,6 +63,7 @@ function actionLabel(action: string): string {
     const map: Record<string, string> = {
         view: 'View', create: 'Create', edit: 'Edit', delete: 'Delete',
         manage: 'Manage', upload: 'Upload', export: 'Export',
+        post: 'Post', transfer: 'Transfer',
     };
     return map[action] || action;
 }
