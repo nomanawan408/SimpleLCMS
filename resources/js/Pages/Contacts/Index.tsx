@@ -23,7 +23,7 @@ function useDebounce(value: string, delay: number) {
 
 interface Props {
     contacts: PaginatedData<Contact>;
-    filters: { search?: string; type?: string; lead_status?: string };
+    filters: { search?: string; type?: string; lead_status?: string; sort_by?: string | null; sort_dir?: 'asc' | 'desc' | null };
     tablePreferences?: TablePreferences | null;
 }
 
@@ -42,6 +42,20 @@ const leadBadgeStyles: Record<string, string> = {
 };
 
 export default function ContactsIndex({ contacts, filters, tablePreferences }: Props) {
+    // Server-side column sort, mirrored in the URL (none -> asc -> desc).
+    const [sortBy, setSortBy] = useState<string | null>(filters.sort_by ?? null);
+    const [sortDir, setSortDir] = useState<'asc' | 'desc'>(filters.sort_dir === 'desc' ? 'desc' : 'asc');
+    const cycleSort = (key: string) => {
+        if (sortBy !== key) {
+            setSortBy(key);
+            setSortDir('asc');
+        } else if (sortDir === 'asc') {
+            setSortDir('desc');
+        } else {
+            setSortBy(null);
+            setSortDir('asc');
+        }
+    };
     const { auth } = usePage<PageProps>().props;
     // Backend ContactPolicy::create mirrors this exactly (create_contacts).
     const canCreateContact = hasPermission(auth.user?.permissions, 'create_contacts');
@@ -52,7 +66,7 @@ export default function ContactsIndex({ contacts, filters, tablePreferences }: P
 
     const columns: DynamicColumn<Contact>[] = useMemo(() => [
         {
-            id: 'contact',
+            id: 'contact', sortable: true,
             header: 'Contact',
             defaultWidth: 260,
             minWidth: 200,
@@ -80,7 +94,7 @@ export default function ContactsIndex({ contacts, filters, tablePreferences }: P
             },
         },
         {
-            id: 'email',
+            id: 'email', sortable: true,
             header: 'Email',
             defaultWidth: 220,
             minWidth: 160,
@@ -95,7 +109,7 @@ export default function ContactsIndex({ contacts, filters, tablePreferences }: P
             ),
         },
         {
-            id: 'phone',
+            id: 'phone', sortable: true,
             header: 'Phone',
             defaultWidth: 150,
             minWidth: 120,
@@ -110,7 +124,7 @@ export default function ContactsIndex({ contacts, filters, tablePreferences }: P
             ),
         },
         {
-            id: 'type',
+            id: 'type', sortable: true,
             header: 'Type',
             defaultWidth: 130,
             minWidth: 110,
@@ -122,7 +136,7 @@ export default function ContactsIndex({ contacts, filters, tablePreferences }: P
             ),
         },
         {
-            id: 'lead_status',
+            id: 'lead_status', sortable: true,
             header: 'Lead Status',
             defaultWidth: 150,
             minWidth: 120,
@@ -137,7 +151,7 @@ export default function ContactsIndex({ contacts, filters, tablePreferences }: P
             ),
         },
         {
-            id: 'added',
+            id: 'added', sortable: true,
             header: 'Added',
             defaultWidth: 130,
             minWidth: 110,
@@ -147,7 +161,7 @@ export default function ContactsIndex({ contacts, filters, tablePreferences }: P
             ),
         },
         {
-            id: 'phone_secondary',
+            id: 'phone_secondary', sortable: true,
             header: 'Alt Phone',
             defaultWidth: 140,
             minWidth: 120,
@@ -177,7 +191,7 @@ export default function ContactsIndex({ contacts, filters, tablePreferences }: P
             },
         },
         {
-            id: 'source',
+            id: 'source', sortable: true,
             header: 'Source',
             defaultWidth: 140,
             minWidth: 110,
@@ -216,8 +230,10 @@ export default function ContactsIndex({ contacts, filters, tablePreferences }: P
         router.get('/contacts', {
             search: debounced || undefined,
             type: type === '_all' ? undefined : type,
+            sort_by: sortBy || undefined,
+            sort_dir: sortBy ? sortDir : undefined,
         }, { preserveState: true, replace: true });
-    }, [debounced, type]);
+    }, [debounced, type, sortBy, sortDir]);
 
     const hasFilters = search || type !== '_all';
 
@@ -291,6 +307,9 @@ export default function ContactsIndex({ contacts, filters, tablePreferences }: P
                             initialPreferences={tablePreferences}
                             getRowId={(contact) => contact.id}
                             onRowClick={(contact) => router.visit(`/contacts/${contact.id}`)}
+                            sortKey={sortBy}
+                            sortDir={sortDir}
+                            onSort={cycleSort}
                         />
                     )}
 

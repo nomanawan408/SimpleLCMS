@@ -11,15 +11,15 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { getDateUrgency } from '@/components/ui/urgency-dot';
-import { daysUntilDate, formatDate, isOverdueDate, splitDateTime, MATTER_STATUS_LABELS, MATTER_PRIORITY_LABELS, MATTER_PRIORITY_STYLES, PRACTICE_AREA_LABELS, ROLE_LABELS } from '@/lib/utils';
+import { daysUntilDate, formatDate, isOverdueDate, splitDateTime, MATTER_STATUS_LABELS, MATTER_PRIORITY_LABELS, MATTER_PRIORITY_STYLES, PRACTICE_AREA_LABELS, ROLE_LABELS, shortName } from '@/lib/utils';
 import { hasPermission, hasAnyPermission } from '@/lib/utils';
 import { UserAvatar } from '@/components/ui/user-avatar';
-import { Plus, Search, X, Calendar, Clock, ListTodo, Briefcase, Flag, Trash2, Pencil, Check } from 'lucide-react';
+import { Plus, Search, X, Calendar, Clock, ListTodo, Briefcase, Flag, Trash2, Check } from 'lucide-react';
 import type { Matter, PaginatedData, PageProps } from '@/types';
 
 interface Props {
     matters: PaginatedData<Matter>;
-    filters: { search?: string; status?: string; practice_area?: string; category?: string; per_page?: number | string };
+    filters: { search?: string; status?: string; practice_area?: string; category?: string; per_page?: number | string; sort_by?: string | null; sort_dir?: 'asc' | 'desc' | null };
     counts: { all: number; open: number; closed: number };
     buckets: { opened: number; in_progress: number; on_hold: number; closed: number };
     tablePreferences?: TablePreferences | null;
@@ -29,11 +29,16 @@ interface Props {
 
 const PER_PAGE_OPTIONS = [10, 20, 25, 50, 100];
 
-type MatterCategory = 'all' | 'open' | 'closed';
+// Tabs mirror the state buckets exactly, so a tab count always matches the
+// list it shows. Legacy '?category=open' (everything not closed) normalises
+// to 'all' below -- the backend still honours it for old bookmarks.
+type MatterCategory = 'all' | 'opened' | 'in_progress' | 'on_hold' | 'closed';
 
 const CATEGORY_TABS: { value: MatterCategory; label: string }[] = [
     { value: 'all', label: 'All' },
-    { value: 'open', label: 'Opened' },
+    { value: 'opened', label: 'Opened' },
+    { value: 'in_progress', label: 'In Progress' },
+    { value: 'on_hold', label: 'On Hold' },
     { value: 'closed', label: 'Closed' },
 ];
 
@@ -92,23 +97,53 @@ export default function MattersIndex({ matters, filters, counts, buckets, tableP
     // the user can already update), matter-edit rights for status.
     const canManageAssignment = isFirmAdmin || can(['manage_assignments']);
     const canEditMatter = isFirmAdmin || can(['edit_matters', 'manage_matters']);
+    // The all-matters override: sees every file assigned or not (backend
+    // MatterPolicy + scopeVisibleTo mirror this; the closed freeze still
+    // applies, so open-state is always required below).
+    const seesAllMatters = isFirmAdmin || can(['view_all_matters']);
     const isOpenMatter = (m: Matter) => m.status !== 'closed' && m.status !== 'archived';
-    const isAssigned = (m: Matter) => isFirmAdmin || (assignedMatterIds ?? []).includes(m.id);
+    const isAssigned = (m: Matter) => isFirmAdmin || seesAllMatters || (assignedMatterIds ?? []).includes(m.id);
     const canAssignRow = (m: Matter) => canManageAssignment && (isFirmAdmin || (isOpenMatter(m) && isAssigned(m)));
-    const canStatusRow = (m: Matter) => canEditMatter && (isFirmAdmin || (isOpenMatter(m) && isAssigned(m)));
+    const canStatusRow = (m: Matter) => (canEditMatter || can(['edit_all_matters'])) && (isFirmAdmin || (isOpenMatter(m) && isAssigned(m)));
     const [search, setSearch]   = useState(filters.search ?? '');
     const [status, setStatus]   = useState(filters.status ?? '_all');
     const [area, setArea]       = useState(filters.practice_area ?? '_all');
     const [priority, setPriority] = useState((filters as any).priority ?? '_all');
     const [category, setCategory] = useState<MatterCategory>(
-        filters.category === 'open' || filters.category === 'closed' ? filters.category : 'all',
+        ['opened', 'in_progress', 'on_hold', 'closed'].includes(filters.category ?? '')
+            ? (filters.category as MatterCategory)
+            : 'all',
     );
+    const tabCount = (tab: MatterCategory): number => {
+        switch (tab) {
+            case 'all': return counts?.all ?? 0;
+            case 'opened': return buckets?.opened ?? 0;
+            case 'in_progress': return buckets?.in_progress ?? 0;
+            case 'on_hold': return buckets?.on_hold ?? 0;
+            case 'closed': return buckets?.closed ?? 0;
+        }
+    };
     const [perPage, setPerPage] = useState(() => {
         const n = Number(filters.per_page ?? matters.per_page ?? 20);
         return PER_PAGE_OPTIONS.includes(n) ? n : 20;
     });
     const debouncedSearch       = useDebounce(search, 300);
     const isFirstRun            = useRef(true);
+    // Server-side column sort, mirrored in the URL so it survives reloads
+    // and shares. Click cycles: none -> ascending -> descending -> none.
+    const [sortBy, setSortBy] = useState<string | null>(filters.sort_by ?? null);
+    const [sortDir, setSortDir] = useState<'asc' | 'desc'>(filters.sort_dir === 'desc' ? 'desc' : 'asc');
+    const cycleSort = (key: string) => {
+        if (sortBy !== key) {
+            setSortBy(key);
+            setSortDir('asc');
+        } else if (sortDir === 'asc') {
+            setSortDir('desc');
+        } else {
+            setSortBy(null);
+            setSortDir('asc');
+        }
+    };
     const [editingHearing, setEditingHearing] = useState<Matter | null>(null);
     // Inline editors: responsible + status, straight from the index table.
     const [editingResponsible, setEditingResponsible] = useState<Matter | null>(null);
@@ -202,7 +237,7 @@ export default function MattersIndex({ matters, filters, counts, buckets, tableP
 
     const columns: DynamicColumn<Matter>[] = useMemo(() => [
         {
-            id: 'matter', header: 'Matter', defaultWidth: 280, minWidth: 200, maxWidth: 420, hideable: false,
+            id: 'matter', sortable: true, header: 'Matter', defaultWidth: 280, minWidth: 200, maxWidth: 420, hideable: false,
             cell: (matter) => (
                 <>
                     <p className="text-sm font-semibold leading-snug text-foreground transition-colors [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden break-words group-hover:text-primary" title={matter.name}>{matter.name}</p>
@@ -211,7 +246,7 @@ export default function MattersIndex({ matters, filters, counts, buckets, tableP
             ),
         },
         {
-            id: 'practice_area', header: 'Practice Area', defaultWidth: 130, minWidth: 100, maxWidth: 220,
+            id: 'practice_area', sortable: true, header: 'Practice Area', defaultWidth: 130, minWidth: 100, maxWidth: 220,
             cell: (matter) => <span className="whitespace-nowrap text-sm text-muted-foreground">{PRACTICE_AREA_LABELS[matter.practice_area]}</span>,
         },
         {
@@ -221,12 +256,12 @@ export default function MattersIndex({ matters, filters, counts, buckets, tableP
             ),
         },
         {
-            id: 'responsible', header: 'Responsible', defaultWidth: 160, minWidth: 120, maxWidth: 260,
+            id: 'responsible', sortable: true, header: 'Responsible', defaultWidth: 160, minWidth: 120, maxWidth: 260,
             cell: (matter) => {
                 const inner = matter.responsible_user?.full_name ? (
                     <span className="inline-flex items-center gap-2">
                         <UserAvatar user={matter.responsible_user} />
-                        <span className="whitespace-nowrap text-sm text-muted-foreground">{matter.responsible_user.full_name}</span>
+                        <span className="whitespace-nowrap text-sm text-muted-foreground">{shortName(matter.responsible_user.full_name)}</span>
                     </span>
                 ) : (
                     <span className="text-sm text-muted-foreground">—</span>
@@ -234,18 +269,17 @@ export default function MattersIndex({ matters, filters, counts, buckets, tableP
                 return canAssignRow(matter) ? (
                     <button
                         type="button"
-                        title="Change responsible user"
+                        title="Click to change the responsible user"
                         onClick={(e) => { e.stopPropagation(); openResponsibleModal(matter); }}
-                        className="inline-flex items-center gap-1.5 rounded-md px-1 py-0.5 transition-colors hover:bg-muted"
+                        className="inline-flex cursor-pointer items-center gap-1.5 rounded-md px-1 py-0.5 transition-colors hover:bg-primary/5 hover:underline hover:decoration-dotted hover:underline-offset-4"
                     >
                         {inner}
-                        <Pencil className="h-3 w-3 shrink-0 text-muted-foreground/60" />
                     </button>
                 ) : inner;
             },
         },
         {
-            id: 'status', header: 'Status', defaultWidth: 190, minWidth: 140, maxWidth: 300,
+            id: 'status', sortable: true, header: 'Status', defaultWidth: 190, minWidth: 140, maxWidth: 300,
             cell: (matter) => {
                 const badge = (
                     <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded border px-2.5 py-1 text-xs font-medium leading-none ${statusBadgeStyles[matter.status] ?? 'bg-muted text-muted-foreground border-border'}`}>
@@ -256,18 +290,17 @@ export default function MattersIndex({ matters, filters, counts, buckets, tableP
                 return canStatusRow(matter) ? (
                     <button
                         type="button"
-                        title="Change status"
+                        title="Click to change the status"
                         onClick={(e) => { e.stopPropagation(); openStatusModal(matter); }}
-                        className="inline-flex items-center gap-1.5 rounded-md px-1 py-0.5 transition-colors hover:bg-muted"
+                        className="cursor-pointer rounded-md px-1 py-0.5 transition-all hover:bg-primary/5 hover:ring-1 hover:ring-primary/20"
                     >
                         {badge}
-                        <Pencil className="h-3 w-3 shrink-0 text-muted-foreground/60" />
                     </button>
                 ) : badge;
             },
         },
         {
-            id: 'priority', header: 'Priority', defaultWidth: 120, minWidth: 100, maxWidth: 180,
+            id: 'priority', sortable: true, header: 'Priority', defaultWidth: 120, minWidth: 100, maxWidth: 180,
             cell: (matter) => (
                 <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded border px-2.5 py-1 text-xs font-medium leading-none ${MATTER_PRIORITY_STYLES[(matter as any).priority ?? 'medium'] ?? 'bg-muted text-muted-foreground border-border'}`}>
                     <Flag className="h-3 w-3 shrink-0" />
@@ -306,7 +339,7 @@ export default function MattersIndex({ matters, filters, counts, buckets, tableP
             ),
         },
         {
-            id: 'deadline', header: 'Deadline', defaultWidth: 170, minWidth: 140, maxWidth: 240,
+            id: 'deadline', sortable: true, header: 'Deadline', defaultWidth: 170, minWidth: 140, maxWidth: 240,
             cell: (matter) => {
                 const urgency = getDateUrgency(matter.next_deadline);
                 const days = daysUntilDate(matter.next_deadline);
@@ -383,7 +416,7 @@ export default function MattersIndex({ matters, filters, counts, buckets, tableP
             },
         },
         {
-            id: 'hearing_date', header: 'Hearing Date', defaultWidth: 170, minWidth: 140, maxWidth: 240,
+            id: 'hearing_date', sortable: true, header: 'Hearing Date', defaultWidth: 170, minWidth: 140, maxWidth: 240,
             cell: (matter) => {
                 const [, time] = splitDateTime(matter.hearing_date);
                 const extraCount = Math.max(0, ((matter as any).calendar_events?.length ?? 0) - 1);
@@ -411,7 +444,7 @@ export default function MattersIndex({ matters, filters, counts, buckets, tableP
             },
         },
         {
-            id: 'open_tasks', header: 'Open Tasks', defaultWidth: 110, minWidth: 90, maxWidth: 160, defaultVisible: false,
+            id: 'open_tasks', sortable: true, header: 'Open Tasks', defaultWidth: 110, minWidth: 90, maxWidth: 160, defaultVisible: false,
             cell: (matter) => matter.tasks && matter.tasks.length > 0 ? (
                 <button
                     className="inline-flex items-center gap-1.5 whitespace-nowrap rounded border border-primary/15 bg-primary/5 px-2.5 py-1 text-xs font-semibold text-primary transition-colors hover:bg-primary/10"
@@ -429,7 +462,7 @@ export default function MattersIndex({ matters, filters, counts, buckets, tableP
             ),
         },
         {
-            id: 'fee_type', header: 'Fee Type', defaultWidth: 125, minWidth: 100, maxWidth: 180, defaultVisible: false,
+            id: 'fee_type', sortable: true, header: 'Fee Type', defaultWidth: 125, minWidth: 100, maxWidth: 180, defaultVisible: false,
             cell: (matter) => (
                 <span className="inline-flex items-center whitespace-nowrap rounded border border-border bg-muted/40 px-2.5 py-1 text-xs font-medium text-muted-foreground">
                     {FEE_ARRANGEMENT_LABELS[(matter as any).fee_arrangement] ?? (matter as any).fee_arrangement?.replace(/_/g, ' ') ?? '—'}
@@ -437,19 +470,19 @@ export default function MattersIndex({ matters, filters, counts, buckets, tableP
             ),
         },
         {
-            id: 'court', header: 'Court', defaultWidth: 150, minWidth: 110, maxWidth: 260, defaultVisible: false,
+            id: 'court', sortable: true, header: 'Court', defaultWidth: 150, minWidth: 110, maxWidth: 260, defaultVisible: false,
             cell: (matter) => (
                 <p className="truncate text-sm text-muted-foreground" title={(matter as any).court ?? undefined}>{(matter as any).court ?? '—'}</p>
             ),
         },
         {
-            id: 'court_ref', header: 'Court Ref', defaultWidth: 140, minWidth: 110, maxWidth: 220, defaultVisible: false,
+            id: 'court_ref', sortable: true, header: 'Court Ref', defaultWidth: 140, minWidth: 110, maxWidth: 220, defaultVisible: false,
             cell: (matter) => (
                 <p className="truncate text-xs tabular-nums tracking-wide text-muted-foreground" title={(matter as any).court_reference ?? undefined}>{(matter as any).court_reference ?? '—'}</p>
             ),
         },
         {
-            id: 'originator', header: 'Originated By', defaultWidth: 160, minWidth: 120, maxWidth: 240, defaultVisible: false,
+            id: 'originator', sortable: true, header: 'Originated By', defaultWidth: 160, minWidth: 120, maxWidth: 240, defaultVisible: false,
             cell: (matter) => (matter as any).originating_user?.full_name ? (
                 <span className="inline-flex items-center gap-2">
                     <UserAvatar user={(matter as any).originating_user} fallbackClassName="bg-muted text-muted-foreground" />
@@ -460,7 +493,7 @@ export default function MattersIndex({ matters, filters, counts, buckets, tableP
             ),
         },
         {
-            id: 'description', header: 'Description', defaultWidth: 220, minWidth: 160, maxWidth: 360, defaultVisible: false,
+            id: 'description', sortable: true, header: 'Description', defaultWidth: 220, minWidth: 160, maxWidth: 360, defaultVisible: false,
             cell: (matter) => matter.description ? (
                 <p className="text-sm leading-snug text-muted-foreground [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden break-words" title={matter.description}>{matter.description}</p>
             ) : (
@@ -468,13 +501,13 @@ export default function MattersIndex({ matters, filters, counts, buckets, tableP
             ),
         },
         {
-            id: 'opened_at', header: 'Opened', defaultWidth: 120, minWidth: 100, maxWidth: 180, defaultVisible: false,
+            id: 'opened_at', sortable: true, header: 'Opened', defaultWidth: 120, minWidth: 100, maxWidth: 180, defaultVisible: false,
             cell: (matter) => (
                 <span className="whitespace-nowrap text-sm tabular-nums text-muted-foreground">{matter.opened_at ? formatDate(matter.opened_at) : '—'}</span>
             ),
         },
         {
-            id: 'closed_at', header: 'Closed', defaultWidth: 120, minWidth: 100, maxWidth: 180, defaultVisible: false,
+            id: 'closed_at', sortable: true, header: 'Closed', defaultWidth: 120, minWidth: 100, maxWidth: 180, defaultVisible: false,
             cell: (matter) => (
                 <span className="whitespace-nowrap text-sm tabular-nums text-muted-foreground">{matter.closed_at ? formatDate(matter.closed_at) : '—'}</span>
             ),
@@ -484,6 +517,8 @@ export default function MattersIndex({ matters, filters, counts, buckets, tableP
     useEffect(() => {
         if (isFirstRun.current) { isFirstRun.current = false; return; }
         router.get('/matters', {
+            sort_by:       sortBy || undefined,
+            sort_dir:      sortBy ? sortDir : undefined,
             search:        debouncedSearch || undefined,
             status:        status === '_all' ? undefined : status,
             practice_area: area === '_all' ? undefined : area,
@@ -493,7 +528,7 @@ export default function MattersIndex({ matters, filters, counts, buckets, tableP
             // filter) restarts at page 1 instead of landing on an empty page.
             per_page:      perPage === 20 ? undefined : perPage,
         }, { preserveState: true, replace: true });
-    }, [debouncedSearch, status, area, priority, category, perPage]);
+    }, [debouncedSearch, status, area, priority, category, perPage, sortBy, sortDir]);
 
     const hasFilters = search || status !== '_all' || area !== '_all' || priority !== '_all' || category !== 'all';
 
@@ -523,9 +558,9 @@ export default function MattersIndex({ matters, filters, counts, buckets, tableP
                 </div>
                 <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
                     {[
-                        { label: 'Opened', value: buckets?.opened ?? 0, href: '/matters?category=open', strip: 'bg-emerald-500' },
-                        { label: 'In Progress', value: buckets?.in_progress ?? 0, href: '/matters?status=in_progress', strip: 'bg-sky-500' },
-                        { label: 'On Hold', value: buckets?.on_hold ?? 0, href: '/matters?status=on_hold', strip: 'bg-amber-500' },
+                        { label: 'Opened', value: buckets?.opened ?? 0, href: '/matters?category=opened', strip: 'bg-emerald-500' },
+                        { label: 'In Progress', value: buckets?.in_progress ?? 0, href: '/matters?category=in_progress', strip: 'bg-sky-500' },
+                        { label: 'On Hold', value: buckets?.on_hold ?? 0, href: '/matters?category=on_hold', strip: 'bg-amber-500' },
                         { label: 'Closed', value: buckets?.closed ?? 0, href: '/matters?category=closed', strip: 'bg-zinc-400' },
                     ].map((b) => (
                         <Link key={b.label} href={b.href} className="group relative overflow-hidden rounded-xl border border-border/40 bg-white transition-all duration-300 hover:shadow-[0_8px_30px_-8px_rgba(0,0,0,0.08)]">
@@ -556,7 +591,7 @@ export default function MattersIndex({ matters, filters, counts, buckets, tableP
                                 <span className={`min-w-5 rounded px-1 text-center text-xs font-semibold tabular-nums ${
                                     active ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
                                 }`}>
-                                    {counts?.[tab.value] ?? 0}
+                                    {tabCount(tab.value)}
                                 </span>
                             </button>
                         );
@@ -631,6 +666,9 @@ export default function MattersIndex({ matters, filters, counts, buckets, tableP
                             initialPreferences={tablePreferences}
                             getRowId={(matter) => matter.id}
                             onRowClick={(matter) => router.visit(`/matters/${matter.id}`)}
+                            sortKey={sortBy}
+                            sortDir={sortDir}
+                            onSort={cycleSort}
                         />
                     )}
 

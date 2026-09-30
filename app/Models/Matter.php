@@ -182,6 +182,13 @@ class Matter extends Model
         if ($user->hasRole('super_admin') || $user->hasRole('firm_admin')) {
             return $query;
         }
+        // The all-matters override: lets an admin grant firm-wide file
+        // visibility (e.g. a supervisor) without making them firm_admin.
+        // Read-only widening -- every mutation still needs its own module
+        // permission plus the closed-file freeze, checked at the endpoint.
+        if ($user->hasPermissionTo('view_all_matters')) {
+            return $query;
+        }
 
         return $query->where(function ($q) use ($user) {
             $q->whereHas('assignees', fn ($qq) => $qq->where('users.id', $user->id))

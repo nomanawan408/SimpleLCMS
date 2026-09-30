@@ -3,7 +3,7 @@ import { useState } from 'react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
-    Table, TableHeader, TableHeaderRow, TableBody, TableFooter, TableRow, TableHead, TableCell,
+    Table, TableHeader, TableHeaderRow, TableBody, TableFooter, TableRow, TableHead, TableCell, SortableTh,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -56,7 +56,7 @@ interface Props {
     };
     matters: { id: string; name: string; matter_number: string }[];
     openInvoices: OpenInvoice[];
-    filters: { matter_id?: string; method?: string; date_from?: string; date_to?: string };
+    filters: { matter_id?: string; method?: string; date_from?: string; date_to?: string; sort_by?: string | null; sort_dir?: 'asc' | 'desc' | null };
 }
 
 const METHOD_LABELS: Record<string, string> = {
@@ -76,6 +76,16 @@ const METHOD_COLOURS: Record<string, string> = {
 };
 
 export default function TransactionsIndex({ transactions, stats, matters, openInvoices, filters }: Props) {
+    // Server-side column sort, mirrored in the URL (none -> asc -> desc).
+    const [sortBy, setSortBy] = useState<string | null>(filters.sort_by ?? null);
+    const [sortDir, setSortDir] = useState<'asc' | 'desc'>(filters.sort_dir === 'desc' ? 'desc' : 'asc');
+    const cycleSort = (key: string) => {
+        const nextBy = sortBy !== key ? key : sortDir === 'asc' ? key : null;
+        const nextDir = sortBy !== key || sortDir === 'asc' ? 'asc' : 'desc';
+        setSortBy(nextBy);
+        setSortDir(nextDir as 'asc' | 'desc');
+        router.get('/transactions', { ...filters, sort_by: nextBy || undefined, sort_dir: nextBy ? nextDir : undefined }, { preserveState: true, replace: true });
+    };
     const { auth } = usePage<PageProps>().props;
     // Backend TransactionController@store mirrors this (manage_finances).
     const userRoles = auth.user?.roles ?? [];
@@ -196,13 +206,13 @@ export default function TransactionsIndex({ transactions, stats, matters, openIn
                             <Table>
                                 <TableHeader>
                                     <TableHeaderRow>
-                                        <TableHead>Date</TableHead>
+                                        <SortableTh label="Date" sortKey="date" activeKey={sortBy} dir={sortDir} onSort={cycleSort} />
                                         <TableHead>Client</TableHead>
-                                        <TableHead className="hidden md:table-cell">Matter</TableHead>
-                                        <TableHead className="hidden lg:table-cell">Invoice</TableHead>
-                                        <TableHead className="hidden md:table-cell">Method</TableHead>
-                                        <TableHead className="text-right">Amount</TableHead>
-                                        <TableHead className="hidden lg:table-cell">Notes</TableHead>
+                                        <SortableTh label="Matter" sortKey="matter" activeKey={sortBy} dir={sortDir} onSort={cycleSort} className="hidden md:table-cell" />
+                                        <SortableTh label="Invoice" sortKey="invoice" activeKey={sortBy} dir={sortDir} onSort={cycleSort} className="hidden lg:table-cell" />
+                                        <SortableTh label="Method" sortKey="method" activeKey={sortBy} dir={sortDir} onSort={cycleSort} className="hidden md:table-cell" />
+                                        <SortableTh label="Amount" sortKey="amount" activeKey={sortBy} dir={sortDir} onSort={cycleSort} className="text-right" />
+                                        <SortableTh label="Notes" sortKey="notes" activeKey={sortBy} dir={sortDir} onSort={cycleSort} className="hidden lg:table-cell" />
                                     </TableHeaderRow>
                                 </TableHeader>
                                 <TableBody>

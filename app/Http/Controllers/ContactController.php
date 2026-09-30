@@ -10,18 +10,42 @@ use App\Models\TablePreference;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
+use App\Http\Controllers\Concerns\SortsIndexTables;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class ContactController extends Controller
 {
+    use SortsIndexTables;
     public function index(Request $request): Response
     {
         $this->authorize('viewAny', Contact::class);
 
         $contacts = Contact::where('firm_id', $request->user()->firm_id)
-            ->when(! $request->user()->isFirmAdmin(), fn ($q) => $q->whereHas('matters', fn ($qq) => $qq->visibleTo($request->user())))
-            ->when($request->search, fn ($q, $search) => $q->where(function ($q) use ($search) {
+            ->when(! $request->user()->isFirmAdmin(), fn ($q) => $q->whereHas('matters', fn ($qq) => $qq->visibleTo($request->user())));
+
+        $sortBy = $request->input('sort_by');
+        $sortDir = $this->normalizeSortDir($request->input('sort_dir'));
+        $sortApplied = $this->applyTableSort($contacts, [
+            // Displayed name prefers the computed full name (prefix + first +
+            // middle + last); fall back to name. Mirrors getFullNameAttribute.
+            'contact'  => ['expr' => "COALESCE(NULLIF(CONCAT_WS(' ', contacts.prefix, contacts.first_name, contacts.middle_name, contacts.last_name), ''), contacts.name)"],
+            'email'    => ['expr' => 'contacts.email'],
+            'phone'    => ['expr' => 'contacts.phone'],
+            'phone_secondary' => ['expr' => 'contacts.phone_secondary'],
+            'type'     => ['expr' => 'contacts.type'],
+            'lead_status' => ['expr' => 'contacts.lead_status'],
+            'source'   => ['expr' => 'contacts.source'],
+            'added'    => ['expr' => 'contacts.created_at'],
+        ], $sortBy, $sortDir);
+        if (! $sortApplied) {
+            $sortBy = null;
+            $contacts->orderBy('name');
+        }
+        $contacts->orderBy('contacts.created_at', 'desc');
+
+        $contacts = $contacts
+            ->when($request->search, fn ($q) => $q->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
                   ->orWhere('first_name', 'like', "%{$search}%")
                   ->orWhere('last_name', 'like', "%{$search}%")
@@ -30,7 +54,6 @@ class ContactController extends Controller
             }))
             ->when($request->type, fn ($q) => $q->where('type', $request->type))
             ->when($request->lead_status, fn ($q) => $q->where('lead_status', $request->lead_status))
-            ->orderBy('name')
             ->paginate(25)
             ->withQueryString();
 
@@ -40,7 +63,7 @@ class ContactController extends Controller
 
         return Inertia::render('Contacts/Index', [
             'contacts' => $contacts,
-            'filters'  => $request->only('search', 'type', 'lead_status'),
+            'filters'  => [...$request->only('search', 'type', 'lead_status'), 'sort_by' => $sortBy, 'sort_dir' => $sortBy ? $sortDir : null],
             'tablePreferences' => $tablePreferences,
         ]);
     }

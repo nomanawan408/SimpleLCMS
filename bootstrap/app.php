@@ -30,10 +30,45 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        $exceptions->render(function (\Illuminate\Auth\AuthenticationException $e, $request) {
-            if ($request->expectsJson() || $request->header('X-Inertia')) {
-                return response()->json(['message' => $e->getMessage()], 401);
+        // Expired (or missing) session, handled per caller type. A plain
+        // JSON 401 on an Inertia visit trips the client's fatal "must
+        // receive a valid Inertia response" modal, so SPA visits instead get
+        // the documented Inertia session-expiry flow: 409 plus
+        // X-Inertia-Location, forcing a full-page visit to login with an
+        // explanation, leaving no stale state behind.
+        $toLogin = function ($request) {
+            $request->session()->flash('status', 'Your session expired. Please sign in again.');
+            return response('', 409, ['X-Inertia-Location' => route('login')]);
+        };
+        $exceptions->render(function (\Illuminate\Auth\AuthenticationException $e, $request) use ($toLogin) {
+            // API-style callers (fetch pollers) speak JSON and degrade inline.
+            if ($request->expectsJson()) {
+                return response()->json(['message' => 'Unauthenticated.'], 401);
             }
+            if ($request->header('X-Inertia')) {
+                return $toLogin($request);
+            }
+            // Plain browser loads keep the framework default (redirect with
+            // intended URL), plus the same explanation.
+            return redirect()->guest(route('login'))->with('status', 'Your session expired. Please sign in again.');
+        });
+
+        // Same expiry, earlier tripwire: with a dead session, POST/PUT/PATCH
+        // requests fail CSRF verification before authentication runs. Send
+        // those to login too -- except on the auth pages themselves, which
+        // have their own flows (a failed login CSRF must not loop strangely).
+        $exceptions->render(function (\Illuminate\Session\TokenMismatchException $e, $request) use ($toLogin) {
+            if ($request->expectsJson()) {
+                return null;
+            }
+            if ($request->header('X-Inertia') && ! $request->routeIs(
+                'login', 'login.*', 'register', 'register.*', 'password.*',
+                'two-factor.*', 'verification.*', 'firm.setup.*'
+            )) {
+                return $toLogin($request);
+            }
+
+            return null;
         });
 
         // Page-access denials stay inside the SPA: an Inertia visit that the

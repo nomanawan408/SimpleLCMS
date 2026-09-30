@@ -21,6 +21,7 @@ return new class extends Migration
     private const VOCABULARY = [
         'view_dashboard',
         'manage_matters', 'view_matters', 'create_matters', 'edit_matters', 'delete_matters',
+        'view_all_matters', 'edit_all_matters', 'delete_all_matters',
         'manage_contacts', 'view_contacts', 'create_contacts', 'edit_contacts', 'delete_contacts',
         'manage_time_entries', 'view_time_entries', 'create_time_entries', 'edit_time_entries', 'delete_time_entries',
         'manage_expenses', 'create_expenses', 'edit_expenses', 'delete_expenses',

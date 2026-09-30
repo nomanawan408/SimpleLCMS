@@ -12,7 +12,7 @@ import { Separator } from '@/components/ui/separator';
 import { GlobalSearch } from '@/components/GlobalSearch';
 import { NotificationBell } from '@/components/NotificationBell';
 import { TimerPill } from '@/components/TimerPill';
-import { cn, hasPermission, hasAnyPermission, initials, ROLE_LABELS } from '@/lib/utils';
+import { cn, hasPermission, hasAnyPermission, initials, ROLE_LABELS, shortName } from '@/lib/utils';
 import { applyTheme } from '@/lib/theme';
 import type { PageProps } from '@/types';
 
@@ -37,7 +37,7 @@ const navItems: NavItem[] = [
     // financial access. Everything else requires its module permission, so
     // custom roles (e.g. contacts-only) see exactly their modules.
     { label: 'Dashboard',  href: '/dashboard',   icon: LayoutDashboard, routeName: 'dashboard' },
-    { label: 'Matters',    href: '/matters',      icon: Briefcase,       routeName: 'matters.index',    permission: 'view_matters' },
+    { label: 'Matters',    href: '/matters',      icon: Briefcase,       routeName: 'matters.index',    permission: ['view_matters', 'view_all_matters'] },
     { label: 'Contacts',   href: '/contacts',     icon: Users,           routeName: 'contacts.index',   permission: 'view_contacts' },
     { label: 'Documents',  href: '/documents',    icon: FileText,        routeName: 'documents.index',  permission: 'view_documents' },
     { label: 'Time',         href: '/time',         icon: Clock,       routeName: 'time.index',         permission: 'view_time_entries',
@@ -389,7 +389,7 @@ export default function AppLayout({ children, title }: AppLayoutProps) {
                                             {initials(user.full_name)}
                                         </AvatarFallback>
                                     </Avatar>
-                                    <span className="hidden sm:block font-medium text-base text-foreground max-w-40 truncate">{user.full_name}</span>
+                                    <span className="hidden sm:block font-medium text-base text-foreground max-w-40 truncate">{shortName(user.full_name) || user.full_name}</span>
                                     <ChevronDown className={cn('hidden h-4 w-4 text-muted-foreground transition-transform duration-200 sm:block', userMenuOpen && 'rotate-180')} />
                                 </button>
                             </PopoverTrigger>
@@ -402,7 +402,7 @@ export default function AppLayout({ children, title }: AppLayoutProps) {
                                         </AvatarFallback>
                                     </Avatar>
                                     <div className="min-w-0">
-                                        <p className="truncate text-sm font-semibold text-foreground">{user.full_name}</p>
+                                        <p className="truncate text-sm font-semibold text-foreground">{shortName(user.full_name) || user.full_name}</p>
                                         <p className="truncate text-xs text-muted-foreground">{user.email}</p>
                                         {(user.firm?.name || user.roles?.[0]) && (
                                             <p className="mt-0.5 truncate text-xs text-muted-foreground/70">

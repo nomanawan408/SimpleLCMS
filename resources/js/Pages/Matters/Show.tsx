@@ -15,7 +15,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
-import { cn, daysUntilDate, formatCurrency, formatDate, formatTime, hasPermission, hasAnyPermission, isOverdueDate, splitDateTime, MATTER_STATUS_LABELS, MATTER_PRIORITY_LABELS, MATTER_PRIORITY_STYLES, PRACTICE_AREA_LABELS } from '@/lib/utils';
+import { cn, daysUntilDate, formatCurrency, formatDate, formatTime, hasPermission, hasAnyPermission, isOverdueDate, splitDateTime, MATTER_STATUS_LABELS, MATTER_PRIORITY_LABELS, MATTER_PRIORITY_STYLES, PRACTICE_AREA_LABELS, shortName } from '@/lib/utils';
 import { UserAvatar } from '@/components/ui/user-avatar';
 import {
     ArrowLeft, Clock, Receipt, Wallet, FileText, CheckSquare, Users, Edit, Plus, Download,
@@ -89,7 +89,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
     // (role-carried or direct) plus the closed-file freeze. Assignment holds
     // on this page already (unassigned matters 404 server-side).
     const can = (p: string | string[]) => hasAnyPermission(auth.user?.permissions, Array.isArray(p) ? p : [p]);
-    const canEditMatter = !matterLocked && can(['edit_matters', 'manage_matters']);
+    const canEditMatter = !matterLocked && can(['edit_matters', 'manage_matters', 'edit_all_matters']);
     const canLogTime = !matterLocked && can(['create_time_entries', 'manage_time_entries']);
     const canAddNote = canEditMatter;
     const canEditDates = canEditMatter;
@@ -101,6 +101,15 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
     const canAddExpense = !matterLocked && can(['create_expenses', 'manage_expenses']);
     const canEditExpense = !matterLocked && can(['edit_expenses', 'manage_expenses']);
     const canDeleteExpense = !matterLocked && can(['delete_expenses', 'manage_expenses']);
+    // Time rows: backend TimeController requires owner-or-admin plus the
+    // module permission, and refuses billed/locked/closed entries.
+    const canTouchTimeEntry = (entry: any, perms: string[]) =>
+        !matterLocked
+        && !entry.billed && !entry.is_locked
+        && (entry.user_id === auth.user?.id || isFirmAdmin)
+        && can(perms);
+    const canEditTimeEntry = (entry: any) => canTouchTimeEntry(entry, ['edit_time_entries', 'manage_time_entries']);
+    const canDeleteTimeEntry = (entry: any) => canTouchTimeEntry(entry, ['delete_time_entries', 'manage_time_entries']);
     const [notes, setNotes] = useState<any[]>(matter.notes ?? []);
     const [timeEntries, setTimeEntries] = useState<any[]>(matter.time_entries ?? []);
     const [expenses, setExpenses] = useState<any[]>(matter.expenses ?? []);
@@ -304,6 +313,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
     const [noteBody, setNoteBody] = useState('');
 
     const [timeModalOpen, setTimeModalOpen] = useState(false);
+    const [editingTimeEntry, setEditingTimeEntry] = useState<any>(null);
     const [timeSaving, setTimeSaving] = useState(false);
     const [timeError, setTimeError] = useState<string | null>(null);
     const [timeForm, setTimeForm] = useState({
@@ -488,14 +498,18 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
         }
     };
 
-    const openTimeModal = () => {
+    const openTimeModal = (entry: any = null) => {
+        // Guard against accidental event objects (onClick passthrough):
+        // a time entry always carries a string id.
+        if (entry && typeof entry.id !== 'string') entry = null;
         setTimeError(null);
+        setEditingTimeEntry(entry);
         setTimeForm({
-            date: new Date().toISOString().slice(0, 10),
-            duration_minutes: '60',
-            rate: '',
-            billable: true,
-            description: '',
+            date: entry?.date ? String(entry.date).slice(0, 10) : new Date().toISOString().slice(0, 10),
+            duration_minutes: entry ? String(entry.duration_minutes ?? '') : '60',
+            rate: entry && entry.rate !== null && entry.rate !== undefined ? String(entry.rate) : '',
+            billable: entry ? Boolean(entry.billable) : true,
+            description: entry?.description ?? '',
         });
         setTimeModalOpen(true);
     };
@@ -504,27 +518,47 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
         setTimeSaving(true);
         setTimeError(null);
         try {
-            const { ok, payload } = await postJson(`/matters/${matter.id}/time-entries`, {
+            const body = {
                 date: timeForm.date,
                 duration_minutes: Number(timeForm.duration_minutes),
                 rate: timeForm.rate ? Number(timeForm.rate) : null,
                 billable: Boolean(timeForm.billable),
                 description: timeForm.description || null,
-            });
+            };
+            const { ok, payload } = editingTimeEntry
+                ? await putJson(`/time/${editingTimeEntry.id}`, body)
+                : await postJson(`/matters/${matter.id}/time-entries`, body);
             if (!ok) {
                 const validationMsg = payload?.errors
                     ? Object.values(payload.errors as Record<string, string[]>)?.[0]?.[0]
                     : null;
-                setTimeError(validationMsg || payload?.message || 'Unable to log time.');
+                setTimeError(validationMsg || payload?.message || payload?.error || 'Unable to save time entry.');
                 return;
             }
-            setTimeEntries((prev) => [payload.time_entry, ...prev]);
+            if (editingTimeEntry) {
+                const updated = payload.entry ?? { ...editingTimeEntry, ...body };
+                setTimeEntries((prev) => prev.map((e: any) => (e.id === editingTimeEntry.id ? { ...e, ...updated } : e)));
+            } else {
+                setTimeEntries((prev) => [payload.time_entry, ...prev]);
+            }
+            setEditingTimeEntry(null);
             setTimeModalOpen(false);
         } catch {
-            setTimeError('Unable to log time.');
+            setTimeError('Unable to save time entry.');
         } finally {
             setTimeSaving(false);
         }
+    };
+
+    const deleteTimeEntry = async (entry: any) => {
+        if (!window.confirm('Delete this time entry? This cannot be undone.')) return;
+
+        const { ok, payload } = await deleteJson(`/time/${entry.id}`);
+        if (!ok) {
+            window.alert(payload?.message || payload?.error || 'Unable to delete time entry.');
+            return;
+        }
+        setTimeEntries((prev) => prev.filter((e: any) => e.id !== entry.id));
     };
 
     const openExpenseModal = (expense: any = null) => {
@@ -845,7 +879,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                 </Button>
                 <div className="flex items-center gap-2">
                     {canLogTime && (
-                        <Button size="sm" variant="outline" type="button" onClick={openTimeModal}>
+                        <Button size="sm" variant="outline" type="button" onClick={() => openTimeModal()}>
                             <Timer className="h-4 w-4 mr-1" />
                             Log Time
                         </Button>
@@ -1107,7 +1141,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                             <div key={note.id} className="px-6 py-4 hover:bg-muted/10 transition-colors">
                                                 <div className="flex items-center gap-2.5 mb-2">
                                                     <UserAvatar user={note.user} fallbackClassName="bg-primary text-primary-foreground text-xs font-bold" />
-                                                    <span className="text-sm font-semibold text-foreground">{note.user?.full_name || 'System'}</span>
+                                                    <span className="text-sm font-semibold text-foreground">{note.user?.full_name ? shortName(note.user.full_name) : 'System'}</span>
                                                     <span className="text-xs text-muted-foreground">
                                                         · {formatDate(note.logged_at ?? note.created_at)} {formatTime(note.logged_at ?? note.created_at)}
                                                     </span>
@@ -1513,7 +1547,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                             )}
                         </div>
                         {canLogTime && (
-                            <Button size="sm" variant="outline" type="button" onClick={openTimeModal}>
+                            <Button size="sm" variant="outline" type="button" onClick={() => openTimeModal()}>
                                 <Plus className="h-3.5 w-3.5 mr-1" />
                                 Log Time
                             </Button>
@@ -1532,6 +1566,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                             <TableHead className="text-center">Billable</TableHead>
                                             <TableHead className="text-right">Duration</TableHead>
                                             <TableHead className="text-right">Amount</TableHead>
+                                            <TableHead className="text-right"><span className="sr-only">Actions</span></TableHead>
                                         </TableHeaderRow>
                                     </TableHeader>
                                     <TableBody>
@@ -1548,7 +1583,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                                     {entry.user?.full_name ? (
                                                         <span className="inline-flex items-center gap-1.5">
                                                             <UserAvatar user={entry.user} className="h-5 w-5" fallbackClassName="text-[9px]" />
-                                                            {entry.user.full_name}
+                                                            {shortName(entry.user.full_name)}
                                                         </span>
                                                     ) : '—'}
                                                 </TableCell>
@@ -1563,12 +1598,32 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                                 <TableCell className="text-right font-semibold tabular-nums">
                                                     {formatCurrency(Number(entry.amount || 0))}
                                                 </TableCell>
+                                                <TableCell className="text-right whitespace-nowrap">
+                                                    {(canEditTimeEntry(entry) || canDeleteTimeEntry(entry)) ? (
+                                                        <div className="flex items-center justify-end gap-1">
+                                                            {canEditTimeEntry(entry) && (
+                                                            <Button size="icon" variant="ghost" className="h-7 w-7" type="button" aria-label="Edit time entry" onClick={() => openTimeModal(entry)}
+                                                            >
+                                                                <Edit className="h-3.5 w-3.5" />
+                                                            </Button>
+                                                            )}
+                                                            {canDeleteTimeEntry(entry) && (
+                                                            <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" type="button" aria-label="Delete time entry" onClick={() => deleteTimeEntry(entry)}
+                                                            >
+                                                                <Trash2 className="h-3.5 w-3.5" />
+                                                            </Button>
+                                                            )}
+                                                        </div>
+                                                    ) : entry.billed || entry.is_locked ? (
+                                                        <span className="text-xs text-muted-foreground">Locked</span>
+                                                    ) : null}
+                                                </TableCell>
                                             </TableRow>
                                         ))}
                                     </TableBody>
                                     <TableFooter>
                                         <TableRow className="font-semibold">
-                                            <TableCell colSpan={6} className="text-right text-muted-foreground uppercase tracking-wide">Total</TableCell>
+                                            <TableCell colSpan={7} className="text-right text-muted-foreground uppercase tracking-wide">Total</TableCell>
                                             <TableCell className="text-right text-success tabular-nums">
                                                 {formatCurrency(timeEntries.reduce((s: number, e: any) => s + Number(e.amount || 0), 0))}
                                             </TableCell>
@@ -1761,7 +1816,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                         <div className="flex-1 min-w-0">
                                             <p className="text-sm font-medium truncate">{doc.name}</p>
                                             <p className="text-xs text-muted-foreground">
-                                                {doc.uploadedBy?.full_name ? `${doc.uploadedBy.full_name} · ` : ''}
+                                                {doc.uploadedBy?.full_name ? `${shortName(doc.uploadedBy.full_name)} · ` : ''}
                                                 {doc.created_at ? formatDate(doc.created_at) : ''}
                                                 {doc.size ? ` · ${Math.round(doc.size / 1024)} KB` : ''}
                                                 {showFolderTag && doc.folder ? ` · ${doc.folder}` : ''}
@@ -1934,7 +1989,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                                             {task.assignee?.full_name && (
                                                                 <span className="inline-flex items-center gap-1">
                                                                     <UserAvatar user={task.assignee} className="h-4 w-4" fallbackClassName="text-[8px]" />
-                                                                    {task.assignee.full_name}
+                                                                    {shortName(task.assignee.full_name)}
                                                                 </span>
                                                             )}
                                                         </div>
@@ -2154,7 +2209,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                         <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Responsible</p>
                                         {matter.responsible_user ? (
                                             <>
-                                                <p className="text-sm font-semibold text-foreground truncate">{matter.responsible_user.full_name}</p>
+                                                <p className="text-sm font-semibold text-foreground truncate">{shortName(matter.responsible_user.full_name)}</p>
                                                 <p className="text-xs text-muted-foreground truncate">{matter.responsible_user.email}</p>
                                             </>
                                         ) : (
@@ -2191,7 +2246,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                                 className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
                                             >
                                                 <Pencil className="h-3 w-3" />
-                                                {(matter as any).hearing_date ? 'Edit' : 'Set'}
+                                                {(matter as any).hearing_date ? 'Edit' : 'Add hearing'}
                                             </button>
                                             )}
                                         </div>
@@ -2293,7 +2348,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                     <div className="flex items-center gap-3">
                                         <UserAvatar user={matter.responsible_user} className="h-9 w-9" fallbackClassName="bg-[#016452] text-white text-sm font-bold" />
                                         <div className="min-w-0">
-                                            <p className="text-sm font-semibold text-foreground truncate">{matter.responsible_user.full_name}</p>
+                                            <p className="text-sm font-semibold text-foreground truncate">{shortName(matter.responsible_user.full_name)}</p>
                                             <p className="text-xs text-muted-foreground truncate">{matter.responsible_user.email}</p>
                                         </div>
                                     </div>
@@ -2395,8 +2450,8 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
             <Dialog open={timeModalOpen} onOpenChange={setTimeModalOpen}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Log time</DialogTitle>
-                        <DialogDescription>Add a time entry to this matter.</DialogDescription>
+                        <DialogTitle>{editingTimeEntry ? 'Edit time entry' : 'Log time'}</DialogTitle>
+                        <DialogDescription>{editingTimeEntry ? 'Update this time entry.' : 'Add a time entry to this matter.'}</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4">
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

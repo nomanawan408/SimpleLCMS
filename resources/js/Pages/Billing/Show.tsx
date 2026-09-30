@@ -13,7 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, Mail, CreditCard, CheckCircle, Printer, XCircle, Send, Download, Trash2 } from 'lucide-react';
-import { cn, formatCurrency, formatDate, isOverdueDate, hasPermission } from '@/lib/utils';
+import { cn, formatCurrency, formatDate, isOverdueDate, hasPermission, shortName } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import type { Invoice, PageProps } from '@/types';
 
@@ -194,7 +194,7 @@ export default function ShowInvoice({ invoice }: Props) {
                                 <p className={cn('font-medium', !clientName && 'text-base')}>{invoice.matter?.name}</p>
                                 <p className="text-sm text-muted-foreground">Matter {invoice.matter?.matter_number}</p>
                                 {invoice.matter?.responsible_user && (
-                                    <p className="text-xs text-muted-foreground mt-1">Handled by: {invoice.matter.responsible_user.full_name}</p>
+                                    <p className="text-xs text-muted-foreground mt-1">Handled by: {shortName(invoice.matter.responsible_user.full_name)}</p>
                                 )}
                             </div>
                             <div className="text-right">

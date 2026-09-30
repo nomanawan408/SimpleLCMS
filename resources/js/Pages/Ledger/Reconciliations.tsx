@@ -3,26 +3,37 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import {
-    Table, TableHeader, TableHeaderRow, TableBody, TableRow, TableHead, TableCell,
+    Table, TableHeader, TableHeaderRow, TableBody, TableRow, TableHead, TableCell, SortableTh,
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { cn, formatCurrency, formatDate, hasPermission } from '@/lib/utils';
+import { cn, formatCurrency, formatDate, hasPermission, shortName } from '@/lib/utils';
 import { ArrowLeft, TriangleAlert, CircleCheck } from 'lucide-react';
 import type { BankReconciliation, PaginatedData, PageProps } from '@/types';
 
 interface Props {
     reconciliations: PaginatedData<BankReconciliation>;
+    filters?: { sort_by?: string | null; sort_dir?: 'asc' | 'desc' | null };
 }
 
 function gbp(value: string | number): string {
     return formatCurrency(typeof value === 'string' ? parseFloat(value) : value);
 }
 
-export default function Reconciliations({ reconciliations }: Props) {
+export default function Reconciliations({ reconciliations, filters }: Props) {
+    // Server-side column sort, mirrored in the URL (none -> asc -> desc).
+    const [sortBy, setSortBy] = useState<string | null>(filters?.sort_by ?? null);
+    const [sortDir, setSortDir] = useState<'asc' | 'desc'>(filters?.sort_dir === 'desc' ? 'desc' : 'asc');
+    const cycleSort = (key: string) => {
+        const nextBy = sortBy !== key ? key : sortDir === 'asc' ? key : null;
+        const nextDir = sortBy !== key || sortDir === 'asc' ? 'asc' : 'desc';
+        setSortBy(nextBy);
+        setSortDir(nextDir as 'asc' | 'desc');
+        router.get('/ledger/reconciliations', { sort_by: nextBy || undefined, sort_dir: nextBy ? nextDir : undefined }, { preserveState: true, replace: true });
+    };
     const { auth } = usePage<PageProps>().props;
     // Backend reconcile-run mirrors this (manage_finances).
     const userRoles = auth.user?.roles ?? [];
@@ -83,14 +94,14 @@ export default function Reconciliations({ reconciliations }: Props) {
                             <Table className="min-w-[920px]">
                                 <TableHeader>
                                     <TableHeaderRow>
-                                        <TableHead>As At</TableHead>
-                                        <TableHead>Run On</TableHead>
-                                        <TableHead>By</TableHead>
-                                        <TableHead className="text-right">Paper Statement</TableHead>
-                                        <TableHead className="text-right">Cash Sheet</TableHead>
-                                        <TableHead className="text-right">Client Ledgers</TableHead>
-                                        <TableHead className="text-right">Discrepancy</TableHead>
-                                        <TableHead>Status</TableHead>
+                                        <SortableTh label="As At" sortKey="as_at" activeKey={sortBy} dir={sortDir} onSort={cycleSort} />
+                                        <SortableTh label="Run On" sortKey="run_on" activeKey={sortBy} dir={sortDir} onSort={cycleSort} />
+                                        <SortableTh label="By" sortKey="by" activeKey={sortBy} dir={sortDir} onSort={cycleSort} />
+                                        <SortableTh label="Paper Statement" sortKey="paper" activeKey={sortBy} dir={sortDir} onSort={cycleSort} className="text-right" />
+                                        <SortableTh label="Cash Sheet" sortKey="cash_sheet" activeKey={sortBy} dir={sortDir} onSort={cycleSort} className="text-right" />
+                                        <SortableTh label="Client Ledgers" sortKey="ledgers" activeKey={sortBy} dir={sortDir} onSort={cycleSort} className="text-right" />
+                                        <SortableTh label="Discrepancy" sortKey="discrepancy" activeKey={sortBy} dir={sortDir} onSort={cycleSort} className="text-right" />
+                                        <SortableTh label="Status" sortKey="status" activeKey={sortBy} dir={sortDir} onSort={cycleSort} />
                                     </TableHeaderRow>
                                 </TableHeader>
                                 <TableBody>
@@ -98,7 +109,7 @@ export default function Reconciliations({ reconciliations }: Props) {
                                         <TableRow key={rec.id} className={cn(rec.status === 'discrepancy_found' && 'bg-red-50/40')}>
                                             <TableCell className="whitespace-nowrap text-muted-foreground">{formatDate(rec.as_at_date)}</TableCell>
                                             <TableCell className="whitespace-nowrap text-muted-foreground">{formatDate(rec.reconciliation_date)}</TableCell>
-                                            <TableCell className="whitespace-nowrap text-sm">{rec.performer?.full_name ?? '—'}</TableCell>
+                                            <TableCell className="whitespace-nowrap text-sm">{rec.performer?.full_name ? shortName(rec.performer.full_name) : '—'}</TableCell>
                                             <TableCell className="text-right tabular-nums">{gbp(rec.paper_statement_balance)}</TableCell>
                                             <TableCell className="text-right tabular-nums">{gbp(rec.system_cash_sheet_balance)}</TableCell>
                                             <TableCell className="text-right tabular-nums">{gbp(rec.aggregate_client_ledger_balance)}</TableCell>

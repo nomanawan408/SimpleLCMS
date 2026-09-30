@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { TaskDueBadge } from '@/components/ui/task-due-badge';
 import { Button } from '@/components/ui/button';
-import { formatCurrency, formatDate, MATTER_STATUS_LABELS, hasPermission } from '@/lib/utils';
+import { formatCurrency, formatDate, MATTER_STATUS_LABELS, hasPermission, shortName } from '@/lib/utils';
 import {
     AlertTriangle, Archive, ArrowDownLeft, ArrowRight, Briefcase, CheckSquare,
     Clock, Loader, Pause, Plus, PoundSterling, TrendingUp,
@@ -171,10 +171,12 @@ export default function Dashboard({ stats, viewFinancial, recentMatters, upcomin
     const { auth } = usePage<PageProps>().props;
     const canCreateMatter = hasPermission(auth.user?.permissions, 'create_matters');
     const greeting = getGreeting();
+    // Each card links to the matching index category, so the number shown
+    // always equals the rows its link opens (same buckets as the controller).
     const matterKpis: KpiCard[] = [
-        { label: 'Opened Matters', value: String(stats.opened_matters), href: '/matters?category=open', icon: Briefcase, tone: 'violet' },
-        { label: 'In Progress Matters', value: String(stats.in_progress_matters), href: '/matters?status=in_progress', icon: Loader, tone: 'lime' },
-        { label: 'On Hold Matters', value: String(stats.on_hold_matters), href: '/matters?status=on_hold', icon: Pause, tone: 'blue' },
+        { label: 'Opened Matters', value: String(stats.opened_matters), href: '/matters?category=opened', icon: Briefcase, tone: 'violet' },
+        { label: 'In Progress Matters', value: String(stats.in_progress_matters), href: '/matters?category=in_progress', icon: Loader, tone: 'lime' },
+        { label: 'On Hold Matters', value: String(stats.on_hold_matters), href: '/matters?category=on_hold', icon: Pause, tone: 'blue' },
         { label: 'Closed Matters', value: String(stats.closed_matters), href: '/matters?category=closed', icon: Archive, tone: 'primary' },
     ];
     const workKpis: KpiCard[] = [
@@ -277,7 +279,7 @@ export default function Dashboard({ stats, viewFinancial, recentMatters, upcomin
                                             <p className="truncate text-sm font-semibold text-foreground">{task.title}</p>
                                             <div className="mt-1 flex items-center gap-1.5">
                                                 <TaskDueBadge dueDate={task.due_date} done={task.status === 'done'} />
-                                                {task.assignee && <span className="truncate text-xs text-muted-foreground opacity-60">{task.assignee.full_name}</span>}
+                                                {task.assignee && <span className="truncate text-xs text-muted-foreground opacity-60">{shortName(task.assignee.full_name)}</span>}
                                             </div>
                                         </div>
                                         <Badge variant={task.priority === 'high' ? 'destructive' : task.priority === 'medium' ? 'warning' : 'secondary'} className="shrink-0 rounded-md text-[11px] font-semibold capitalize">{task.priority}</Badge>

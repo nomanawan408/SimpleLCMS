@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Combobox } from '@/components/ui/combobox';
-import { formatDate, cn, matterComboboxOptions, hasAnyPermission } from '@/lib/utils';
+import { formatDate, cn, matterComboboxOptions, hasAnyPermission, shortName } from '@/lib/utils';
 import { ArrowLeft, ChevronDown, Download, Eye, FileText, Folder, FolderOpen, Paperclip, Trash2, Upload, X } from 'lucide-react';
 import type { Document, PaginatedData, PageProps } from '@/types';
 import { useUploadQueue } from '@/hooks/useUploadQueue';
@@ -297,7 +297,7 @@ export default function DocumentsIndex({ documents, matters, filters }: Props) {
                                                                     '—'
                                                                 )}
                                                                 {' · '}
-                                                                {doc.uploadedBy?.full_name ?? '—'} · {formatDate(doc.created_at)} · {formatBytes(doc.size_bytes ?? doc.size)}
+                                                                {doc.uploadedBy?.full_name ? shortName(doc.uploadedBy.full_name) : '—'} · {formatDate(doc.created_at)} · {formatBytes(doc.size_bytes ?? doc.size)}
                                                             </p>
                                                         </div>
                                                         <span className={`hidden sm:inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium shrink-0 ${visibilityBadgeStyles[doc.is_client_visible ? 'success' : 'secondary']}`}>

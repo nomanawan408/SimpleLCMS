@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 /**
@@ -119,4 +120,52 @@ export {
     TableHead,
     TableCell,
     TableCaption,
+    SortableTh,
 };
+
+/**
+ * Clickable table header for server-side sorting. Renders the label plus a
+ * direction arrow when active; otherwise a faint affordance. Cycle
+ * none -> asc -> desc lives in the parent (it owns the URL state).
+ */
+function SortableTh({
+    label,
+    sortKey,
+    activeKey,
+    dir,
+    onSort,
+    className,
+    children,
+}: {
+    label?: React.ReactNode;
+    sortKey: string;
+    activeKey: string | null;
+    dir: 'asc' | 'desc';
+    onSort: (key: string) => void;
+    className?: string;
+    children?: React.ReactNode;
+}) {
+    const active = activeKey === sortKey;
+    return (
+        <TableHead className={className}>
+            <button
+                type="button"
+                onClick={() => onSort(sortKey)}
+                title={active ? `Sorted ${dir === 'asc' ? 'ascending' : 'descending'} — click to change` : `Sort by ${typeof label === 'string' ? label : sortKey}`}
+                aria-label={active ? `Sorted ${dir === 'asc' ? 'ascending' : 'descending'}` : `Sort by ${typeof label === 'string' ? label : sortKey}`}
+                className="inline-flex items-center gap-1 transition-colors hover:text-foreground"
+            >
+                {children ?? label}
+                {active ? (
+                    dir === 'asc' ? (
+                        <ArrowUp className="h-3.5 w-3.5 text-primary" />
+                    ) : (
+                        <ArrowDown className="h-3.5 w-3.5 text-primary" />
+                    )
+                ) : (
+                    <ArrowUpDown className="h-3.5 w-3.5 opacity-40" />
+                )}
+            </button>
+        </TableHead>
+    );
+}

@@ -20,6 +20,7 @@ use Inertia\Inertia;
 
 class InvoiceController extends Controller
 {
+    use \App\Http\Controllers\Concerns\SortsIndexTables;
     public function index(Request $request)
     {
         abort_unless($request->user()->canViewFinances(), 403);
@@ -44,14 +45,31 @@ class InvoiceController extends Controller
         $query = Invoice::with(['matter', 'matter.responsibleUser'])
             ->withSum('payments as amount_paid', 'amount')
             ->where('firm_id', $firmId)
-            ->visibleTo($request->user())
+            ->visibleTo($request->user());
+
+        $sortBy = $request->input('sort_by');
+        $sortDir = $this->normalizeSortDir($request->input('sort_dir'));
+        $sortApplied = $this->applyTableSort($query, [
+            'number'  => ['expr' => 'invoices.invoice_number'],
+            'matter'  => ['expr' => '(SELECT name FROM matters WHERE matters.id = invoices.matter_id)'],
+            'date'    => ['expr' => 'invoices.created_at'],
+            'due'     => ['expr' => 'invoices.due_date'],
+            'amount'  => ['expr' => 'invoices.total'],
+            'status'  => ['expr' => 'invoices.status'],
+        ], $sortBy, $sortDir);
+        if (! $sortApplied) {
+            $sortBy = null;
             // Urgency first: collectable (sent/partial) by due date with
             // overdue on top, then drafts, then finished (paid/written
             // off/cancelled) by recency. Dateless invoices sink via COALESCE
             // so MySQL and PgSQL agree (MySQL sorts NULLs first on ASC).
-            ->orderByRaw("CASE WHEN status IN ('sent', 'partial') THEN 0 WHEN status = 'draft' THEN 1 ELSE 2 END")
-            ->orderByRaw("COALESCE(due_date, '9999-12-31') ASC")
-            ->orderBy('created_at', 'desc');
+            $query
+                ->orderByRaw("CASE WHEN status IN ('sent', 'partial') THEN 0 WHEN status = 'draft' THEN 1 ELSE 2 END")
+                ->orderByRaw("COALESCE(due_date, '9999-12-31') ASC")
+                ->orderBy('created_at', 'desc');
+        } else {
+            $query->orderBy('invoices.created_at', 'desc');
+        }
 
         // Filters
         if ($request->filled('status')) {

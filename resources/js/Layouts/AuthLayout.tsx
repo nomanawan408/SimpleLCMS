@@ -132,7 +132,7 @@ export default function AuthLayout({ children, title, description, split = false
                     <div className="relative z-10 w-full max-w-md">
                         {formCard}
                         <p className="mt-6 text-center text-xs text-muted-foreground">
-                            © {new Date().getFullYear()} Simple Lawyer. All rights reserved.
+                            © {new Date().getFullYear()} Simple Case Management. All rights reserved.
                         </p>
                     </div>
                 </div>
@@ -157,7 +157,7 @@ export default function AuthLayout({ children, title, description, split = false
                 {formCard}
 
                 <p className="mt-6 text-center text-xs text-muted-foreground">
-                    © {new Date().getFullYear()} Simple Lawyer. All rights reserved.
+                    © {new Date().getFullYear()} Simple Case Management. All rights reserved.
                 </p>
             </div>
         </div>

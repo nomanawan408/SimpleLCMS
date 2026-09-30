@@ -133,6 +133,20 @@ export function initials(name: string): string {
         .toUpperCase();
 }
 
+/**
+ * Platform display convention for staff names: first initial + surname
+ * ("Tufail Hussain" -> "T Hussain"). Single-word names pass through.
+ * Applies to staff attributions only -- contacts keep legal names, and
+ * pickers/management screens keep full names for identification.
+ */
+export function shortName(name: string | null | undefined): string {
+    if (!name) return '';
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    if (parts.length < 2) return parts[0] ?? '';
+    const first = parts[0][0]?.toUpperCase() ?? '';
+    return `${first} ${parts[parts.length - 1]}`;
+}
+
 export const MATTER_STATUS_LABELS: Record<string, string> = {
     open: 'Open',
     in_progress: 'In Progress',

@@ -12,10 +12,13 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
+use App\Http\Controllers\Concerns\SortsIndexTables;
 use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 class TaskController extends Controller
 {
+    use SortsIndexTables;
+
     public function index(Request $request): Response
     {
         abort_unless($request->user()->is_active, 403);
@@ -30,13 +33,28 @@ class TaskController extends Controller
 
         $query = Task::where('firm_id', $firmId)
             ->visibleTo($request->user())
-            ->with(['matter', 'assignee'])
-            ->orderByRaw("CASE status WHEN 'todo' THEN 1 WHEN 'in_progress' THEN 2 WHEN 'review' THEN 3 ELSE 4 END")
-            // Urgency within each status: overdue first, then upcoming;
-            // dateless tasks sink (COALESCE keeps MySQL and PgSQL identical —
-            // MySQL sorts NULLs first on ASC by default).
-            ->orderByRaw("COALESCE(due_date, '9999-12-31') ASC")
-            ->orderBy('created_at', 'desc');
+            ->with(['matter', 'assignee']);
+
+        $sortBy = $request->input('sort_by');
+        $sortDir = $this->normalizeSortDir($request->input('sort_dir'));
+        $sortApplied = $this->applyTableSort($query, [
+            'title'    => ['expr' => 'tasks.title'],
+            'assignee' => ['expr' => '(SELECT full_name FROM users WHERE users.id = tasks.assignee_id)'],
+            'matter'   => ['expr' => '(SELECT name FROM matters WHERE matters.id = tasks.matter_id)'],
+            'due'      => ['expr' => "COALESCE(tasks.due_date, '" . ($sortDir === 'desc' ? '1000-01-01' : '9999-12-31') . "')"],
+            'priority' => ['expr' => "CASE tasks.priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 WHEN 'low' THEN 2 ELSE 3 END"],
+            'status'   => ['expr' => "CASE tasks.status WHEN 'todo' THEN 1 WHEN 'in_progress' THEN 2 WHEN 'review' THEN 3 ELSE 4 END"],
+            'created'  => ['expr' => 'tasks.created_at'],
+        ], $sortBy, $sortDir);
+        if (! $sortApplied) {
+            $sortBy = null;
+            $query->orderByRaw("CASE status WHEN 'todo' THEN 1 WHEN 'in_progress' THEN 2 WHEN 'review' THEN 3 ELSE 4 END")
+                // Urgency within each status: overdue first, then upcoming;
+                // dateless tasks sink (COALESCE keeps MySQL and PgSQL identical —
+                // MySQL sorts NULLs first on ASC by default).
+                ->orderByRaw("COALESCE(due_date, '9999-12-31') ASC");
+        }
+        $query->orderBy('created_at', 'desc');
 
         if ($request->filled('status')) {
             $query->where('status', $request->status);
@@ -69,7 +87,7 @@ class TaskController extends Controller
             'tasks'   => $tasks,
             'users'   => User::where('firm_id', $firmId)->where('is_active', true)->get(['id', 'full_name']),
             'matters' => Matter::where('firm_id', $firmId)->visibleTo($request->user())->orderBy('name')->get(['id', 'name', 'matter_number']),
-            'filters' => $request->only('status', 'priority', 'assignee_id', 'matter_id', 'search'),
+            'filters' => [...$request->only('status', 'priority', 'assignee_id', 'matter_id', 'search'), 'sort_by' => $sortBy, 'sort_dir' => $sortBy ? $sortDir : null],
         ]);
     }
 

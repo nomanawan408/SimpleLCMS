@@ -263,4 +263,48 @@ class TimeEntryTest extends TestCase
             ->assertOk()
             ->assertInertia(fn ($page) => $page->where('matters', []));
     }
+
+    // ── Row ownership (matter Show table mirrors these rules) ──────────
+
+    public function test_non_owner_cannot_update_or_delete_colleagues_entry(): void
+    {
+        [$firm, $user] = $this->createFirmAndUser();
+        $other = User::factory()->forFirm($firm)->create();
+        $mine = Matter::factory()->forFirm($firm)->create(['status' => 'open']);
+        $this->assignToMatter($user, $mine);
+        $this->assignToMatter($other, $mine);
+
+        // Both hold the default lawyer set (edit/delete_time_entries).
+        $this->assignFirmRole($other, 'lawyer');
+
+        $entry = TimeEntry::factory()->forMatter($mine)->forUser($other)->create([
+            'billed' => false, 'description' => 'Theirs',
+        ]);
+
+        $this->actingAsUser($user)
+            ->putJson("/time/{$entry->id}", ['description' => 'Mine now'])
+            ->assertForbidden();
+        $this->assertSame('Theirs', $entry->fresh()->description);
+
+        $this->actingAsUser($user)
+            ->deleteJson("/time/{$entry->id}")
+            ->assertForbidden();
+        $this->assertDatabaseHas('time_entries', ['id' => $entry->id]);
+    }
+
+    public function test_owner_with_edit_permission_updates_own_open_entry(): void
+    {
+        [$firm, $user] = $this->createFirmAndUser();
+        $mine = Matter::factory()->forFirm($firm)->create(['status' => 'open']);
+        $this->assignToMatter($user, $mine);
+
+        $entry = TimeEntry::factory()->forMatter($mine)->forUser($user)->create([
+            'billed' => false, 'description' => 'Draft',
+        ]);
+
+        $this->actingAsUser($user)
+            ->putJson("/time/{$entry->id}", ['description' => 'Final'])
+            ->assertOk();
+        $this->assertSame('Final', $entry->fresh()->description);
+    }
 }

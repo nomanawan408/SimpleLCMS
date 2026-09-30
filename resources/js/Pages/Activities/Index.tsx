@@ -5,7 +5,7 @@ import {
     Table, TableHeader, TableHeaderRow, TableBody, TableRow, TableHead, TableCell,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { formatDate, cn } from '@/lib/utils';
+import { formatDate, cn, shortName } from '@/lib/utils';
 import type { PaginatedData } from '@/types';
 
 interface ActivityItem {
@@ -81,7 +81,7 @@ export default function ActivitiesIndex({ activities }: Props) {
                                                 })}
                                             </TableCell>
                                             <TableCell className="font-medium text-foreground">
-                                                {item.causer?.full_name ?? 'System'}
+                                                {item.causer?.full_name ? shortName(item.causer.full_name) : 'System'}
                                             </TableCell>
                                             <TableCell>
                                                 <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize ${ACTION_BADGE_STYLES[item.description] ?? 'bg-muted text-muted-foreground border-border'}`}>

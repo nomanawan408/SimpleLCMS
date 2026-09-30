@@ -18,14 +18,14 @@ class PermissionUnificationTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function customRoleUser(string $firmId, array $permissions): User
+    private function customRoleUser(string $firmId, array $permissions, string $roleName = 'Custom'): User
     {
         foreach ($permissions as $name) {
             Permission::firstOrCreate(['name' => $name, 'guard_name' => 'web']);
         }
-        $role = Role::create(['name' => 'Custom', 'guard_name' => 'web', 'firm_id' => $firmId]);
+        $role = Role::create(['name' => $roleName, 'guard_name' => 'web', 'firm_id' => $firmId]);
         $role->syncPermissions($permissions);
-        $user = User::factory()->forFirm(\App\Models\Firm::find($firmId))->create(['role' => 'Custom']);
+        $user = User::factory()->forFirm(\App\Models\Firm::find($firmId))->create(['role' => $roleName]);
         $user->assignRole($role);
 
         return $user->fresh();
@@ -193,6 +193,59 @@ class PermissionUnificationTest extends TestCase
         }
 
         $this->assertSame([], $unenforced, 'Decorative permissions found: ' . implode(', ', $unenforced));
+    }
+
+    /**
+     * The all-matters override: a supervisor role sees every file assigned
+     * or not, without becoming firm_admin. Writes still need their own
+     * override permission, and the closed freeze never lifts.
+     */
+    public function test_view_all_matters_opens_every_file_read_only(): void
+    {
+        [$firm, $admin] = $this->createFirmAndAdmin();
+        $open = Matter::factory()->forFirm($firm)->create(['status' => 'open']);
+        $closed = Matter::factory()->forFirm($firm)->create(['status' => 'closed']);
+        $user = $this->customRoleUser($firm->id, ['view_all_matters']);
+
+        $this->actingAsUser($user)->get('/matters')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('matters.data', fn ($data) => collect($data)->pluck('id')->contains($open->id)
+                    && collect($data)->pluck('id')->contains($closed->id)));
+
+        $this->actingAsUser($user)->get("/matters/{$open->id}")->assertOk();
+        $this->actingAsUser($user)->get("/matters/{$closed->id}")->assertOk();
+
+        // Read-only: no edit or delete without the write overrides.
+        $this->actingAsUser($user)
+            ->put("/matters/{$open->id}", ['name' => 'Sneaky'])
+            ->assertForbidden();
+        $this->actingAsUser($user)->delete("/matters/{$open->id}")->assertForbidden();
+    }
+
+    public function test_edit_and_delete_all_matters_skip_assignment_not_freeze(): void
+    {
+        [$firm, $admin] = $this->createFirmAndAdmin();
+        $open = Matter::factory()->forFirm($firm)->create(['status' => 'open', 'name' => 'Open file']);
+        $closed = Matter::factory()->forFirm($firm)->create(['status' => 'closed', 'name' => 'Shut file']);
+        $editor = $this->customRoleUser($firm->id, ['view_all_matters', 'edit_all_matters']);
+        $destroyer = $this->customRoleUser($firm->id, ['view_all_matters', 'delete_all_matters'], 'Destroyer');
+
+        // Unassigned open file: editable without the base edit permission.
+        $this->actingAsUser($editor)
+            ->put("/matters/{$open->id}", ['name' => 'Renamed by override'])
+            ->assertSessionHasNoErrors();
+        $this->assertSame('Renamed by override', $open->fresh()->name);
+
+        // Closed file: the override stops at the archive.
+        $this->actingAsUser($editor)
+            ->put("/matters/{$closed->id}", ['name' => 'Sneaky'])
+            ->assertForbidden();
+
+        // Delete override works on open files, never on closed ones.
+        $this->actingAsUser($destroyer)->delete("/matters/{$open->id}")->assertRedirect();
+        $this->assertSoftDeleted('matters', ['id' => $open->id]);
+        $this->actingAsUser($destroyer)->delete("/matters/{$closed->id}")->assertForbidden();
     }
 
     public function test_custom_role_without_time_permission_cannot_check_in(): void

@@ -19,7 +19,7 @@ import {
 } from '@dnd-kit/core';
 import { SortableContext, arrayMove, horizontalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Check, Columns3, Eye, EyeOff, GripVertical, RotateCcw } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, Check, Columns3, Eye, EyeOff, GripVertical, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -36,6 +36,9 @@ export interface DynamicColumn<T> {
     hideable?: boolean;
     /** false hides the column until the user enables it (for opt-in columns). */
     defaultVisible?: boolean;
+    /** Server-side sorting opt-in: the header shows a sort control that
+        reports the column id back through onSort. */
+    sortable?: boolean;
     cell: (row: T) => ReactNode;
     cellClassName?: string;
 }
@@ -49,6 +52,11 @@ interface DynamicTableProps<T> {
     onRowClick?: (row: T) => void;
     minTableWidth?: number;
     emptyState?: ReactNode;
+    /** Controlled server-side sort: active column + direction. */
+    sortKey?: string | null;
+    sortDir?: 'asc' | 'desc';
+    /** Called with the column id; the parent cycles none -> asc -> desc. */
+    onSort?: (key: string) => void;
 }
 
 function mergeOrder(saved: string[] | undefined, allIds: string[]): string[] {
@@ -58,7 +66,19 @@ function mergeOrder(saved: string[] | undefined, allIds: string[]): string[] {
     return [...known, ...missing];
 }
 
-function SortableHeader<T>({ header, children }: { header: Header<T, unknown>; children: ReactNode }) {
+function SortableHeader<T>({
+    header,
+    children,
+    sortable,
+    sorted,
+    onSort,
+}: {
+    header: Header<T, unknown>;
+    children: ReactNode;
+    sortable: boolean;
+    sorted: 'asc' | 'desc' | null;
+    onSort?: (key: string) => void;
+}) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: header.column.id });
     return (
         <th
@@ -82,6 +102,26 @@ function SortableHeader<T>({ header, children }: { header: Header<T, unknown>; c
                     <GripVertical className="h-3.5 w-3.5" />
                 </button>
                 <span className="truncate">{children}</span>
+                {sortable && onSort && (
+                    <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); onSort(header.column.id); }}
+                        title={sorted ? `Sorted ${sorted === 'asc' ? 'ascending' : 'descending'} — click to change` : 'Sort column'}
+                        aria-label={sorted ? `Sorted ${sorted === 'asc' ? 'ascending' : 'descending'}` : 'Sort column'}
+                        className={cn(
+                            'rounded p-0.5 transition-colors',
+                            sorted ? 'text-primary hover:text-primary' : 'text-muted-foreground/40 hover:bg-muted hover:text-foreground',
+                        )}
+                    >
+                        {sorted === 'asc' ? (
+                            <ArrowUp className="h-3.5 w-3.5" />
+                        ) : sorted === 'desc' ? (
+                            <ArrowDown className="h-3.5 w-3.5" />
+                        ) : (
+                            <ArrowUpDown className="h-3.5 w-3.5" />
+                        )}
+                    </button>
+                )}
             </span>
             <span
                 onMouseDown={header.getResizeHandler()}
@@ -122,8 +162,12 @@ export function DynamicTable<T>({
     onRowClick,
     minTableWidth = 960,
     emptyState,
+    sortKey,
+    sortDir,
+    onSort,
 }: DynamicTableProps<T>) {
     const allIds = useMemo(() => columns.map((c) => c.id), [columns]);
+    const columnById = useMemo(() => new Map(columns.map((c) => [c.id, c] as const)), [columns]);
     const { prefs, saving, update, reset } = useTablePreferences(tableKey, initialPreferences);
 
     // Opt-in columns (defaultVisible === false) stay hidden until the user
@@ -290,7 +334,13 @@ export function DynamicTable<T>({
                                 <tr key={headerGroup.id}>
                                     <SortableContext items={columnOrder} strategy={horizontalListSortingStrategy}>
                                         {headerGroup.headers.map((header) => (
-                                            <SortableHeader key={header.id} header={header}>
+                                            <SortableHeader
+                                                key={header.id}
+                                                header={header}
+                                                sortable={columnById.get(header.column.id)?.sortable ?? false}
+                                                sorted={sortKey === header.column.id ? (sortDir ?? null) : null}
+                                                onSort={onSort}
+                                            >
                                                 {header.isPlaceholder
                                                     ? null
                                                     : typeof header.column.columnDef.header === 'string'

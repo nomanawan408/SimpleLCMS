@@ -3,7 +3,7 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
-    Table, TableHeader, TableHeaderRow, TableBody, TableFooter, TableRow, TableHead, TableCell,
+    Table, TableHeader, TableHeaderRow, TableBody, TableFooter, TableRow, TableHead, TableCell, SortableTh,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Combobox } from '@/components/ui/combobox';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
-import { cn, formatCurrency, formatDate, formatTime, matterComboboxOptions } from '@/lib/utils';
+import { cn, formatCurrency, formatDate, formatTime, matterComboboxOptions, shortName } from '@/lib/utils';
 import { useCan } from '@/lib/authorization';
 import { Clock, LogIn, LogOut, Plus, Pencil, Trash2, Receipt, TrendingUp, AlertCircle, CheckCircle2, Timer, PoundSterling, X, CalendarDays, FileText, Search, SlidersHorizontal } from 'lucide-react';
 import type { PageProps, PaginatedData, TimeEntry } from '@/types';
@@ -36,7 +36,7 @@ interface Props {
     stats: { hours_today: number; hours_week: number; unbilled_hours: number; unbilled_amount: number; today_minutes: number; week_minutes: number; unbilled_minutes: number; entries_today: number };
     users: { id: string; full_name: string; rate_per_hour: number | null }[];
     matters: { id: string; name: string; matter_number: string; fee_arrangement?: string; custom_fields?: Record<string, string> }[];
-    filters: { matter_id?: string; user_id?: string; billable?: string; billed?: string; date_from?: string; date_to?: string; activity_type?: string; search?: string };
+    filters: { matter_id?: string; user_id?: string; billable?: string; billed?: string; date_from?: string; date_to?: string; activity_type?: string; search?: string; sort_by?: string | null; sort_dir?: 'asc' | 'desc' | null };
     activeTimer: ActiveSession | null;
     defaultRate: number;
     firmVatRate: number;
@@ -131,6 +131,16 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
     // Backend TimeController gates mirror these exactly (module permission
     // plus matter assignment and bill/lock state, checked server-side).
     const canCreateTime = useCan(['create_time_entries', 'manage_time_entries']);
+    // Server-side column sort, mirrored in the URL (none -> asc -> desc).
+    const [sortBy, setSortBy] = useState<string | null>(filters.sort_by ?? null);
+    const [sortDir, setSortDir] = useState<'asc' | 'desc'>(filters.sort_dir === 'desc' ? 'desc' : 'asc');
+    const cycleSort = (key: string) => {
+        const nextBy = sortBy !== key ? key : sortDir === 'asc' ? key : null;
+        const nextDir = sortBy !== key || sortDir === 'asc' ? 'asc' : 'desc';
+        setSortBy(nextBy);
+        setSortDir(nextDir as 'asc' | 'desc');
+        router.get('/time', { ...filters, sort_by: nextBy || undefined, sort_dir: nextBy ? nextDir : undefined }, { preserveState: true, replace: true });
+    };
     const canEditTime = useCan(['edit_time_entries', 'manage_time_entries']);
     const canDeleteTime = useCan(['delete_time_entries', 'manage_time_entries']);
     const [session, setSession] = useState<ActiveSession | null>(serverSession);
@@ -389,7 +399,7 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
         router.get('/time', {}, { preserveState: false, replace: true });
     }
 
-    const hasActiveFilters = Object.values(filters).some(Boolean);
+    const hasActiveFilters = Object.entries(filters).some(([k, v]) => k !== 'sort_by' && k !== 'sort_dir' && Boolean(v));
 
     function fmtMinutes(mins: number): string {
         const h = Math.floor(mins / 60);
@@ -867,16 +877,16 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
                                             onChange={toggleSelectAll}
                                         />
                                     </TableHead>
-                                    <TableHead>Date</TableHead>
-                                    <TableHead>Matter</TableHead>
-                                    {isAdmin && <TableHead className="hidden lg:table-cell">User</TableHead>}
-                                    <TableHead className="hidden md:table-cell">Activity</TableHead>
-                                    <TableHead>Description</TableHead>
-                                    <TableHead className="text-right">Duration</TableHead>
-                                    <TableHead className="text-right hidden md:table-cell">Rate/hr</TableHead>
-                                    <TableHead className="text-right">Amount</TableHead>
-                                    <TableHead className="text-center">Billable</TableHead>
-                                    <TableHead className="text-center">Status</TableHead>
+                                    <SortableTh label="Date" sortKey="date" activeKey={sortBy} dir={sortDir} onSort={cycleSort} />
+                                    <SortableTh label="Matter" sortKey="matter" activeKey={sortBy} dir={sortDir} onSort={cycleSort} />
+                                    {isAdmin && <SortableTh label="User" sortKey="user" activeKey={sortBy} dir={sortDir} onSort={cycleSort} className="hidden lg:table-cell" />}
+                                    <SortableTh label="Activity" sortKey="activity" activeKey={sortBy} dir={sortDir} onSort={cycleSort} className="hidden md:table-cell" />
+                                    <SortableTh label="Description" sortKey="description" activeKey={sortBy} dir={sortDir} onSort={cycleSort} />
+                                    <SortableTh label="Duration" sortKey="duration" activeKey={sortBy} dir={sortDir} onSort={cycleSort} className="text-right" />
+                                    <SortableTh label="Rate/hr" sortKey="rate" activeKey={sortBy} dir={sortDir} onSort={cycleSort} className="text-right hidden md:table-cell" />
+                                    <SortableTh label="Amount" sortKey="amount" activeKey={sortBy} dir={sortDir} onSort={cycleSort} className="text-right" />
+                                    <SortableTh label="Billable" sortKey="billable" activeKey={sortBy} dir={sortDir} onSort={cycleSort} className="text-center" />
+                                    <SortableTh label="Status" sortKey="billed" activeKey={sortBy} dir={sortDir} onSort={cycleSort} className="text-center" />
                                     <TableHead className="w-16" />
                                 </TableHeaderRow>
                             </TableHeader>
@@ -908,7 +918,7 @@ export default function TimeIndex({ entries, stats, users, matters, filters, act
                                         </TableCell>
                                         {isAdmin && (
                                             <TableCell className="hidden lg:table-cell">
-                                                <span className="text-sm text-muted-foreground">{entry.user?.full_name ?? '—'}</span>
+                                                <span className="text-sm text-muted-foreground">{entry.user?.full_name ? shortName(entry.user.full_name) : '—'}</span>
                                             </TableCell>
                                         )}
                                         <TableCell className="hidden md:table-cell">

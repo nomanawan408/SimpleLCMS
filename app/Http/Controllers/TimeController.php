@@ -18,6 +18,7 @@ use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 class TimeController extends Controller
 {
+    use \App\Http\Controllers\Concerns\SortsIndexTables;
     public function index(Request $request): Response
     {
         abort_unless($request->user()->is_active, 403);
@@ -33,9 +34,27 @@ class TimeController extends Controller
         $canManageAll = $user->isFirmAdmin();
 
         $query = TimeEntry::where('firm_id', $firmId)
-            ->with(['matter', 'user'])
-            ->orderBy('date', 'desc')
-            ->orderBy('created_at', 'desc');
+            ->with(['matter', 'user']);
+
+        $sortBy = $request->input('sort_by');
+        $sortDir = $this->normalizeSortDir($request->input('sort_dir'));
+        $sortApplied = $this->applyTableSort($query, [
+            'date'        => ['expr' => 'time_entries.date'],
+            'matter'      => ['expr' => '(SELECT name FROM matters WHERE matters.id = time_entries.matter_id)'],
+            'user'        => ['expr' => '(SELECT full_name FROM users WHERE users.id = time_entries.user_id)'],
+            'activity'    => ['expr' => 'time_entries.activity_type'],
+            'description' => ['expr' => 'time_entries.description'],
+            'duration'    => ['expr' => 'time_entries.duration_minutes'],
+            'rate'        => ['expr' => 'time_entries.rate'],
+            'amount'      => ['expr' => 'time_entries.amount'],
+            'billable'    => ['expr' => 'time_entries.billable'],
+            'billed'      => ['expr' => 'time_entries.billed'],
+        ], $sortBy, $sortDir);
+        if (! $sortApplied) {
+            $sortBy = null;
+            $query->orderBy('date', 'desc');
+        }
+        $query->orderBy('created_at', 'desc');
 
         if (!$canManageAll) {
             // Staff see their own entries plus entries on assigned matters.
@@ -142,7 +161,7 @@ class TimeController extends Controller
             'stats'       => $stats,
             'users'       => User::where('firm_id', $firmId)->where('is_active', true)->get(['id', 'full_name', 'rate_per_hour']),
             'matters'     => Matter::where('firm_id', $firmId)->visibleTo($user)->whereNotIn('status', ['closed', 'archived'])->orderBy('name')->get(['id', 'name', 'matter_number', 'custom_fields', 'fee_arrangement'])->each(fn ($m) => $m->setAppends([])),
-            'filters'     => $request->only('matter_id', 'user_id', 'billable', 'billed', 'date_from', 'date_to', 'activity_type', 'search'),
+            'filters'     => [...$request->only('matter_id', 'user_id', 'billable', 'billed', 'date_from', 'date_to', 'activity_type', 'search'), 'sort_by' => $sortBy, 'sort_dir' => $sortBy ? $sortDir : null],
             'activeTimer' => $activeTimer,
             'defaultRate' => (float) ($user->rate_per_hour ?? $user->firm->default_hourly_rate ?? 0),
             'firmVatRate' => (float) ($user->firm->vat_rate ?? 0),

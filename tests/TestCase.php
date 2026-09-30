@@ -35,6 +35,7 @@ abstract class TestCase extends BaseTestCase
         foreach (array_merge([
             'view_dashboard',
             'view_matters', 'create_matters', 'edit_matters',
+            'view_all_matters', 'edit_all_matters', 'delete_all_matters',
             'view_contacts', 'create_contacts', 'edit_contacts',
             'view_time_entries', 'create_time_entries', 'edit_time_entries',
             'create_expenses', 'edit_expenses', 'delete_expenses',

@@ -16,7 +16,8 @@ class MatterPolicy
      */
     public function viewAny(User $user): bool
     {
-        return (bool) ($user->is_active && $user->hasPermissionTo('view_matters'));
+        return (bool) ($user->is_active && ($user->hasPermissionTo('view_matters')
+            || $user->hasPermissionTo('view_all_matters')));
     }
 
     public function view(User $user, Matter $matter): bool
@@ -28,7 +29,8 @@ class MatterPolicy
             return true;
         }
 
-        return $user->hasPermissionTo('view_matters') && $matter->isAssignedTo($user);
+        return ($user->hasPermissionTo('view_matters') && $matter->isAssignedTo($user))
+            || $user->hasPermissionTo('view_all_matters');
     }
 
     public function create(User $user): bool
@@ -45,9 +47,13 @@ class MatterPolicy
             return true;
         }
 
-        return ! $matter->isClosed()
+        // The all-matters override skips assignment but never the freeze:
+        // closed files stay read-only for everyone except firm admins
+        // (the controller's ensureMutableBy is the second lock on this).
+        return (! $matter->isClosed()
             && $matter->isAssignedTo($user)
-            && ($user->hasPermissionTo('edit_matters') || $user->hasPermissionTo('manage_matters'));
+            && ($user->hasPermissionTo('edit_matters') || $user->hasPermissionTo('manage_matters')))
+            || (! $matter->isClosed() && $user->hasPermissionTo('edit_all_matters'));
     }
 
     public function delete(User $user, Matter $matter): bool
@@ -59,8 +65,9 @@ class MatterPolicy
             return true;
         }
 
-        return ! $matter->isClosed()
+        return (! $matter->isClosed()
             && $matter->isAssignedTo($user)
-            && $user->hasPermissionTo('delete_matters');
+            && $user->hasPermissionTo('delete_matters'))
+            || (! $matter->isClosed() && $user->hasPermissionTo('delete_all_matters'));
     }
 }

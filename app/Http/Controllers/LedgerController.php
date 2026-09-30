@@ -22,6 +22,8 @@ use Inertia\Response;
  */
 class LedgerController extends Controller
 {
+    use \App\Http\Controllers\Concerns\SortsIndexTables;
+
     private function service(Request $request): LedgerService
     {
         return new LedgerService($request->user()->firm_id, $request->user()->id);
@@ -168,11 +170,30 @@ class LedgerController extends Controller
         abort_unless($request->user()->is_active && $request->user()->canViewFinances(), 403);
 
         $records = BankReconciliation::where('firm_id', $request->user()->firm_id)
-            ->with('performer:id,full_name')
-            ->orderBy('as_at_date', 'desc')
-            ->paginate(15);
+            ->with('performer:id,full_name');
 
-        return Inertia::render('Ledger/Reconciliations', ['reconciliations' => $records]);
+        $sortBy = $request->input('sort_by');
+        $sortDir = $this->normalizeSortDir($request->input('sort_dir'));
+        $sortApplied = $this->applyTableSort($records, [
+            'as_at'       => ['expr' => 'bank_reconciliations.as_at_date'],
+            'run_on'      => ['expr' => 'bank_reconciliations.reconciliation_date'],
+            'by'          => ['expr' => '(SELECT full_name FROM users WHERE users.id = bank_reconciliations.performed_by)'],
+            'paper'       => ['expr' => 'bank_reconciliations.paper_statement_balance'],
+            'cash_sheet'  => ['expr' => 'bank_reconciliations.system_cash_sheet_balance'],
+            'ledgers'     => ['expr' => 'bank_reconciliations.aggregate_client_ledger_balance'],
+            'discrepancy' => ['expr' => 'bank_reconciliations.discrepancy'],
+            'status'      => ['expr' => 'bank_reconciliations.status'],
+        ], $sortBy, $sortDir);
+        if (! $sortApplied) {
+            $sortBy = null;
+            $records->orderBy('as_at_date', 'desc');
+        }
+        $records->orderBy('bank_reconciliations.created_at', 'desc');
+
+        return Inertia::render('Ledger/Reconciliations', [
+            'reconciliations' => $records->paginate(15),
+            'filters' => ['sort_by' => $sortBy, 'sort_dir' => $sortBy ? $sortDir : null],
+        ]);
     }
 
     public function reconcile(RunReconciliationRequest $request): RedirectResponse

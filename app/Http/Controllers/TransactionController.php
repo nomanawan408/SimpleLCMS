@@ -12,6 +12,8 @@ use Inertia\Response;
 
 class TransactionController extends Controller
 {
+    use \App\Http\Controllers\Concerns\SortsIndexTables;
+
     public function index(Request $request): Response
     {
         abort_unless($request->user()->canViewFinances(), 403);
@@ -21,8 +23,23 @@ class TransactionController extends Controller
 
         $query = Payment::with(['invoice', 'invoice.matter', 'invoice.matter.contacts'])
             ->where('firm_id', $firmId)
-            ->when(! $request->user()->isFirmAdmin(), fn ($q) => $q->whereHas('invoice.matter', fn ($qq) => $qq->visibleTo($request->user())))
-            ->orderBy('paid_at', 'desc');
+            ->when(! $request->user()->isFirmAdmin(), fn ($q) => $q->whereHas('invoice.matter', fn ($qq) => $qq->visibleTo($request->user())));
+
+        $sortBy = $request->input('sort_by');
+        $sortDir = $this->normalizeSortDir($request->input('sort_dir'));
+        $sortApplied = $this->applyTableSort($query, [
+            'date'    => ['expr' => 'payments.paid_at'],
+            'matter'  => ['expr' => '(SELECT name FROM matters WHERE matters.id = (SELECT matter_id FROM invoices WHERE invoices.id = payments.invoice_id))'],
+            'invoice' => ['expr' => '(SELECT invoice_number FROM invoices WHERE invoices.id = payments.invoice_id)'],
+            'method'  => ['expr' => 'payments.method'],
+            'amount'  => ['expr' => 'payments.amount'],
+            'notes'   => ['expr' => 'payments.notes'],
+        ], $sortBy, $sortDir);
+        if (! $sortApplied) {
+            $sortBy = null;
+            $query->orderBy('paid_at', 'desc');
+        }
+        $query->orderBy('payments.created_at', 'desc');
 
         if ($request->filled('matter_id')) {
             $query->whereHas('invoice', fn ($q) => $q->where('matter_id', $request->matter_id));
@@ -97,7 +114,7 @@ class TransactionController extends Controller
             'stats'        => $stats,
             'matters'      => $matters,
             'openInvoices' => $openInvoices,
-            'filters'      => $request->only('matter_id', 'method', 'date_from', 'date_to'),
+            'filters'      => [...$request->only('matter_id', 'method', 'date_from', 'date_to'), 'sort_by' => $sortBy, 'sort_dir' => $sortBy ? $sortDir : null],
         ]);
     }
 

@@ -34,6 +34,7 @@ class RolePermissionSeeder extends Seeder
             'create_matters',
             'edit_matters',
             'delete_matters',
+            'view_all_matters', 'edit_all_matters', 'delete_all_matters',
             'manage_contacts',
             'view_contacts',
             'create_contacts',

@@ -272,4 +272,42 @@ class MatterStatusTest extends TestCase
             ->put("/matters/{$matter->id}/status", ['status' => 'on_hold'])
             ->assertForbidden();
     }
+    public function test_category_tabs_match_state_buckets_exactly(): void
+    {
+        [$firm, $admin] = $this->createFirmAndAdmin();
+
+        Matter::factory()->forFirm($firm, $admin)->create(['status' => 'open']);
+        Matter::factory()->forFirm($firm, $admin)->create(['status' => 'awaiting_client']);
+        Matter::factory()->forFirm($firm, $admin)->create(['status' => 'in_progress']);
+        Matter::factory()->forFirm($firm, $admin)->create(['status' => 'actively_progressing']);
+        Matter::factory()->forFirm($firm, $admin)->create(['status' => 'on_hold']);
+        Matter::factory()->forFirm($firm, $admin)->create(['status' => 'closed']);
+
+        // Opened shows opened-status matters only -- never in-progress ones.
+        $this->actingAsUser($admin)->get('/matters?category=opened')
+            ->assertInertia(fn ($page) => $page
+                ->where('matters.total', 2)
+                ->where('buckets.opened', 2)
+                ->where('matters.data', fn ($data) => collect($data)->pluck('status')
+                    ->every(fn ($s) => in_array($s, \App\Models\Matter::OPENED_STATUSES, true))));
+
+        $this->actingAsUser($admin)->get('/matters?category=in_progress')
+            ->assertInertia(fn ($page) => $page
+                ->where('matters.total', 2)
+                ->where('buckets.in_progress', 2)
+                ->where('matters.data', fn ($data) => collect($data)->pluck('status')
+                    ->every(fn ($s) => in_array($s, \App\Models\Matter::PROGRESS_STATUSES, true))));
+
+        $this->actingAsUser($admin)->get('/matters?category=on_hold')
+            ->assertInertia(fn ($page) => $page->where('matters.total', 1));
+
+        // Buckets partition the whole list: nothing hides between tabs.
+        $this->actingAsUser($admin)->get('/matters?category=all')
+            ->assertInertia(fn ($page) => $page
+                ->where('matters.total', 6)
+                ->where('buckets.opened', 2)
+                ->where('buckets.in_progress', 2)
+                ->where('buckets.on_hold', 1)
+                ->where('buckets.closed', 1));
+    }
 }

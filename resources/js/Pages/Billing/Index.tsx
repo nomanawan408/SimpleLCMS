@@ -2,7 +2,7 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useState, useEffect, useRef } from 'react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Card, CardContent } from '@/components/ui/card';
-import { Table, TableHeader, TableHeaderRow, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
+import { Table, TableHeader, TableHeaderRow, TableBody, TableRow, TableHead, TableCell, SortableTh } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,7 +22,7 @@ function useDebounce(value: string, delay: number) {
 interface Props {
     invoices: PaginatedData<Invoice & { amount_paid?: number }>;
     stats: { total_outstanding: number; overdue_amount: number; paid_this_month: number; draft_count: number; };
-    filters: { status?: string; search?: string; matter_id?: string; user_id?: string; timeframe?: string; date_from?: string; date_to?: string; date_field?: string; };
+    filters: { status?: string; search?: string; matter_id?: string; user_id?: string; timeframe?: string; date_from?: string; date_to?: string; date_field?: string; sort_by?: string | null; sort_dir?: 'asc' | 'desc' | null };
     filterOptions: { matters: { id: string; name: string; matter_number: string }[]; users: { id: string; full_name: string }[]; };
 }
 
@@ -48,6 +48,16 @@ export default function BillingIndex({ invoices, stats, filters, filterOptions }
     const [dateFrom, setDateFrom] = useState(filters.date_from ?? '');
     const [dateTo, setDateTo] = useState(filters.date_to ?? '');
     const [matterId, setMatterId] = useState(filters.matter_id ?? 'all');
+    // Server-side column sort, mirrored in the URL (none -> asc -> desc).
+    const [sortBy, setSortBy] = useState<string | null>(filters.sort_by ?? null);
+    const [sortDir, setSortDir] = useState<'asc' | 'desc'>(filters.sort_dir === 'desc' ? 'desc' : 'asc');
+    const cycleSort = (key: string) => {
+        const nextBy = sortBy !== key ? key : sortDir === 'asc' ? key : null;
+        const nextDir = sortBy !== key || sortDir === 'asc' ? 'asc' : 'desc';
+        setSortBy(nextBy);
+        setSortDir(nextDir as 'asc' | 'desc');
+        router.get('/billing', { ...buildParams(), sort_by: nextBy || undefined, sort_dir: nextBy ? nextDir : undefined } as any, { preserveState: true, replace: true });
+    };
     const [userId, setUserId] = useState(filters.user_id ?? 'all');
     const debounced = useDebounce(search, 300);
     const isFirstRun = useRef(true);
@@ -61,6 +71,8 @@ export default function BillingIndex({ invoices, stats, filters, filterOptions }
             date_to: timeframe === 'custom' && dateTo ? dateTo : undefined,
             matter_id: matterId !== 'all' ? matterId : undefined,
             user_id: userId !== 'all' ? userId : undefined,
+            sort_by: sortBy || undefined,
+            sort_dir: sortBy ? sortDir : undefined,
         };
         return { ...base, ...overrides };
     };
@@ -241,7 +253,7 @@ export default function BillingIndex({ invoices, stats, filters, filterOptions }
                     ) : (
                         <div className="overflow-x-auto">
                             <Table>
-                                <TableHeader><TableHeaderRow><TableHead>Invoice #</TableHead><TableHead>Matter</TableHead><TableHead className="hidden md:table-cell">Date</TableHead><TableHead className="hidden lg:table-cell">Due</TableHead><TableHead className="text-right">Amount</TableHead><TableHead>Status</TableHead></TableHeaderRow></TableHeader>
+                                <TableHeader><TableHeaderRow><SortableTh label="Invoice #" sortKey="number" activeKey={sortBy} dir={sortDir} onSort={cycleSort} /><SortableTh label="Matter" sortKey="matter" activeKey={sortBy} dir={sortDir} onSort={cycleSort} /><SortableTh label="Date" sortKey="date" activeKey={sortBy} dir={sortDir} onSort={cycleSort} className="hidden md:table-cell" /><SortableTh label="Due" sortKey="due" activeKey={sortBy} dir={sortDir} onSort={cycleSort} className="hidden lg:table-cell" /><SortableTh label="Amount" sortKey="amount" activeKey={sortBy} dir={sortDir} onSort={cycleSort} className="text-right" /><SortableTh label="Status" sortKey="status" activeKey={sortBy} dir={sortDir} onSort={cycleSort} /></TableHeaderRow></TableHeader>
                                 <TableBody>
                                     {invoices.data.map((invoice: any) => {
                                         const paid = Number(invoice.amount_paid ?? 0);

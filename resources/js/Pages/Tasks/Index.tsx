@@ -3,7 +3,7 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import {
-    Table, TableHeader, TableHeaderRow, TableBody, TableRow, TableHead, TableCell,
+    Table, TableHeader, TableHeaderRow, TableBody, TableRow, TableHead, TableCell, SortableTh,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { TaskDueBadge } from '@/components/ui/task-due-badge';
@@ -14,7 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Combobox } from '@/components/ui/combobox';
 import { Textarea } from '@/components/ui/textarea';
-import { formatDate, cn, matterComboboxOptions, hasAnyPermission } from '@/lib/utils';
+import { formatDate, cn, matterComboboxOptions, hasAnyPermission, shortName } from '@/lib/utils';
 import { Plus, Pencil, Trash2, Search, X, CheckSquare } from 'lucide-react';
 import type { Task, PaginatedData, PageProps } from '@/types';
 
@@ -31,7 +31,7 @@ interface Props {
     tasks: PaginatedData<Task & { matter?: { id: string; name: string; matter_number: string } }>;
     users: { id: string; full_name: string }[];
     matters: { id: string; name: string; matter_number: string }[];
-    filters: { status?: string; priority?: string; assignee_id?: string; matter_id?: string; search?: string };
+    filters: { status?: string; priority?: string; assignee_id?: string; matter_id?: string; search?: string; sort_by?: string | null; sort_dir?: 'asc' | 'desc' | null };
 }
 
 const PRIORITY_COLORS: Record<string, 'destructive' | 'warning' | 'secondary'> = {
@@ -78,6 +78,16 @@ const emptyForm = {
 };
 
 export default function TasksIndex({ tasks, users, matters, filters }: Props) {
+    const [sortBy, setSortBy] = useState<string | null>(filters.sort_by ?? null);
+    const [sortDir, setSortDir] = useState<'asc' | 'desc'>(filters.sort_dir === 'desc' ? 'desc' : 'asc');
+    // Server-side column sort, mirrored in the URL (none -> asc -> desc).
+    const cycleSort = (key: string) => {
+        const nextBy = sortBy !== key ? key : sortDir === 'asc' ? key : null;
+        const nextDir = sortBy !== key || sortDir === 'asc' ? 'asc' : 'desc';
+        setSortBy(nextBy);
+        setSortDir(nextDir as 'asc' | 'desc');
+        router.get('/tasks', { ...filters, sort_by: nextBy || undefined, sort_dir: nextBy ? nextDir : undefined }, { preserveState: true, replace: true });
+    };
     const { auth } = usePage<PageProps>().props;
     // Backend TaskController mirrors these (module permission plus matter
     // assignment and the closed-file freeze, checked server-side).
@@ -258,11 +268,11 @@ export default function TasksIndex({ tasks, users, matters, filters }: Props) {
                             <Table>
                                 <TableHeader>
                                     <TableHeaderRow>
-                                        <TableHead>Title</TableHead>
-                                        <TableHead>Assignee</TableHead>
-                                        <TableHead>Due</TableHead>
-                                        <TableHead>Priority</TableHead>
-                                        <TableHead>Status</TableHead>
+                                        <SortableTh label="Title" sortKey="title" activeKey={sortBy} dir={sortDir} onSort={cycleSort} />
+                                        <SortableTh label="Assignee" sortKey="assignee" activeKey={sortBy} dir={sortDir} onSort={cycleSort} />
+                                        <SortableTh label="Due" sortKey="due" activeKey={sortBy} dir={sortDir} onSort={cycleSort} />
+                                        <SortableTh label="Priority" sortKey="priority" activeKey={sortBy} dir={sortDir} onSort={cycleSort} />
+                                        <SortableTh label="Status" sortKey="status" activeKey={sortBy} dir={sortDir} onSort={cycleSort} />
                                         <TableHead />
                                     </TableHeaderRow>
                                 </TableHeader>
@@ -281,7 +291,7 @@ export default function TasksIndex({ tasks, users, matters, filters }: Props) {
                                                 )}
                                             </TableCell>
                                             <TableCell className="text-muted-foreground">
-                                                {(task as any).assignee?.full_name ?? '—'}
+                                                {(task as any).assignee?.full_name ? shortName((task as any).assignee.full_name) : '—'}
                                             </TableCell>
                                             <TableCell>
                                                 <TaskDueBadge dueDate={task.due_date} done={task.status === 'done'} />

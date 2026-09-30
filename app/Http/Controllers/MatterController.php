@@ -10,6 +10,7 @@ use App\Models\Matter;
 use App\Models\TablePreference;
 use App\Models\Task;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Validation\Rule;
 use Illuminate\Http\Request;
@@ -24,16 +25,27 @@ class MatterController extends Controller
 
         $query = Matter::where('firm_id', $request->user()->firm_id)
             ->visibleTo($request->user())
-            ->with(['responsibleUser', 'originatingUser:id,full_name,avatar_url', 'contacts', 'tasks' => fn ($q) => $q->whereIn('status', ['todo', 'in_progress'])->whereNull('completed_at')->orderBy('due_date')->with('assignee'), 'calendarEvents' => fn ($q) => $q->where('is_court_date', true)->where('start_at', '>=', now())->orderBy('start_at')])
+            ->with(['responsibleUser', 'originatingUser:id,full_name,avatar_url', 'contacts', 'tasks' => fn ($q) => $q->whereIn('status', ['todo', 'in_progress'])->whereNull('completed_at')->orderBy('due_date')->with('assignee'), 'calendarEvents' => fn ($q) => $q->where('is_court_date', true)->where('start_at', '>=', now())->orderBy('start_at')]);
+
+        // Column sorting is strictly allowlisted below: the key selects the
+        // expression, the direction is validated to asc/desc, and everything
+        // else is bound -- no raw user input ever reaches the SQL.
+        $sortBy = $request->input('sort_by');
+        $sortDir = strtolower((string) $request->input('sort_dir', 'asc')) === 'desc' ? 'desc' : 'asc';
+        $sortApplied = $this->applyTableSort($query, $sortBy, $sortDir);
+
+        if (! $sortApplied) {
+            $sortBy = null;
             // Default sort is deadline urgency: most overdue first, then the
             // nearest upcoming deadline; matters with no open-task deadline
             // sink to the bottom. Mirrors getNextDeadlineAttribute (open,
             // non-deleted tasks) so the list order matches the badges shown.
-            ->orderByRaw(
+            $query->orderByRaw(
                 "COALESCE((SELECT MIN(due_date) FROM tasks WHERE tasks.matter_id = matters.id AND tasks.deleted_at IS NULL AND tasks.status IN (?, ?) AND tasks.completed_at IS NULL), '9999-12-31') ASC",
                 ['todo', 'in_progress']
-            )
-            ->orderBy('matters.created_at', 'desc');
+            );
+        }
+        $query->orderBy('matters.created_at', 'desc');
 
         if ($request->filled('status')) {
             $query->where('status', $request->status);
@@ -54,8 +66,11 @@ class MatterController extends Controller
             });
         }
 
+        // Categories mirror the state buckets exactly, so a card count always
+        // matches the list its link opens. 'open' is the legacy catch-all
+        // (everything not closed) kept working for old bookmarks.
         $category = $request->input('category', 'all');
-        if (! in_array($category, ['all', 'open', 'closed'], true)) {
+        if (! in_array($category, ['all', 'open', 'opened', 'in_progress', 'on_hold', 'closed'], true)) {
             $category = 'all';
         }
 
@@ -75,6 +90,12 @@ class MatterController extends Controller
 
         if ($category === 'open') {
             $query->open();
+        } elseif ($category === 'opened') {
+            $query->whereIn('status', Matter::OPENED_STATUSES);
+        } elseif ($category === 'in_progress') {
+            $query->whereIn('status', Matter::PROGRESS_STATUSES);
+        } elseif ($category === 'on_hold') {
+            $query->where('status', 'on_hold');
         } elseif ($category === 'closed') {
             $query->closed();
         }
@@ -107,7 +128,7 @@ class MatterController extends Controller
 
         return Inertia::render('Matters/Index', [
             'matters' => $matters,
-            'filters' => [...$request->only('status', 'practice_area', 'priority', 'search'), 'category' => $category, 'per_page' => $perPage],
+            'filters' => [...$request->only('status', 'practice_area', 'priority', 'search'), 'category' => $category, 'per_page' => $perPage, 'sort_by' => $sortBy, 'sort_dir' => $sortBy ? $sortDir : null],
             'counts' => $counts,
             'buckets' => $buckets,
             'tablePreferences' => $tablePreferences,
@@ -698,6 +719,101 @@ class MatterController extends Controller
         activity()->causedBy($request->user())->performedOn($matter)->log('updated');
 
         return back()->with('success', 'Matter status updated.');
+    }
+
+    /**
+     * Server-side column sorting for the matters table. The key is strictly
+     * allowlisted to a fixed expression map and the direction is validated
+     * by the caller -- no user input reaches the SQL except through those
+     * two gates. Unknown keys return false so the caller falls back to the
+     * default deadline-urgency order. Empty values always sink, whichever
+     * way the column points.
+     */
+    private function applyTableSort(Builder $query, mixed $sortBy, string $sortDir): bool
+    {
+        // Never-null columns sort directly. Nullable ones first order by
+        // emptiness (IS NULL yields false/true on both PostgreSQL and MySQL,
+        // so empties sink whichever way the column points) and then by value.
+        $direct = [
+            'matter' => 'matters.name',
+            'practice_area' => 'matters.practice_area',
+            'status' => 'matters.status',
+            'fee_type' => 'matters.fee_arrangement',
+        ];
+        if (is_string($sortBy) && isset($direct[$sortBy])) {
+            $query->orderBy($direct[$sortBy], $sortDir);
+
+            return true;
+        }
+
+        $nullableDirect = [
+            'court' => 'matters.court',
+            'court_ref' => 'matters.court_reference',
+            'description' => 'matters.description',
+            'opened_at' => 'matters.opened_at',
+            'closed_at' => 'matters.closed_at',
+        ];
+        if (is_string($sortBy) && isset($nullableDirect[$sortBy])) {
+            $col = $nullableDirect[$sortBy];
+            $query->orderByRaw("({$col}) IS NULL ASC")->orderBy($col, $sortDir);
+
+            return true;
+        }
+
+        // User names live on the related row: subselect keeps the query flat
+        // (no join to collide with the eager loads), empties sink either way.
+        $userName = [
+            'responsible' => 'matters.responsible_user_id',
+            'originator' => 'matters.originating_user_id',
+        ];
+        if (is_string($sortBy) && isset($userName[$sortBy])) {
+            $sub = "(SELECT full_name FROM users WHERE users.id = {$userName[$sortBy]})";
+            $query->orderByRaw("({$sub}) IS NULL ASC")
+                ->orderBy(
+                    \Illuminate\Support\Facades\DB::raw($sub),
+                    $sortDir
+                );
+
+            return true;
+        }
+
+        switch ($sortBy) {
+            // Severity order, not alphabetical: high always outranks low.
+            case 'priority':
+                $query->orderByRaw(
+                    "CASE matters.priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 WHEN 'low' THEN 2 ELSE 3 END {$sortDir}"
+                );
+
+                return true;
+            // Same earliest-open-deadline expression as the default order,
+            // pointed either way; matters without one always sink.
+            case 'deadline':
+                $fallback = $sortDir === 'desc' ? '1000-01-01 00:00:00' : '9999-12-31 23:59:59';
+                $query->orderByRaw(
+                    "COALESCE((SELECT MIN(due_date) FROM tasks WHERE tasks.matter_id = matters.id AND tasks.deleted_at IS NULL AND tasks.status IN (?, ?) AND tasks.completed_at IS NULL), ?) {$sortDir}",
+                    ['todo', 'in_progress', $fallback]
+                );
+
+                return true;
+            // Earliest upcoming court date; matters without one always sink.
+            case 'hearing_date':
+                $fallback = $sortDir === 'desc' ? '1000-01-01 00:00:00' : '9999-12-31 23:59:59';
+                $query->orderByRaw(
+                    "COALESCE((SELECT MIN(start_at) FROM calendar_events WHERE calendar_events.matter_id = matters.id AND calendar_events.deleted_at IS NULL AND is_court_date = ? AND start_at >= ?), ?) {$sortDir}",
+                    [true, now()->toDateTimeString(), $fallback]
+                );
+
+                return true;
+            case 'open_tasks':
+                $query->withCount(['tasks as open_tasks_count' => fn ($q) => $q
+                    ->whereIn('status', ['todo', 'in_progress'])
+                    ->whereNull('completed_at')]);
+                $query->orderBy('open_tasks_count', $sortDir);
+
+                return true;
+            default:
+                return false;
+        }
     }
 
     private function generateMatterNumber(string $firmId, ?string $contactId = null): string
