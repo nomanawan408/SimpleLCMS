@@ -21,6 +21,8 @@ class ContactController extends Controller
     {
         $this->authorize('viewAny', Contact::class);
 
+        $search = $request->search;
+
         $contacts = Contact::where('firm_id', $request->user()->firm_id)
             ->when(! $request->user()->isFirmAdmin(), fn ($q) => $q->whereHas('matters', fn ($qq) => $qq->visibleTo($request->user())));
 
