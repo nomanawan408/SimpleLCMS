@@ -43,6 +43,14 @@ const EXPENSE_CATEGORIES: { value: string; label: string }[] = [
 const expenseCategoryLabel = (value?: string | null) =>
     EXPENSE_CATEGORIES.find((c) => c.value === value)?.label ?? '—';
 
+// Human labels for task statuses (the stored values are todo/in_progress/…).
+const TASK_STATUS_LABELS: Record<string, string> = {
+    todo: 'To Do',
+    in_progress: 'In Progress',
+    review: 'In Review',
+    done: 'Done',
+};
+
 interface Props {
     matter: Matter & {
         contacts: any[];
@@ -311,6 +319,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
     const [noteSaving, setNoteSaving] = useState(false);
     const [noteError, setNoteError] = useState<string | null>(null);
     const [noteBody, setNoteBody] = useState('');
+    const [editingNote, setEditingNote] = useState<any>(null);
 
     const [timeModalOpen, setTimeModalOpen] = useState(false);
     const [editingTimeEntry, setEditingTimeEntry] = useState<any>(null);
@@ -468,34 +477,58 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
     const firstError = (payload: any): string | null =>
         payload?.errors ? Object.values(payload.errors as Record<string, string[]>)?.[0]?.[0] ?? null : null;
 
-    const openNoteModal = () => {
+    const openNoteModal = (note: any = null) => {
+        // Guard against accidental event objects (onClick passthrough).
+        if (note && typeof note.id !== 'string') note = null;
         setNoteError(null);
-        setNoteBody('');
+        setEditingNote(note);
+        setNoteBody(note?.body ?? '');
         setNoteModalOpen(true);
     };
+
+    // Mirrors MatterNoteController::canModify — author or firm admin only,
+    // on top of the matter permission already held by canEditMatter.
+    const canModifyNote = (note: any) =>
+        canEditMatter && (note?.user_id === auth.user?.id || isFirmAdmin);
 
     const saveNote = async () => {
         setNoteSaving(true);
         setNoteError(null);
         try {
-            const { ok, payload } = await postJson(`/matters/${matter.id}/notes`, {
-                body: noteBody,
-                type: 'note',
-            });
+            const body = { body: noteBody, type: editingNote?.type ?? 'note' };
+            const { ok, payload } = editingNote
+                ? await putJson(`/matters/${matter.id}/notes/${editingNote.id}`, body)
+                : await postJson(`/matters/${matter.id}/notes`, body);
             if (!ok) {
                 const validationMsg = payload?.errors
                     ? Object.values(payload.errors as Record<string, string[]>)?.[0]?.[0]
                     : null;
-                setNoteError(validationMsg || payload?.message || 'Unable to add note.');
+                setNoteError(validationMsg || payload?.message || 'Unable to save the note.');
                 return;
             }
-            setNotes((prev) => [payload.note, ...prev]);
+            if (editingNote) {
+                setNotes((prev) => prev.map((n) => (n.id === editingNote.id ? payload.note : n)));
+            } else {
+                setNotes((prev) => [payload.note, ...prev]);
+            }
             setNoteModalOpen(false);
+            setEditingNote(null);
         } catch {
-            setNoteError('Unable to add note.');
+            setNoteError('Unable to save the note.');
         } finally {
             setNoteSaving(false);
         }
+    };
+
+    const deleteNote = async (note: any) => {
+        if (!window.confirm('Delete this note? This cannot be undone.')) return;
+
+        const { ok, payload } = await deleteJson(`/matters/${matter.id}/notes/${note.id}`);
+        if (!ok) {
+            window.alert(payload?.message || 'Unable to delete the note.');
+            return;
+        }
+        setNotes((prev) => prev.filter((n) => n.id !== note.id));
     };
 
     const openTimeModal = (entry: any = null) => {
@@ -1138,8 +1171,8 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                 ) : (
                                     <div className="divide-y divide-border/40">
                                         {notes.map((note: any) => (
-                                            <div key={note.id} className="px-6 py-4 hover:bg-muted/10 transition-colors">
-                                                <div className="flex items-center gap-2.5 mb-2">
+                                            <div key={note.id} className="group px-4 py-2.5 hover:bg-muted/10 transition-colors">
+                                                <div className="flex items-center gap-2 mb-1">
                                                     <UserAvatar user={note.user} fallbackClassName="bg-primary text-primary-foreground text-xs font-bold" />
                                                     <span className="text-sm font-semibold text-foreground">{note.user?.full_name ? shortName(note.user.full_name) : 'System'}</span>
                                                     <span className="text-xs text-muted-foreground">
@@ -1148,8 +1181,18 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                                     <Badge variant="secondary" className="text-xs capitalize ml-auto rounded-full font-medium">
                                                         {note.type?.replace(/_/g, ' ') || 'Note'}
                                                     </Badge>
+                                                    {canModifyNote(note) && (
+                                                        <div className="flex items-center gap-0.5">
+                                                            <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg" type="button" aria-label="Edit note" onClick={() => openNoteModal(note)}>
+                                                                <Edit className="h-3.5 w-3.5" />
+                                                            </Button>
+                                                            <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg text-destructive hover:text-destructive" type="button" aria-label="Delete note" onClick={() => deleteNote(note)}>
+                                                                <Trash2 className="h-3.5 w-3.5" />
+                                                            </Button>
+                                                        </div>
+                                                    )}
                                                 </div>
-                                                <p className="text-sm leading-relaxed text-foreground/80 ml-[38px] whitespace-pre-wrap">{note.body}</p>
+                                                <p className="text-sm leading-relaxed text-foreground/80 ml-9 whitespace-pre-wrap">{note.body}</p>
                                             </div>
                                         ))}
                                     </div>
@@ -1188,7 +1231,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                                 </div>
                                                 <button onClick={() => cycleTaskStatus(task)}>
                                                     <Badge variant={task.status === 'in_progress' ? 'warning' : 'secondary'} className="text-xs cursor-pointer hover:opacity-80">
-                                                        {task.status.replace(/_/g, ' ')}
+                                                        {TASK_STATUS_LABELS[task.status] ?? task.status}
                                                     </Badge>
                                                 </button>
                                             </div>
@@ -1947,7 +1990,6 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                         ['todo', 'in_progress', 'review', 'done'].map((status) => {
                             const group = tasks.filter((t: any) => t.status === status);
                             if (!group.length) return null;
-                            const STATUS_LABELS: Record<string, string> = { todo: 'To Do', in_progress: 'In Progress', review: 'In Review', done: 'Done' };
                             return (
                                 <Card key={status} className="surface-card">
                                     <CardHeader className="pb-2 pt-4 px-5">
@@ -1958,7 +2000,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                                 'bg-warning': status === 'review',
                                                 'bg-success': status === 'done',
                                             })} />
-                                            <span className="text-sm font-semibold">{STATUS_LABELS[status]}</span>
+                                            <span className="text-sm font-semibold">{TASK_STATUS_LABELS[status]}</span>
                                             <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">{group.length}</span>
                                         </div>
                                     </CardHeader>
@@ -2430,8 +2472,10 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
             <Dialog open={noteModalOpen} onOpenChange={setNoteModalOpen}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Add note</DialogTitle>
-                        <DialogDescription>Record a note for this matter.</DialogDescription>
+                        <DialogTitle>{editingNote ? 'Edit note' : 'Add note'}</DialogTitle>
+                        <DialogDescription>
+                            {editingNote ? 'Update this note.' : 'Record a note for this matter.'}
+                        </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-3">
                         <Label className="text-sm font-medium">Note *</Label>
@@ -2439,7 +2483,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                         {noteError && <p className="text-sm text-destructive">{noteError}</p>}
                     </div>
                     <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => setNoteModalOpen(false)} disabled={noteSaving}>Cancel</Button>
+                        <Button type="button" variant="outline" onClick={() => { setNoteModalOpen(false); setEditingNote(null); }} disabled={noteSaving}>Cancel</Button>
                         <Button type="button" onClick={saveNote} disabled={noteSaving || !noteBody.trim()}>
                             {noteSaving ? 'Saving…' : 'Save'}
                         </Button>

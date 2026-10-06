@@ -749,7 +749,7 @@ export default function ShowContact({ contact, invoices = [], documents = [], ca
                                                         {noteMeta(note.type).label}
                                                     </Badge>
                                                     {canEditContact && (
-                                                        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                                                        <div className="flex items-center gap-0.5">
  <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg" type="button" aria-label="Edit note" onClick={() => openNoteModal(note)}
                                                             >
                                                                 <Edit className="h-3.5 w-3.5" />
