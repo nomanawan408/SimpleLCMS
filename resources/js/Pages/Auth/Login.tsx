@@ -24,7 +24,7 @@ export default function Login({ canResetPassword, status }: Props) {
     return (
         <AuthLayout
             split
-            title="Sign in to Simple Lawyer"
+            title="Sign in to Simple Case Management"
             description="Enter your credentials to access your firm's account"
             brandHeadline="Welcome back to your practice"
             brandSubheadline="Sign in to continue managing cases, contacts, billing, and time tracking."
