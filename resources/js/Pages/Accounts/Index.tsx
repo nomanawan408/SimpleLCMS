@@ -7,13 +7,14 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Combobox } from '@/components/ui/combobox';
 import { cn, formatCurrency, formatDate, matterComboboxOptions } from '@/lib/utils';
 import {
     ArrowDownCircle, ArrowUpCircle, Wallet, Landmark, Users, BookOpen,
     Building2, CreditCard, Hash, Globe, FileText, Mail, Phone, UserCircle,
-    Copy, Check, ExternalLink,
+    Copy, Check, ExternalLink, Search,
 } from 'lucide-react';
 import type { TrustEntry, PaginatedData } from '@/types';
 
@@ -64,6 +65,16 @@ type TabId = (typeof TABS)[number]['id'];
 export default function AccountsIndex({ entries, summary, firmAccount, clientAccounts, matters, filters }: Props) {
     const [tab, setTab] = useState<TabId>('firm');
     const [copied, setCopied] = useState<string | null>(null);
+    const [clientSearch, setClientSearch] = useState('');
+    const visibleClients = (() => {
+        const q = clientSearch.trim().toLowerCase();
+        if (!q) return clientAccounts;
+        return clientAccounts.filter((c) =>
+            [c.name, c.email, c.phone, c.contact_person_name, c.contact_person_email,
+             ...c.matters.flatMap((m) => [m.name, m.matter_number])]
+                .some((v) => (v ?? '').toLowerCase().includes(q)),
+        );
+    })();
 
     const setFilter = (key: string, value: string) => {
         const actual = value === '_all' ? '' : value;
@@ -198,22 +209,31 @@ export default function AccountsIndex({ entries, summary, firmAccount, clientAcc
             {/* ─── Client Accounts Tab ─── */}
             {tab === 'clients' && (
                 <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                        <p className="text-sm text-muted-foreground">{clientAccounts.length} client{clientAccounts.length !== 1 ? 's' : ''} with active matters</p>
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <p className="text-sm text-muted-foreground">{visibleClients.length} of {clientAccounts.length} client{clientAccounts.length !== 1 ? 's' : ''}</p>
+                        <div className="relative w-full sm:w-64">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                className="pl-9 h-9 rounded-xl"
+                                placeholder="Search clients…"
+                                value={clientSearch}
+                                onChange={(e) => setClientSearch(e.target.value)}
+                            />
+                        </div>
                     </div>
-                    {clientAccounts.length === 0 ? (
+                    {visibleClients.length === 0 ? (
                         <Card>
                             <CardContent className="py-12 text-center">
                                 <div className="inline-flex items-center justify-center h-14 w-14 rounded-full bg-muted/60 mb-4">
                                     <Users className="h-7 w-7 text-muted-foreground/40" />
                                 </div>
-                                <p className="text-sm font-medium text-muted-foreground mb-1">No client accounts yet</p>
-                                <p className="text-xs text-muted-foreground/60">Clients will appear here once contacts are linked to matters</p>
+                                <p className="text-sm font-medium text-muted-foreground mb-1">{clientAccounts.length === 0 ? 'No client accounts yet' : 'No clients match your search'}</p>
+                                <p className="text-xs text-muted-foreground/60">{clientAccounts.length === 0 ? 'Clients will appear here once contacts are linked to matters' : 'Try a different name, email or matter'}</p>
                             </CardContent>
                         </Card>
                     ) : (
                         <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-                            {clientAccounts.map((client) => (
+                            {visibleClients.map((client) => (
                                 <Card key={client.id} className="border-border/50 hover:border-border/80 hover:shadow-md transition-all">
                                     <CardContent className="p-4">
                                         <div className="flex items-start justify-between mb-3">

@@ -84,6 +84,32 @@ class DocumentTest extends TestCase
         $this->assertSoftDeleted('documents', ['id' => $doc->id]);
     }
 
+    public function test_documents_index_can_search_by_file_name(): void
+    {
+        [$firm, $user] = $this->createFirmAndAdmin();
+        $matter = Matter::factory()->forFirm($firm, $user)->create();
+
+        $make = fn (string $name) => Document::create([
+            'firm_id' => $firm->id,
+            'matter_id' => $matter->id,
+            'uploaded_by_id' => $user->id,
+            'name' => $name,
+            'original_name' => $name,
+            'folder' => 'general',
+            'is_client_visible' => false,
+            'is_signed' => false,
+        ]);
+        $match = $make('engagement-letter.pdf');
+        $make('attendance-note.pdf');
+
+        $this->actingAsUser($user)->get('/documents?search=engagement')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('documents.total', 1)
+                ->where('documents.data.0.id', $match->id)
+                ->where('filters.search', 'engagement'));
+    }
+
     public function test_cannot_upload_to_other_firms_matter(): void
     {
         Storage::fake('local');

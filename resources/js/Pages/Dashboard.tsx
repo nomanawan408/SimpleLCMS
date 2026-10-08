@@ -221,7 +221,7 @@ export default function Dashboard({ stats, viewFinancial, recentMatters, upcomin
             <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-[1.45fr_1fr]">
                 {/* Recent matters */}
                 <div className="overflow-hidden rounded-2xl border border-border/40 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
-                    <SectionHeading title="Recent matters" href="/matters" action="View all" icon={Briefcase} />
+                    <SectionHeading title="Recent matters" href="/matters?sort_by=recent&sort_dir=desc" action="View all" icon={Briefcase} />
                     <div className="p-0">
                         {recentMatters.length === 0 ? (
                             <div className="flex flex-col items-center justify-center py-14 text-center">

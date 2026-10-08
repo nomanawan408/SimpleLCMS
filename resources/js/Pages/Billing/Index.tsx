@@ -94,6 +94,32 @@ export default function BillingIndex({ invoices, stats, filters, filterOptions }
         router.get('/billing', {}, { preserveState: true, replace: true });
     };
 
+    // Stat cards double as quick filters: clicking one filters the list to
+    // match its label (Outstanding/Overdue use the collectable
+    // pseudo-statuses the backend understands). Click again to clear.
+    const handleCardFilter = (kind: 'outstanding' | 'overdue' | 'collected' | 'drafts') => {
+        if (kind === 'collected') {
+            const active = status === 'paid' && timeframe === 'month';
+            const ns = active ? 'all' : 'paid';
+            const nt = active ? 'all' : 'month';
+            setStatus(ns);
+            setTimeframe(nt);
+            router.get('/billing', buildParams({
+                status: ns === 'all' ? undefined : ns,
+                timeframe: nt === 'all' ? undefined : nt,
+            }) as any, { preserveState: true, replace: true });
+            return;
+        }
+        const target = kind === 'outstanding' ? 'outstanding' : kind === 'overdue' ? 'overdue' : 'draft';
+        const next = status === target ? 'all' : target;
+        setStatus(next);
+        router.get('/billing', buildParams({ status: next === 'all' ? undefined : next }) as any, { preserveState: true, replace: true });
+    };
+    const cardActive = (kind: 'outstanding' | 'overdue' | 'collected' | 'drafts') =>
+        kind === 'collected'
+            ? status === 'paid' && timeframe === 'month'
+            : status === (kind === 'drafts' ? 'draft' : kind);
+
     const handleStatusChange = (v: string) => {
         setStatus(v);
         router.get('/billing', buildParams({ status: v === 'all' ? undefined : v }) as any, { preserveState: true, replace: true });
@@ -146,12 +172,23 @@ export default function BillingIndex({ invoices, stats, filters, filterOptions }
             {/* Stats - transaction style: just colored icons, values stay black */}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 mb-6">
                 {[
-                    { label: 'Outstanding', value: formatCurrency(stats.total_outstanding), icon: Clock, iconBg: 'bg-amber-50', iconColor: 'text-amber-600' },
-                    { label: 'Overdue', value: formatCurrency(stats.overdue_amount), icon: AlertCircle, iconBg: 'bg-red-50', iconColor: 'text-red-600' },
-                    { label: 'Collected', value: formatCurrency(stats.paid_this_month), sub: timeframe !== 'all' ? 'Filtered period' : 'This month', icon: CheckCircle, iconBg: 'bg-emerald-50', iconColor: 'text-emerald-600' },
-                    { label: 'Drafts', value: String(stats.draft_count), icon: FileText, iconBg: 'bg-slate-100', iconColor: 'text-slate-600' },
+                    { kind: 'outstanding', label: 'Outstanding', value: formatCurrency(stats.total_outstanding), icon: Clock, iconBg: 'bg-amber-50', iconColor: 'text-amber-600' },
+                    { kind: 'overdue', label: 'Overdue', value: formatCurrency(stats.overdue_amount), icon: AlertCircle, iconBg: 'bg-red-50', iconColor: 'text-red-600' },
+                    { kind: 'collected', label: 'Collected', value: formatCurrency(stats.paid_this_month), sub: timeframe !== 'all' ? 'Filtered period' : 'This month', icon: CheckCircle, iconBg: 'bg-emerald-50', iconColor: 'text-emerald-600' },
+                    { kind: 'drafts', label: 'Drafts', value: String(stats.draft_count), icon: FileText, iconBg: 'bg-slate-100', iconColor: 'text-slate-600' },
                 ].map(s => (
-                    <div key={s.label} className="rounded-xl border border-border/60 bg-card p-5 flex items-center justify-between shadow-sm">
+                    <button
+                        key={s.label}
+                        type="button"
+                        onClick={() => handleCardFilter(s.kind as 'outstanding' | 'overdue' | 'collected' | 'drafts')}
+                        title={`Filter by ${s.label}`}
+                        className={cn(
+                            'rounded-xl border bg-card p-5 flex items-center justify-between shadow-sm text-left transition-all cursor-pointer hover:shadow-md hover:border-primary/30',
+                            cardActive(s.kind as 'outstanding' | 'overdue' | 'collected' | 'drafts')
+                                ? 'border-primary ring-2 ring-primary/20'
+                                : 'border-border/60',
+                        )}
+                    >
                         <div>
                             <p className="text-sm font-medium text-muted-foreground">{s.label}</p>
                             <p className="text-xl font-extrabold tracking-tight tabular-nums mt-1.5 leading-none text-foreground">{s.value}</p>
@@ -160,7 +197,7 @@ export default function BillingIndex({ invoices, stats, filters, filterOptions }
                         <div className={cn('flex h-10 w-10 items-center justify-center rounded-full shrink-0', s.iconBg)}>
                             <s.icon className={cn('h-5 w-5', s.iconColor)} />
                         </div>
-                    </div>
+                    </button>
                 ))}
             </div>
 
@@ -198,6 +235,8 @@ export default function BillingIndex({ invoices, stats, filters, filterOptions }
                             <SelectTrigger className="h-9 rounded-xl"><SelectValue placeholder="Status" /></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="all">All statuses</SelectItem>
+                                <SelectItem value="outstanding">Outstanding</SelectItem>
+                                <SelectItem value="overdue">Overdue</SelectItem>
                                 <SelectItem value="draft">Draft</SelectItem><SelectItem value="sent">Sent</SelectItem><SelectItem value="partial">Partial</SelectItem>
                                 <SelectItem value="paid">Paid</SelectItem><SelectItem value="written_off">Written Off</SelectItem><SelectItem value="cancelled">Cancelled</SelectItem>
                             </SelectContent>
@@ -224,10 +263,10 @@ export default function BillingIndex({ invoices, stats, filters, filterOptions }
 
             {/* Status pills quick filter */}
             <div className="flex flex-wrap gap-1.5 mb-4">
-                {['all', 'draft', 'sent', 'partial', 'paid', 'overdue'].map(s => {
-                    const active = (s === 'all' ? status === 'all' : status === s) || (s === 'overdue' && status === 'sent');
+                {['all', 'outstanding', 'overdue', 'draft', 'sent', 'partial', 'paid'].map(s => {
+                    const active = status === s;
                     return (
-                        <button key={s} onClick={() => handleStatusChange(s === 'overdue' ? 'sent' : s)}
+                        <button key={s} onClick={() => handleStatusChange(s)}
                             className={cn('rounded-full px-3 py-1 text-xs font-medium border transition-colors capitalize', active ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border text-muted-foreground hover:bg-muted')}>
                             {s}
                         </button>

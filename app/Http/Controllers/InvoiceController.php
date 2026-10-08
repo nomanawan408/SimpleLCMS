@@ -35,7 +35,7 @@ class InvoiceController extends Controller
             'date_field' => 'nullable|in:created_at,due_date,sent_at,paid_at',
             'matter_id'  => ['nullable', 'uuid', Rule::exists('matters', 'id')->where(fn ($q) => $q->where('firm_id', $firmId))],
             'user_id'    => ['nullable', 'uuid', Rule::exists('users', 'id')->where(fn ($q) => $q->where('firm_id', $firmId))],
-            'status'     => 'nullable|in:draft,sent,partial,paid,written_off,cancelled',
+            'status'     => 'nullable|in:draft,sent,partial,paid,written_off,cancelled,outstanding,overdue',
             'search'     => 'nullable|string|max:255',
         ]);
 
@@ -73,7 +73,7 @@ class InvoiceController extends Controller
 
         // Filters
         if ($request->filled('status')) {
-            $query->where('status', $request->status);
+            $this->applyStatusFilter($query, $request->status);
         }
 
         if ($request->filled('search')) {
@@ -105,7 +105,7 @@ class InvoiceController extends Controller
         // Stats for dashboard - respect same filters except pagination, but not search for cleaner KPI
         $statsBase = Invoice::where('firm_id', $firmId)
             ->visibleTo($request->user())
-            ->when($request->filled('status'), fn ($q) => $q->where('status', $request->status))
+            ->when($request->filled('status'), fn ($q) => $this->applyStatusFilter($q, $request->status))
             ->when($request->filled('matter_id'), fn ($q) => $q->where('matter_id', $request->matter_id))
             ->when($request->filled('user_id'), fn ($q) => $q->whereHas('matter', fn ($mq) => $mq->where('responsible_user_id', $request->user_id)))
             ->when($dateFrom && $dateTo && $dateField !== 'paid_at', fn ($q) => $q->whereBetween($dateField, [$dateFrom, $dateTo]));
@@ -149,6 +149,26 @@ class InvoiceController extends Controller
             'filters' => $request->only(['status', 'search', 'matter_id', 'user_id', 'timeframe', 'date_from', 'date_to', 'date_field']),
             'filterOptions' => $filterOptions,
         ]);
+    }
+
+    /**
+     * Status filter including the two collectable pseudo-statuses the stat
+     * cards link to: 'outstanding' (draft/sent/partial) and 'overdue'
+     * (sent/partial past due). Plain values pass straight through.
+     */
+    private function applyStatusFilter(mixed $query, string $status): mixed
+    {
+        if ($status === 'outstanding') {
+            return $query->whereIn('status', ['draft', 'sent', 'partial']);
+        }
+
+        if ($status === 'overdue') {
+            return $query->whereIn('status', ['sent', 'partial'])
+                ->whereNotNull('due_date')
+                ->where('due_date', '<', now());
+        }
+
+        return $query->where('status', $status);
     }
 
     public function create(Request $request)
@@ -558,12 +578,15 @@ class InvoiceController extends Controller
         ];
 
         $pdf = Pdf::loadView('invoices.pdf', [
-            'invoice'     => $invoice,
-            'firm'        => $firm,
-            'clientName'  => $clientName,
-            'lineItems'   => $lineItems,
-            'bankDetails' => $bankDetails,
-        ]);
+            'invoice'       => $invoice,
+            'firm'          => $firm,
+            'clientName'    => $clientName,
+            'clientContact' => $clientContact,
+            'lineItems'     => $lineItems,
+            'bankDetails'   => $bankDetails,
+            'logoPath'      => public_path('images/invoice/logo.png'),
+            'signaturePath' => public_path('images/invoice/signature.png'),
+        ])->setPaper('a4');
 
         return $pdf->download("invoice-{$invoice->invoice_number}.pdf");
     }

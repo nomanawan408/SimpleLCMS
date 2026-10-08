@@ -36,7 +36,7 @@ export default function ForgotPassword({ status }: Props) {
                         autoComplete="email"
                         value={data.email}
                         onChange={(e) => setData('email', e.target.value)}
-                        placeholder="you@lawfirm.ie"
+                        placeholder="you@lawfirm.co.uk"
                     />
                     {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
                 </div>

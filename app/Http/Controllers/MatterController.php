@@ -811,6 +811,12 @@ class MatterController extends Controller
                 $query->orderBy('open_tasks_count', $sortDir);
 
                 return true;
+            // Dashboard "Recent matters" view: mirrors the dashboard widget
+            // (latest created first). Newest always on top.
+            case 'recent':
+                $query->orderBy('matters.created_at', 'desc');
+
+                return true;
             default:
                 return false;
         }

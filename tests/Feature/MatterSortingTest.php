@@ -59,6 +59,16 @@ class MatterSortingTest extends TestCase
         $this->assertSortedNames($admin, ['sort_by' => 'priority', 'sort_dir' => 'asc'], ['High', 'Medium', 'Low']);
     }
 
+    public function test_recent_sorts_newest_first_for_the_dashboard_widget(): void
+    {
+        [$firm, $admin] = $this->admin();
+        Matter::factory()->forFirm($firm, $admin)->create(['name' => 'Oldest', 'created_at' => now()->subDays(9)]);
+        Matter::factory()->forFirm($firm, $admin)->create(['name' => 'Newest', 'created_at' => now()->subHour()]);
+        Matter::factory()->forFirm($firm, $admin)->create(['name' => 'Middle', 'created_at' => now()->subDays(3)]);
+
+        $this->assertSortedNames($admin, ['sort_by' => 'recent', 'sort_dir' => 'desc'], ['Newest', 'Middle', 'Oldest']);
+    }
+
     public function test_sorts_by_responsible_name_with_nulls_last(): void
     {
         [$firm, $admin] = $this->admin();

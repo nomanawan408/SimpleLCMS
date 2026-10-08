@@ -125,11 +125,57 @@ export default function TransactionsIndex({ transactions, stats, matters, openIn
     }
 
     const statsCards = [
-        { label: 'Total Received',    value: formatCurrency(stats.total_received),      icon: PoundSterling, iconBg: 'bg-emerald-50', iconColor: 'text-emerald-600' },
-        { label: 'This Month',        value: formatCurrency(stats.received_this_month),  icon: TrendingUp,    iconBg: 'bg-blue-50', iconColor: 'text-blue-600' },
-        { label: 'This Week',         value: formatCurrency(stats.received_this_week),   icon: Clock,         iconBg: 'bg-slate-100', iconColor: 'text-slate-600' },
-        { label: 'Outstanding',       value: formatCurrency(stats.outstanding),          icon: AlertCircle,   iconBg: 'bg-amber-50', iconColor: 'text-amber-600' },
+        { key: 'total', label: 'Total Received',    value: formatCurrency(stats.total_received),      icon: PoundSterling, iconBg: 'bg-emerald-50', iconColor: 'text-emerald-600' },
+        { key: 'month', label: 'This Month',        value: formatCurrency(stats.received_this_month),  icon: TrendingUp,    iconBg: 'bg-blue-50', iconColor: 'text-blue-600' },
+        { key: 'week', label: 'This Week',         value: formatCurrency(stats.received_this_week),   icon: Clock,         iconBg: 'bg-slate-100', iconColor: 'text-slate-600' },
+        { key: 'outstanding', label: 'Outstanding', value: formatCurrency(stats.outstanding),          icon: AlertCircle,   iconBg: 'bg-amber-50', iconColor: 'text-amber-600' },
     ];
+
+    // Stat cards double as quick filters: Total clears the date range, Month
+    // and Week set it, Outstanding opens the collectable invoices in Billing
+    // (a payment list has no outstanding state). Click again to clear.
+    const isoDay = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const monthRange = (): [string, string] => {
+        const n = new Date();
+        return [isoDay(new Date(n.getFullYear(), n.getMonth(), 1)), isoDay(new Date(n.getFullYear(), n.getMonth() + 1, 0))];
+    };
+    const weekRange = (): [string, string] => {
+        const n = new Date();
+        const monday = new Date(n);
+        monday.setDate(n.getDate() - ((n.getDay() + 6) % 7));
+        const sunday = new Date(monday);
+        sunday.setDate(monday.getDate() + 6);
+        return [isoDay(monday), isoDay(sunday)];
+    };
+    const applyDateRange = (from?: string, to?: string) => {
+        router.get('/transactions', {
+            ...filters,
+            date_from: from || undefined,
+            date_to: to || undefined,
+        }, { preserveState: true, replace: true });
+    };
+    const handleStatCard = (key: string) => {
+        if (key === 'outstanding') {
+            router.visit('/billing?status=outstanding');
+            return;
+        }
+        if (key === 'total') {
+            if (!filters.date_from && !filters.date_to) return;
+            applyDateRange();
+            return;
+        }
+        const [from, to] = key === 'month' ? monthRange() : weekRange();
+        if (filters.date_from === from && filters.date_to === to) {
+            applyDateRange();
+        } else {
+            applyDateRange(from, to);
+        }
+    };
+    const statCardActive = (key: string) => {
+        if (key === 'total') return !filters.date_from && !filters.date_to;
+        const [from, to] = key === 'month' ? monthRange() : weekRange();
+        return filters.date_from === from && filters.date_to === to;
+    };
 
     return (
         <AppLayout title="Transactions">
@@ -148,7 +194,16 @@ export default function TransactionsIndex({ transactions, stats, matters, openIn
             {/* Stats - enterprise matter style */}
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 mb-6">
                 {statsCards.map((s) => (
-                    <div key={s.label} className="rounded-xl border border-border/60 bg-card p-5 flex items-center justify-between shadow-sm">
+                    <button
+                        key={s.label}
+                        type="button"
+                        onClick={() => handleStatCard(s.key)}
+                        title={s.key === 'outstanding' ? 'View outstanding invoices' : `Filter by ${s.label}`}
+                        className={cn(
+                            'rounded-xl border bg-card p-5 flex items-center justify-between shadow-sm text-left transition-all cursor-pointer hover:shadow-md hover:border-primary/30',
+                            statCardActive(s.key) ? 'border-primary ring-2 ring-primary/20' : 'border-border/60',
+                        )}
+                    >
                         <div>
                             <p className="text-sm font-medium text-muted-foreground">{s.label}</p>
                             <p className="text-xl font-extrabold tracking-tight tabular-nums mt-1.5 leading-none text-foreground">{s.value}</p>
@@ -156,7 +211,7 @@ export default function TransactionsIndex({ transactions, stats, matters, openIn
                         <div className={cn('flex h-10 w-10 items-center justify-center rounded-full shrink-0', s.iconBg)}>
                             <s.icon className={cn('h-5 w-5', s.iconColor)} />
                         </div>
-                    </div>
+                    </button>
                 ))}
             </div>
 

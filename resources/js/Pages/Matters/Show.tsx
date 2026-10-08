@@ -20,7 +20,7 @@ import { UserAvatar } from '@/components/ui/user-avatar';
 import {
     ArrowLeft, Clock, Receipt, Wallet, FileText, CheckSquare, Users, Edit, Plus, Download,
     Gavel, Calendar, TrendingUp, AlertTriangle, ChevronRight, ChevronDown, MessageSquare, Timer,
-    Paperclip, ExternalLink, PoundSterling, Eye, X, Pencil, Trash2, Upload,
+    Paperclip, ExternalLink, PoundSterling, Eye, X, Pencil, Trash2, Upload, Search,
     Landmark, CalendarClock, Flag, Folder, FolderOpen, CircleCheck, RotateCcw, BookOpenText, Lock,
 } from 'lucide-react';
 import type { Matter, Expense, Document, TrustEntry, User, PageProps } from '@/types';
@@ -123,6 +123,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
     const [expenses, setExpenses] = useState<any[]>(matter.expenses ?? []);
     const [tasks, setTasks] = useState<any[]>(matter.tasks ?? []);
     const [documents, setDocuments] = useState<any[]>(matter.documents ?? []);
+    const [docSearch, setDocSearch] = useState('');
     // Folder tree collapse state (Windows-style explorer). Empty = all expanded.
     const [collapsedFolders, setCollapsedFolders] = useState<string[]>([]);
     const toggleFolder = (path: string) => setCollapsedFolders((prev) => (
@@ -1787,12 +1788,21 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
 
             {tab === 'documents' && (
                 <Card className="surface-card">
-                    <CardHeader className="flex flex-row items-center justify-between pb-3">
-                        <CardTitle className="text-base tracking-tight flex items-center gap-2">
+                    <CardHeader className="flex flex-row items-center justify-between gap-3 pb-3">
+                        <CardTitle className="text-base tracking-tight flex items-center gap-2 shrink-0">
                             <FileText className="h-4 w-4" /> Documents
                         </CardTitle>
+                        <div className="relative w-full max-w-64">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                className="pl-9 h-9 rounded-xl"
+                                placeholder="Search documents…"
+                                value={docSearch}
+                                onChange={(e) => setDocSearch(e.target.value)}
+                            />
+                        </div>
                         {canUploadDoc && (
-                        <Button size="sm" variant="outline" type="button" onClick={() => openDocModal()}>
+                        <Button size="sm" variant="outline" type="button" onClick={() => openDocModal()} className="shrink-0">
                             <Plus className="h-3.5 w-3.5 mr-1" />
                             Upload
                         </Button>
@@ -1804,7 +1814,11 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                 // ── Folder tree (Windows-style explorer) ──
                                 // Forgiving matching (legacy numbers/names/General/whitespace);
                                 // orphans surface under "Other files" instead of vanishing.
-                                const allDocs = documents as any[];
+                                // docSearch narrows the tree to matching file names.
+                                const docQuery = docSearch.trim().toLowerCase();
+                                const allDocs = (documents as any[]).filter((d) =>
+                                    !docQuery || (d.name ?? '').toLowerCase().includes(docQuery),
+                                );
                                 const normBase = _baseFolder.trim().toLowerCase();
                                 const normName = (matter.name || '').trim().toLowerCase();
                                 const normFolder = (folder: string | null | undefined): string => {
@@ -1942,7 +1956,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                             </div>
                                         )}
                                         {rootNodes.length === 0 && rootFiles.length === 0 && orphans.length === 0 ? (
-                                            <div className="p-6 text-center text-sm text-muted-foreground">No documents yet.</div>
+                                            <div className="p-6 text-center text-sm text-muted-foreground">{docQuery ? 'No documents match your search.' : 'No documents yet.'}</div>
                                         ) : null}
                                         {orphans.length > 0 && (
                                             <div className="border-t border-border/40">

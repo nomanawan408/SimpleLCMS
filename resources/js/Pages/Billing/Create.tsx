@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Combobox, type ComboboxOption } from '@/components/ui/combobox';
 import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, Plus, Trash2, Clock, Receipt, PlusCircle, Send, Save } from 'lucide-react';
@@ -99,10 +98,6 @@ export default function CreateInvoice({ matters, unbilledTime, unbilledExpenses,
 
     const handleVatChange = (rate: number) => {
         setData({ ...data, vat_rate: rate, line_items: recomputeVat(data.line_items, rate) });
-    };
-
-    const handleTermsChange = (days: string) => {
-        setData('due_date', dueDate(parseInt(days)));
     };
 
     const ACTIVITY_LABELS: Record<string, string> = {
@@ -268,24 +263,10 @@ export default function CreateInvoice({ matters, unbilledTime, unbilledExpenses,
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
                                 <div className="space-y-2">
                                     <Label>Issue Date</Label>
                                     <Input type="date" value={data.issue_date} onChange={e => setData('issue_date', e.target.value)} className="h-10" />
-                                </div>
-
-                                <div className="space-y-2">
-                                    <Label>Payment Terms</Label>
-                                    <Select defaultValue={String(paymentTermsDays)} onValueChange={handleTermsChange}>
-                                        <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="7">7 days</SelectItem>
-                                            <SelectItem value="14">14 days</SelectItem>
-                                            <SelectItem value="30">30 days</SelectItem>
-                                            <SelectItem value="60">60 days</SelectItem>
-                                            <SelectItem value="90">90 days</SelectItem>
-                                        </SelectContent>
-                                    </Select>
                                 </div>
 
                                 <div className="space-y-2">

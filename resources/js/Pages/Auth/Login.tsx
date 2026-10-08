@@ -49,7 +49,7 @@ export default function Login({ canResetPassword, status }: Props) {
                         autoFocus
                         value={data.email}
                         onChange={(e) => setData('email', e.target.value)}
-                        placeholder="you@lawfirm.ie"
+                        placeholder="you@lawfirm.co.uk"
                         className="h-10 rounded-md border-border bg-background px-3 text-sm text-foreground shadow-none focus-visible:ring-1 focus-visible:ring-ring"
                     />
                     {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}

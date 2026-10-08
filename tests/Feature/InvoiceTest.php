@@ -2,7 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Models\Contact;
 use App\Models\Invoice;
+use App\Models\InvoiceLineItem;
 use App\Models\Matter;
 use App\Models\TimeEntry;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -196,6 +198,64 @@ class InvoiceTest extends TestCase
         $this->actingAsUser($admin)->get('/billing')
             ->assertOk()
             ->assertInertia(fn ($page) => $page->where('invoices.total', 0));
+    }
+
+    public function test_outstanding_status_filter_covers_draft_sent_and_partial(): void
+    {
+        [$firm, $admin] = $this->createFirmAndAdmin();
+        $matter = Matter::factory()->forFirm($firm, $admin)->create();
+        Invoice::factory()->forMatter($matter)->create(['status' => 'draft']);
+        Invoice::factory()->sent()->forMatter($matter)->create();
+        Invoice::factory()->forMatter($matter)->create(['status' => 'partial']);
+        Invoice::factory()->forMatter($matter)->create(['status' => 'paid']);
+
+        $this->actingAsUser($admin)->get('/billing?status=outstanding')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('invoices.total', 3)
+                ->where('filters.status', 'outstanding'));
+    }
+
+    public function test_overdue_status_filter_covers_sent_and_partial_past_due_only(): void
+    {
+        [$firm, $admin] = $this->createFirmAndAdmin();
+        $matter = Matter::factory()->forFirm($firm, $admin)->create();
+        $sentOverdue = Invoice::factory()->sent()->forMatter($matter)->create(['due_date' => now()->subDays(3)->toDateString()]);
+        $partialOverdue = Invoice::factory()->forMatter($matter)->create(['status' => 'partial', 'due_date' => now()->subDays(1)->toDateString()]);
+        Invoice::factory()->sent()->forMatter($matter)->create(['due_date' => now()->addDays(9)->toDateString()]);
+        Invoice::factory()->forMatter($matter)->create(['status' => 'draft', 'due_date' => now()->subDays(5)->toDateString()]);
+        Invoice::factory()->forMatter($matter)->create(['status' => 'paid', 'due_date' => now()->subDays(5)->toDateString()]);
+
+        $this->actingAsUser($admin)->get('/billing?status=overdue')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('invoices.total', 2)
+                ->where('filters.status', 'overdue')
+                ->where('invoices.data.0.id', $sentOverdue->id)
+                ->where('invoices.data.1.id', $partialOverdue->id));
+    }
+
+    public function test_invoice_pdf_download_renders_the_firm_template(): void
+    {
+        [$firm, $admin] = $this->createFirmAndAdmin();
+        $contact = Contact::factory()->create([
+            'firm_id' => $firm->id, 'first_name' => 'Zoya', 'last_name' => 'Yaseen',
+            'address' => ['line1' => '14 Ilford Lane', 'city' => 'Ilford', 'postcode' => 'IG1 2AB'],
+        ]);
+        $matter = Matter::factory()->forFirm($firm, $admin)->create();
+        $matter->contacts()->attach($contact->id, ['role' => 'client']);
+
+        $invoice = Invoice::factory()->forMatter($matter)->create([
+            'status' => 'sent', 'subtotal' => 700, 'vat_amount' => 140, 'total' => 840,
+        ]);
+        InvoiceLineItem::create([
+            'invoice_id' => $invoice->id, 'description' => 'Advice and drafting',
+            'quantity' => 2, 'unit_rate' => 350, 'amount' => 700, 'vat_amount' => 140,
+        ]);
+
+        $this->actingAsUser($admin)->get("/billing/{$invoice->id}/pdf")
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf');
     }
 
     public function test_deleting_invoice_unlinks_time_entries(): void

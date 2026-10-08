@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import { Card, CardContent } from '@/components/ui/card';
@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Combobox } from '@/components/ui/combobox';
 import { formatDate, cn, matterComboboxOptions, hasAnyPermission, shortName } from '@/lib/utils';
-import { ArrowLeft, ChevronDown, Download, Eye, FileText, Folder, FolderOpen, Paperclip, Trash2, Upload, X } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Download, Eye, FileText, Folder, FolderOpen, Paperclip, Search, Trash2, Upload, X } from 'lucide-react';
 import type { Document, PaginatedData, PageProps } from '@/types';
 import { useUploadQueue } from '@/hooks/useUploadQueue';
 import { UploadQueueList } from '@/components/documents/UploadQueueList';
@@ -21,7 +21,7 @@ import { UploadQueueList } from '@/components/documents/UploadQueueList';
 interface Props {
     documents: PaginatedData<Document & { matter?: { id: string; name: string }; uploadedBy?: { full_name: string } }>;
     matters: { id: string; name: string; matter_number: string }[];
-    filters: { matter_id?: string };
+    filters: { matter_id?: string; search?: string };
 }
 
 function formatBytes(bytes: number | null): string {
@@ -126,6 +126,19 @@ export default function DocumentsIndex({ documents, matters, filters }: Props) {
         router.get('/documents', { ...filters, [key]: actual || undefined }, { preserveState: true, replace: true });
     };
 
+    // Server-side file-name search (debounced): the list is paginated, so
+    // filtering must happen in the query, not over the visible page.
+    const [search, setSearch] = useState(filters.search ?? '');
+    const isFirstSearch = useRef(true);
+    useEffect(() => {
+        if (isFirstSearch.current) { isFirstSearch.current = false; return; }
+        const t = setTimeout(() => {
+            router.get('/documents', { ...filters, search: search.trim() || undefined }, { preserveState: true, replace: true });
+        }, 300);
+        return () => clearTimeout(t);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [search]);
+
     return (
         <AppLayout title="Documents">
             <Head title="Documents" />
@@ -146,6 +159,15 @@ export default function DocumentsIndex({ documents, matters, filters }: Props) {
             {/* Filters */}
             <Card className="rounded-2xl border border-border/60 bg-card shadow-sm mb-5">
                 <CardContent className="p-4 flex flex-wrap items-center gap-3">
+                    <div className="relative w-full sm:w-64">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            className="pl-9 h-9 rounded-xl"
+                            placeholder="Search documents…"
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                        />
+                    </div>
                     <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                         <FileText className="h-4 w-4" /> Filter by matter
                     </div>
@@ -166,8 +188,8 @@ export default function DocumentsIndex({ documents, matters, filters }: Props) {
                     {documents.data.length === 0 ? (
                         <div className="px-6 py-14 text-center">
                             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-muted mb-3"><Paperclip className="h-6 w-6 text-muted-foreground/50" /></div>
-                            <p className="text-sm font-semibold text-foreground">No documents found</p>
-                            <p className="text-xs text-muted-foreground mt-1">Upload the first file — it will be saved to the matter&apos;s own folder.</p>
+                            <p className="text-sm font-semibold text-foreground">{search.trim() ? 'No documents match your search' : 'No documents found'}</p>
+                            <p className="text-xs text-muted-foreground mt-1">{search.trim() ? 'Try a different file name.' : 'Upload the first file — it will be saved to the matter\u2019s own folder.'}</p>
                         </div>
                     ) : (
                         (() => {
@@ -175,6 +197,12 @@ export default function DocumentsIndex({ documents, matters, filters }: Props) {
                             // Every doc has a `folder` like "Smith v Jones/Correspondence/Letters"
                             // We need: top-level = matter folders, then subfolders nested inside.
                             const allDocs = documents.data as any[];
+
+                            // A search spans every folder (the server already
+                            // narrowed the page to matches), so it renders as
+                            // a flat result list instead of the folder tree.
+                            const docQuery = search.trim().toLowerCase();
+                            const matchingDocs = allDocs;
 
                             // Collect every unique full folder path
                             const folderSet = new Set<string>();
@@ -233,6 +261,69 @@ export default function DocumentsIndex({ documents, matters, filters }: Props) {
                                 label: seg,
                                 path: activeSegments.slice(0, i + 1).join('/'),
                             }));
+
+                            if (docQuery) {
+                                return (
+                                    <div>
+                                        <div className="flex items-center justify-between gap-2 px-5 py-3 border-b border-border/60 bg-muted/20">
+                                            <p className="text-xs text-muted-foreground">
+                                                <span className="font-semibold text-foreground tabular-nums">{matchingDocs.length}</span>
+                                                {' '}result{matchingDocs.length !== 1 ? 's' : ''} for &ldquo;{search.trim()}&rdquo;
+                                            </p>
+                                            <button
+                                                type="button"
+                                                onClick={() => setSearch('')}
+                                                className="text-xs font-medium text-muted-foreground hover:text-foreground shrink-0"
+                                            >
+                                                Clear
+                                            </button>
+                                        </div>
+                                        {matchingDocs.length === 0 ? (
+                                            <div className="p-6 text-center text-sm text-muted-foreground">No documents match your search.</div>
+                                        ) : (
+                                            <div className="divide-y divide-border/40">
+                                                {matchingDocs.map((doc: any) => (
+                                                    <div key={doc.id} className="px-5 py-3.5 flex items-center gap-3 hover:bg-muted/20 transition-colors">
+                                                        <Paperclip className="h-4 w-4 text-muted-foreground shrink-0" />
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="text-sm font-medium truncate">{doc.name}</p>
+                                                            <p className="text-xs text-muted-foreground truncate">
+                                                                {doc.matter ? (
+                                                                    <Link href={`/matters/${doc.matter.id}`} className="hover:text-primary font-medium" onClick={(e) => e.stopPropagation()}>
+                                                                        {doc.matter.name}
+                                                                    </Link>
+                                                                ) : (
+                                                                    '—'
+                                                                )}
+                                                                {' · '}
+                                                                {doc.uploadedBy?.full_name ? shortName(doc.uploadedBy.full_name) : '—'} · {formatDate(doc.created_at)} · {formatBytes(doc.size_bytes ?? doc.size)}
+                                                            </p>
+                                                        </div>
+                                                        <span className={`hidden sm:inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium shrink-0 ${visibilityBadgeStyles[doc.is_client_visible ? 'success' : 'secondary']}`}>
+                                                            {doc.is_client_visible ? 'Client' : 'Internal'}
+                                                        </span>
+                                                        <div className="flex items-center gap-1 shrink-0">
+                                                            <Button variant="ghost" size="icon" className="h-7 w-7" title="View" onClick={() => setViewerDoc(doc)}>
+                                                                <Eye className="h-3.5 w-3.5" />
+                                                            </Button>
+                                                            <Button variant="ghost" size="icon" className="h-7 w-7" title="Download" asChild>
+                                                                <a href={`/documents/${doc.id}/download`} download>
+                                                                    <Download className="h-3.5 w-3.5" />
+                                                                </a>
+                                                            </Button>
+                                                            {canDeleteDoc && (
+                                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => handleDelete(doc.id)}>
+                                                                <Trash2 className="h-3.5 w-3.5" />
+                                                            </Button>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            }
 
                             if (activeFolder) {
                                 return (

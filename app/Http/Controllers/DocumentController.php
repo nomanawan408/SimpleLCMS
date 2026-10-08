@@ -39,12 +39,20 @@ class DocumentController extends Controller
             $query->where('matter_id', $request->matter_id);
         }
 
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('original_name', 'like', "%{$search}%");
+            });
+        }
+
         $documents = $query->paginate(25)->withQueryString();
 
         return Inertia::render('Documents/Index', [
             'documents' => $documents,
             'matters'   => Matter::where('firm_id', $firmId)->visibleTo($request->user())->orderBy('name')->get(['id', 'name', 'matter_number']),
-            'filters'   => $request->only('matter_id'),
+            'filters'   => $request->only('matter_id', 'search'),
         ]);
     }
 
