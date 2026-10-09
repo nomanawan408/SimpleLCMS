@@ -65,7 +65,7 @@ class DocumentController extends Controller
             // out of the library entirely; DocumentMediaType then decides how
             // whatever did get stored is allowed to leave again.
             'file'             => [
-                'required', 'file', 'max:20480',
+                'required', 'file', 'max:102400',
                 'extensions:'.implode(',', DocumentMediaType::ALLOWED_EXTENSIONS),
             ],
             'matter_id'        => ['required', 'uuid', Rule::exists('matters', 'id')->where(fn ($q) => $q->where('firm_id', $request->user()->firm_id))],

@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Combobox } from '@/components/ui/combobox';
-import { cn, formatDate, splitDateTime, matterComboboxOptions, hasAnyPermission } from '@/lib/utils';
+import { cn, formatDate, formatHearingRange, splitDateTime, matterComboboxOptions, hasAnyPermission } from '@/lib/utils';
 import { CalendarClock, ChevronLeft, ChevronRight, ExternalLink, Gavel, MapPin, Pencil, Plus, Trash2 } from 'lucide-react';
 
 import type { PageProps } from '@/types';
@@ -270,7 +270,14 @@ export default function CalendarIndex({ events, matters, year, month }: Props) {
                                                         e.stopPropagation();
                                                         setViewing(ev);
                                                     }}
-                                                    title={ev.source === 'task' ? `Task: ${ev.title}${ev.status ? ` (${ev.status.replace(/_/g, ' ')})` : ''}` : ev.title}
+                                                    title={ev.source === 'task'
+                                                        ? `Task: ${ev.title}${ev.status ? ` (${ev.status.replace(/_/g, ' ')})` : ''}`
+                                                        : ((ev.is_court_date || ev.type === 'court_date')
+                                                            ? (() => {
+                                                                const r = formatHearingRange(ev.start_at, ev.end_at);
+                                                                return r.multiDay ? `${ev.title} — ${r.full} · ${r.courtDays} court days` : ev.title;
+                                                            })()
+                                                            : ev.title)}
                                                 >
                                                     {ev.type === 'task_deadline' && <span className="mr-0.5">&#9744;</span>}
                                                     {ev.title}
@@ -332,6 +339,10 @@ export default function CalendarIndex({ events, matters, year, month }: Props) {
                                         <span className="block truncate text-xs tabular-nums text-muted-foreground">
                                             {time ? `${time} · ` : ''}{meta.label}
                                             {ev.matter ? ` · ${ev.matter.matter_number}` : ''}
+                                            {isHearing && (() => {
+                                                const r = formatHearingRange(ev.start_at, ev.end_at);
+                                                return r.multiDay ? ` · ends ${formatDate(ev.end_at)} (${r.courtDays}d)` : '';
+                                            })()}
                                         </span>
                                     </span>
                                 </button>
@@ -373,8 +384,22 @@ export default function CalendarIndex({ events, matters, year, month }: Props) {
                                                 </span>
                                                 <span className="inline-flex items-center gap-1 tabular-nums text-muted-foreground">
                                                     <CalendarClock className="h-3.5 w-3.5" />
-                                                    {formatDate(viewing.start_at)}{time ? ` · ${time}` : ''}
-                                                    {viewing.end_at ? ` – ${endTime || formatDate(viewing.end_at)}` : ''}
+                                                    {(() => {
+                                                        const range = isHearing
+                                                            ? formatHearingRange(viewing.start_at, viewing.end_at)
+                                                            : null;
+                                                        if (range?.multiDay) {
+                                                            return (
+                                                                <span title={range.full}>
+                                                                    {range.compact} · {range.courtDays} court day{(range.courtDays ?? 0) === 1 ? '' : 's'}
+                                                                </span>
+                                                            );
+                                                        }
+                                                        return (
+                                                            <>{formatDate(viewing.start_at)}{time ? ` · ${time}` : ''}
+                                                            {viewing.end_at ? ` – ${endTime || formatDate(viewing.end_at)}` : ''}</>
+                                                        );
+                                                    })()}
                                                 </span>
                                             </p>
                                         </div>

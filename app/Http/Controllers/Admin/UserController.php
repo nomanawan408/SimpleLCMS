@@ -293,4 +293,47 @@ class UserController extends Controller
 
         return back()->with('success', "Password reset for {$user->full_name}.");
     }
+
+    /**
+     * Admin-assisted 2FA recovery: device lost AND recovery codes gone. The
+     * user re-enrols at next sign-in; until then the account is
+     * password-only, so the reset itself is audit-logged with the actor.
+     */
+    public function resetTwoFactor(Request $request, User $user): RedirectResponse
+    {
+        $this->authorize('update', $user);
+        $this->ensureManageableTarget($request->user(), $user);
+
+        $actor = $request->user();
+
+        // Clearing a second factor is a stealthy account takeover in the wrong
+        // hands, so this stays stricter than user editing: firm admins only
+        // (delegated user-managers keep every other power), never on yourself
+        // (the disable flow with password + code exists for that), and never
+        // on an admin account.
+        abort_unless($actor->isFirmAdmin(), 403, 'Only a firm admin can reset two-factor authentication.');
+        abort_if($user->id === $actor->id, 403, 'Use the 2FA settings to manage your own second factor.');
+        abort_if(
+            $user->hasRole('firm_admin') || $user->hasRole('super_admin'),
+            403,
+            'Admin accounts cannot have 2FA reset this way.'
+        );
+
+        $had2fa = (bool) $user->totp_enabled;
+
+        $user->forceFill([
+            'totp_enabled' => false,
+            'totp_secret' => null,
+            'totp_recovery_codes' => null,
+            'totp_last_timestamp' => null,
+            'totp_failed_count' => 0,
+            'locked_until' => null,
+        ])->save();
+
+        activity()->causedBy($actor)->performedOn($user)
+            ->withProperties(['ip' => $request->ip(), 'had_2fa' => $had2fa])
+            ->log('totp_reset_by_admin');
+
+        return back()->with('success', "2FA has been reset for {$user->full_name}. They will set it up again at next sign-in.");
+    }
 }

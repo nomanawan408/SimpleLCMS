@@ -15,7 +15,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
-import { cn, daysUntilDate, formatCurrency, formatDate, formatTime, hasPermission, hasAnyPermission, isOverdueDate, splitDateTime, MATTER_STATUS_LABELS, MATTER_PRIORITY_LABELS, MATTER_PRIORITY_STYLES, PRACTICE_AREA_LABELS, shortName } from '@/lib/utils';
+import { cn, daysUntilDate, formatCurrency, formatDate, formatTime, formatHearingRange, hasPermission, hasAnyPermission, isOverdueDate, splitDateTime, MATTER_STATUS_LABELS, MATTER_PRIORITY_LABELS, MATTER_PRIORITY_STYLES, PRACTICE_AREA_LABELS, shortName } from '@/lib/utils';
 import { UserAvatar } from '@/components/ui/user-avatar';
 import {
     ArrowLeft, Clock, Receipt, Wallet, FileText, CheckSquare, Users, Edit, Plus, Download,
@@ -155,7 +155,49 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
             hearing_end_time: hearingEndTime || undefined,
         }, {
             preserveScroll: true,
-            onFinish: () => { setHearingSaving(false); setHearingDialogOpen(false); },
+            onFinish: () => { setHearingSaving(false); setHearingDialogOpen(false); setHearingsCount(null); },
+        });
+    }
+
+    // ── All-hearings viewer ──
+    // The sidebar shows only the next hearing; when more exist, this modal
+    // lists every upcoming court date with its range and weekday count.
+    const [hearingsModalOpen, setHearingsModalOpen] = useState(false);
+    const [hearingsList, setHearingsList] = useState<{ id: string; title: string; start_at: string; end_at: string | null }[]>([]);
+    const [hearingsLoading, setHearingsLoading] = useState(false);
+    const [hearingsCount, setHearingsCount] = useState<number | null>(null);
+    const [hearingDeleting, setHearingDeleting] = useState<string | null>(null);
+    const totalHearings = hearingsCount ?? (matter as any).upcoming_hearings_count ?? 0;
+
+    function openHearingsModal() {
+        setHearingsModalOpen(true);
+        setHearingsLoading(true);
+        fetch(`/matters/${matter.id}/hearing-dates`, { headers: { Accept: 'application/json' } })
+            .then((res) => res.json())
+            .then((data) => {
+                const list = data.hearings ?? [];
+                setHearingsList(list);
+                setHearingsCount(list.length);
+            })
+            .catch(() => setHearingsList([]))
+            .finally(() => setHearingsLoading(false));
+    }
+
+    function deleteHearing(id: string) {
+        if (!window.confirm('Remove this hearing date?')) return;
+        setHearingDeleting(id);
+        router.delete(`/matters/${matter.id}/hearing-dates/${id}`, {
+            preserveScroll: true,
+            onFinish: () => {
+                setHearingDeleting(null);
+                setHearingsList((prev) => {
+                    const next = prev.filter((h) => h.id !== id);
+                    setHearingsCount(next.length);
+                    return next;
+                });
+                // The headline hearing may have changed — refresh the matter.
+                router.reload({ only: ['matter'] });
+            },
         });
     }
 
@@ -189,6 +231,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
     const [timerExpanded, setTimerExpanded] = useState(false);
     const [timerCheckOutOpen, setTimerCheckOutOpen] = useState(false);
     const [timerLoading, setTimerLoading] = useState(false);
+    const [timerError, setTimerError] = useState<{ text: string; matterId: string | null } | null>(null);
 
     // Live editable fields while timer is running
     const [liveActivity, setLiveActivity] = useState(serverTimer?.activity_type ?? 'other');
@@ -227,6 +270,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
 
     async function timerCheckIn() {
         setTimerLoading(true);
+        setTimerError(null);
         const token = getTimerToken();
         const res = await fetch('/time/checkin', {
             method: 'POST',
@@ -245,6 +289,18 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
             setLiveActivity(payload.session.activity_type ?? 'other');
             setLiveDescription(payload.session.description ?? '');
             setTimerExpanded(false);
+        } else {
+            // Never fail silently: a stale timer on another matter (409) is
+            // the usual cause — name it and link straight to it.
+            try {
+                const payload = await res.json();
+                const active = payload.active_timer;
+                setTimerError(active && active.matter_id !== matter.id
+                    ? { text: `You're already tracking time on ${active.matter_number ?? ''} ${active.matter_name ?? ''}. Check out there first.`.trim(), matterId: active.matter_id }
+                    : { text: payload.error || payload.message || 'Could not start tracking. Please try again.', matterId: null });
+            } catch {
+                setTimerError({ text: 'Could not start tracking. Please try again.', matterId: null });
+            }
         }
         setTimerLoading(false);
     }
@@ -1100,20 +1156,24 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                     {daysUntil !== null && <span className="text-xs text-amber-700">{daysUntil < 0 ? `· overdue ${Math.abs(daysUntil)}d` : deadlinePassed ? '· overdue' : daysUntil === 0 ? '· today' : `· in ${daysUntil}d`}</span>}
                                 </div>
                             )}
-                            {(matter as any).hearing_date && canEditDates && (
+                            {(matter as any).hearing_date && canEditDates && (() => {
+                                const range = formatHearingRange((matter as any).hearing_date, (matter as any).hearing_end);
+                                return (
                                 <button
                                     type="button"
                                     onClick={openHearingDialog}
-                                    title="Edit hearing date and time"
+                                    title={range.multiDay ? range.full : 'Edit hearing date and time'}
                                     className="flex items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 transition-colors hover:bg-sky-100"
                                 >
                                     <Gavel className="h-3 w-3 text-sky-700 shrink-0" />
                                     <span className="text-xs font-medium tabular-nums text-sky-800">
-                                        Hearing {formatDate((matter as any).hearing_date)}
-                                        {splitDateTime((matter as any).hearing_date)[1] && ` · ${splitDateTime((matter as any).hearing_date)[1]}`}
+                                        Hearing {range.multiDay
+                                            ? `${range.compact} · ${range.courtDays} court day${range.courtDays === 1 ? '' : 's'}`
+                                            : <>{formatDate((matter as any).hearing_date)}{splitDateTime((matter as any).hearing_date)[1] && ` · ${splitDateTime((matter as any).hearing_date)[1]}`}</>}
                                     </span>
                                 </button>
-                            )}
+                                );
+                            })()}
                             {(matter.court || matter.court_reference) && (
                                 <div className="flex items-center gap-2 rounded-full border border-border/60 bg-muted/20 px-3 py-1 text-xs">
                                     <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#016452]/10 shrink-0"><Landmark className="h-3 w-3 text-[#016452]" /></span>
@@ -1392,7 +1452,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                             </div>
                                         </div>
                                         {!timerExpanded && (
-                                            <Button size="sm" className="gap-2" onClick={() => setTimerExpanded(true)}>
+                                            <Button size="sm" className="gap-2" onClick={() => { setTimerError(null); setTimerExpanded(true); }}>
                                                 <Timer className="h-4 w-4" /> Start Timer
                                             </Button>
                                         )}
@@ -1468,12 +1528,22 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                                 </span>
                                             </button>
                                             <div className="flex gap-2 justify-end pt-1">
-                                                <Button variant="outline" size="sm" className="rounded-lg" onClick={() => setTimerExpanded(false)}>Cancel</Button>
+                                                <Button variant="outline" size="sm" className="rounded-lg" onClick={() => { setTimerExpanded(false); setTimerError(null); }}>Cancel</Button>
                                                 <Button size="sm" className="gap-2" onClick={timerCheckIn} disabled={timerLoading}>
                                                     <Timer className="h-4 w-4" />
                                                     {timerLoading ? 'Starting...' : 'Start Tracking'}
                                                 </Button>
                                             </div>
+                                            {timerError && (
+                                                <p className="text-xs text-destructive tabular-nums">
+                                                    {timerError.text}
+                                                    {timerError.matterId && (
+                                                        <Link href={`/matters/${timerError.matterId}?tab=time`} className="ml-1.5 font-semibold underline underline-offset-2">
+                                                            Go to timer
+                                                        </Link>
+                                                    )}
+                                                </p>
+                                            )}
                                         </div>
                                     )}
                                 </div>
@@ -2306,15 +2376,41 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                             </button>
                                             )}
                                         </div>
-                                        {(matter as any).hearing_date ? (
-                                            <p className="text-sm font-semibold tabular-nums text-foreground">
-                                                {formatDate((matter as any).hearing_date)}
-                                                {splitDateTime((matter as any).hearing_date)[1] && (
-                                                    <span className="ml-1.5 font-normal text-muted-foreground">{splitDateTime((matter as any).hearing_date)[1]}</span>
-                                                )}
-                                            </p>
-                                        ) : (
+                                        {(matter as any).hearing_date ? (() => {
+                                            const range = formatHearingRange((matter as any).hearing_date, (matter as any).hearing_end);
+                                            if (!range.multiDay) {
+                                                return (
+                                                    <p className="text-sm font-semibold tabular-nums text-foreground">
+                                                        {formatDate((matter as any).hearing_date)}
+                                                        {splitDateTime((matter as any).hearing_date)[1] && (
+                                                            <span className="ml-1.5 font-normal text-muted-foreground">{splitDateTime((matter as any).hearing_date)[1]}</span>
+                                                        )}
+                                                    </p>
+                                                );
+                                            }
+                                            return (
+                                                <div>
+                                                    <p className="text-sm font-semibold tabular-nums text-foreground" title={range.full}>
+                                                        {range.compact}
+                                                        <span className="ml-1.5 font-medium text-primary">
+                                                            · {range.courtDays} court day{(range.courtDays ?? 0) === 1 ? '' : 's'}
+                                                        </span>
+                                                    </p>
+                                                    <p className="text-xs font-normal text-muted-foreground mt-0.5">{range.full}</p>
+                                                </div>
+                                            );
+                                        })() : (
                                             <p className="text-sm italic text-muted-foreground">No hearing set</p>
+                                        )}
+                                        {totalHearings > 1 && (
+                                            <button
+                                                type="button"
+                                                onClick={openHearingsModal}
+                                                className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                                            >
+                                                <Calendar className="h-3 w-3" />
+                                                View all {totalHearings} hearings
+                                            </button>
                                         )}
                                     </div>
                                 </div>
@@ -2711,7 +2807,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                         {/* Styled drop-zone file input */}
                         <div className="space-y-2">
                             <Label className="text-sm font-medium">
-                                Files * <span className="text-muted-foreground font-normal">(max 20 MB each)</span>
+                                Files * <span className="text-muted-foreground font-normal">(max 100 MB each)</span>
                             </Label>
                             <label className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-primary/30 bg-primary/[0.03] px-4 py-6 text-center transition-all cursor-pointer hover:border-primary/60 hover:bg-primary/[0.06]">
                                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
@@ -2853,6 +2949,19 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                         <p className="text-xs text-muted-foreground">
                             Start time defaults to 10:00 when left empty. Leave the end empty for a one-hour hearing.
                         </p>
+                        {(() => {
+                            if (!hearingDate || !hearingEndDate) return null;
+                            const range = formatHearingRange(
+                                `${hearingDate} ${hearingTime || '10:00'}:00`,
+                                `${hearingEndDate} ${hearingEndTime || hearingTime || '10:00'}:00`,
+                            );
+                            if (!range.multiDay) return null;
+                            return (
+                                <p className="rounded-lg bg-primary/5 border border-primary/20 px-3 py-2 text-xs font-medium text-foreground tabular-nums">
+                                    {range.full} · {range.courtDays} court day{(range.courtDays ?? 0) === 1 ? '' : 's'} (weekends excluded)
+                                </p>
+                            );
+                        })()}
                     </div>
                     <DialogFooter className="gap-2">
                         {(matter as any).hearing_date && (
@@ -2876,6 +2985,65 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                         </Button>
                         <Button disabled={!hearingDate || hearingSaving} onClick={saveHearing}>
                             {hearingSaving ? 'Saving…' : 'Save'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* ── All hearings viewer ── */}
+            <Dialog open={hearingsModalOpen} onOpenChange={setHearingsModalOpen}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Gavel className="h-5 w-5 text-primary" />
+                            All hearings
+                        </DialogTitle>
+                        <DialogDescription>{matter.name} — every upcoming court date.</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-2 py-2">
+                        {hearingsLoading ? (
+                            <p className="py-4 text-center text-sm text-muted-foreground">Loading hearings…</p>
+                        ) : hearingsList.length === 0 ? (
+                            <p className="rounded-lg border border-dashed border-border bg-muted/30 px-3 py-4 text-center text-sm text-muted-foreground">
+                                No upcoming hearings.
+                            </p>
+                        ) : (
+                            hearingsList.map((h) => {
+                                const range = formatHearingRange(h.start_at, h.end_at);
+                                return (
+                                    <div key={h.id} className="flex items-center gap-3 rounded-lg border border-border/60 px-3 py-2" title={range.multiDay ? range.full : undefined}>
+                                        <Calendar className="h-4 w-4 shrink-0 text-primary" />
+                                        <div className="min-w-0 flex-1">
+                                            <p className="text-sm font-medium tabular-nums text-foreground">
+                                                {range.multiDay ? (
+                                                    <>{range.compact}<span className="font-normal text-muted-foreground"> · {range.courtDays} court day{(range.courtDays ?? 0) === 1 ? '' : 's'}</span></>
+                                                ) : (
+                                                    <>{formatDate(h.start_at)}{splitDateTime(h.start_at)[1] && <span className="font-normal"> {splitDateTime(h.start_at)[1]}</span>}</>
+                                                )}
+                                            </p>
+                                            {range.multiDay && (
+                                                <p className="text-xs text-muted-foreground tabular-nums">{range.full}</p>
+                                            )}
+                                        </div>
+                                        {canEditDates && (
+                                            <Button
+                                                variant="ghost" size="sm"
+                                                className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive shrink-0"
+                                                title="Remove this hearing"
+                                                disabled={hearingDeleting === h.id}
+                                                onClick={() => deleteHearing(h.id)}
+                                            >
+                                                <Trash2 className="h-3.5 w-3.5" />
+                                            </Button>
+                                        )}
+                                    </div>
+                                );
+                            })
+                        )}
+                    </div>
+                    <DialogFooter className="gap-2">
+                        <Button variant="outline" onClick={() => setHearingsModalOpen(false)}>
+                            Close
                         </Button>
                     </DialogFooter>
                 </DialogContent>

@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { getDateUrgency } from '@/components/ui/urgency-dot';
-import { daysUntilDate, formatDate, isOverdueDate, splitDateTime, MATTER_STATUS_LABELS, MATTER_PRIORITY_LABELS, MATTER_PRIORITY_STYLES, PRACTICE_AREA_LABELS, ROLE_LABELS, shortName } from '@/lib/utils';
+import { daysUntilDate, formatDate, formatHearingRange, isOverdueDate, splitDateTime, MATTER_STATUS_LABELS, MATTER_PRIORITY_LABELS, MATTER_PRIORITY_STYLES, PRACTICE_AREA_LABELS, ROLE_LABELS, shortName } from '@/lib/utils';
 import { hasPermission, hasAnyPermission } from '@/lib/utils';
 import { UserAvatar } from '@/components/ui/user-avatar';
 import { Plus, Search, X, Calendar, Clock, ListTodo, Briefcase, Flag, Trash2, Check } from 'lucide-react';
@@ -420,10 +420,15 @@ export default function MattersIndex({ matters, filters, counts, buckets, tableP
             cell: (matter) => {
                 const [, time] = splitDateTime(matter.hearing_date);
                 const extraCount = Math.max(0, ((matter as any).calendar_events?.length ?? 0) - 1);
+                const nextEnd = (matter as any).calendar_events?.[0]?.end_at ?? (matter as any).hearing_end ?? null;
+                const range = formatHearingRange(matter.hearing_date, nextEnd);
+                const fullTitle = range.multiDay
+                    ? `${range.full} · ${range.courtDays} court days — click to manage`
+                    : `${matter.hearing_date ? `${formatDate(matter.hearing_date)}${time ? ` · ${time}` : ''}` : ''}${extraCount > 0 ? ` (+${extraCount} more)` : ''} — click to manage`;
                 return (
                     <button
                         className="inline-flex items-center gap-1.5 whitespace-nowrap text-sm text-muted-foreground transition-colors hover:text-primary"
-                        title={matter.hearing_date ? `${formatDate(matter.hearing_date)}${time ? ` · ${time}` : ''}${extraCount > 0 ? ` (+${extraCount} more)` : ''} — click to manage` : 'Set hearing date and time'}
+                        title={matter.hearing_date ? fullTitle : 'Set hearing date and time'}
                         onClick={(e) => {
                             e.stopPropagation();
                             openHearingManager(matter);
@@ -432,8 +437,10 @@ export default function MattersIndex({ matters, filters, counts, buckets, tableP
                         <Calendar className="h-3.5 w-3.5 shrink-0" />
                         {matter.hearing_date ? (
                             <span className="font-medium tabular-nums text-foreground">
-                                {formatDate(matter.hearing_date)}
-                                {time && <span className="ml-1.5 font-normal text-muted-foreground">{time}</span>}
+                                {range.multiDay ? range.compact : formatDate(matter.hearing_date)}
+                                {range.multiDay
+                                    ? <span className="ml-1.5 font-normal text-muted-foreground">· {range.courtDays}d</span>
+                                    : time && <span className="ml-1.5 font-normal text-muted-foreground">{time}</span>}
                                 {extraCount > 0 && (
                                     <span className="ml-1.5 rounded-full bg-primary/10 px-1.5 py-0.5 text-[11px] font-semibold text-primary">+{extraCount}</span>
                                 )}
@@ -804,16 +811,21 @@ export default function MattersIndex({ matters, filters, counts, buckets, tableP
                                 const [d, t] = splitDateTime(h.start_at);
                                 const [ed, et] = h.end_at ? splitDateTime(h.end_at) : ['', ''];
                                 const sameDay = ed !== '' && ed === d;
+                                const range = formatHearingRange(h.start_at, h.end_at);
                                 return (
-                                    <div key={h.id} className="flex items-center gap-3 rounded-lg border border-border/60 px-3 py-2">
+                                    <div key={h.id} className="flex items-center gap-3 rounded-lg border border-border/60 px-3 py-2" title={range.multiDay ? range.full : undefined}>
                                         <Calendar className="h-4 w-4 shrink-0 text-primary" />
                                         <div className="min-w-0 flex-1">
                                             <p className="text-sm font-medium tabular-nums text-foreground">
-                                                {formatDate(d)}{t && <span className="font-normal"> {t}</span>}
-                                                {ed !== '' && (
-                                                    <span className="font-normal text-muted-foreground">
-                                                        {' → '}{sameDay ? (et || '') : `${formatDate(ed)}${et ? ` ${et}` : ''}`}
-                                                    </span>
+                                                {range.multiDay ? (
+                                                    <>{range.compact}<span className="font-normal text-muted-foreground"> · {range.courtDays} court day{(range.courtDays ?? 0) === 1 ? '' : 's'}</span></>
+                                                ) : (
+                                                    <>{formatDate(d)}{t && <span className="font-normal"> {t}</span>}
+                                                    {ed !== '' && (
+                                                        <span className="font-normal text-muted-foreground">
+                                                            {' → '}{sameDay ? (et || '') : `${formatDate(ed)}${et ? ` ${et}` : ''}`}
+                                                        </span>
+                                                    )}</>
                                                 )}
                                             </p>
                                         </div>
@@ -885,6 +897,19 @@ export default function MattersIndex({ matters, filters, counts, buckets, tableP
                         <p className="text-xs text-muted-foreground">
                             Start time defaults to 10:00 when left empty. Leave the end empty for a one-hour hearing.
                         </p>
+                        {(() => {
+                            if (!hearingDate || !hearingEndDate) return null;
+                            const range = formatHearingRange(
+                                `${hearingDate} ${hearingTime || '10:00'}:00`,
+                                `${hearingEndDate} ${hearingEndTime || hearingTime || '10:00'}:00`,
+                            );
+                            if (!range.multiDay) return null;
+                            return (
+                                <p className="rounded-lg bg-primary/5 border border-primary/20 px-3 py-2 text-xs font-medium text-foreground tabular-nums">
+                                    {range.full} · {range.courtDays} court day{(range.courtDays ?? 0) === 1 ? '' : 's'} (weekends excluded)
+                                </p>
+                            );
+                        })()}
                     </div>
                     <DialogFooter className="gap-2">
                         <Button variant="outline" onClick={() => setEditingHearing(null)} disabled={hearingSaving}>

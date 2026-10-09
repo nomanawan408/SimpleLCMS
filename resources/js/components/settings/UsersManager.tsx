@@ -15,7 +15,7 @@ import {
 import { formatDate, initials, hasAnyPermission } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import type { PageProps } from '@/types';
-import { Plus, Pencil, Trash2, KeyRound, Eye, EyeOff } from 'lucide-react';
+import { Plus, Pencil, Trash2, KeyRound, Eye, EyeOff, ShieldOff } from 'lucide-react';
 
 export interface RoleOption {
     id: number;
@@ -53,6 +53,15 @@ export default function UsersManager({ users, availableRoles }: UsersManagerProp
     const canCreateUser = can(['create_users', 'manage_users']);
     const canEditUser = can(['edit_users', 'manage_users']);
     const canDeleteUser = can(['delete_users', 'manage_users']);
+    // 2FA reset stays firm-admin-only server-side (a stealthy takeover in
+    // the wrong hands), so only admins are offered the button.
+    const userRoles = auth.user?.roles ?? [];
+    const isFirmAdmin = userRoles.includes('firm_admin') || userRoles.includes('super_admin');
+
+    const confirmResetTwoFactor = (user: UserItem) => {
+        if (!window.confirm(`Reset 2FA for ${user.full_name}? They will sign in with password only until they set it up again. This is logged.`)) return;
+        router.post(`/admin/users/${user.id}/reset-two-factor`);
+    };
     const [createOpen, setCreateOpen] = useState(false);
     const [editOpen, setEditOpen] = useState(false);
     const [passwordOpen, setPasswordOpen] = useState(false);
@@ -246,6 +255,11 @@ export default function UsersManager({ users, availableRoles }: UsersManagerProp
                                                         {canEditUser && (
                                                         <Button variant="outline" size="sm" className="h-7 w-7 p-0" onClick={() => openPasswordReset(user)} title="Reset password">
                                                             <KeyRound className="h-3.5 w-3.5" />
+                                                        </Button>
+                                                        )}
+                                                        {isFirmAdmin && user.totp_enabled && user.id !== auth.user?.id && (
+                                                        <Button variant="outline" size="sm" className="h-7 w-7 p-0" onClick={() => confirmResetTwoFactor(user)} title="Reset two-factor authentication">
+                                                            <ShieldOff className="h-3.5 w-3.5" />
                                                         </Button>
                                                         )}
                                                         {canDeleteUser && (

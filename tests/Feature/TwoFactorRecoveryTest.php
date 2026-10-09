@@ -34,7 +34,10 @@ class TwoFactorRecoveryTest extends TestCase
         $user->forceFill(['totp_secret' => 'ABCDEFGHIJKLMNOP'])->save();
 
         $response = $this->actingAsUser($user)
-            ->post('/two-factor/enable', ['code' => $this->otp('ABCDEFGHIJKLMNOP')]);
+            ->post('/two-factor/enable', [
+                'password' => 'password',
+                'code' => $this->otp('ABCDEFGHIJKLMNOP'),
+            ]);
 
         $response->assertRedirect(route('two-factor.recovery'));
         $codes = session('recovery_codes');
@@ -105,5 +108,113 @@ class TwoFactorRecoveryTest extends TestCase
         $this->assertFalse((bool) $fresh->totp_enabled);
         $this->assertNull($fresh->totp_secret);
         $this->assertNull($fresh->totp_recovery_codes);
+    }
+
+    public function test_enable_requires_the_password_not_just_a_code(): void
+    {
+        [$firm, $user] = $this->createFirmAndUser();
+        $user->forceFill(['totp_secret' => 'ABCDEFGHIJKLMNOP'])->save();
+
+        // No password at all.
+        $this->actingAsUser($user)
+            ->post('/two-factor/enable', ['code' => $this->otp('ABCDEFGHIJKLMNOP')])
+            ->assertSessionHasErrors('password');
+        $this->assertFalse((bool) $user->fresh()->totp_enabled);
+
+        // Wrong password with a live code.
+        $this->actingAsUser($user->fresh())
+            ->post('/two-factor/enable', [
+                'password' => 'not-the-password',
+                'code' => $this->otp('ABCDEFGHIJKLMNOP'),
+            ])
+            ->assertSessionHasErrors('password');
+        $this->assertFalse((bool) $user->fresh()->totp_enabled);
+    }
+
+    public function test_recovery_code_works_with_or_without_dashes(): void
+    {
+        [$firm, $user] = $this->enabledUser();
+
+        // Dashes omitted and lowercase: still the same code.
+        $this->actingAs($user)
+            ->post('/two-factor', ['code' => 'aaaabbbbcccc'])
+            ->assertRedirect(route('dashboard'));
+        $this->assertCount(1, $user->fresh()->totp_recovery_codes);
+    }
+
+    public function test_firm_admin_can_reset_a_staff_members_2fa(): void
+    {
+        [$firm, $admin] = $this->createFirmAndAdmin();
+        [$f, $staff] = $this->createFirmAndUser();
+        $staff->forceFill(['firm_id' => $firm->id])->save();
+        $this->assignFirmRole($staff->fresh(), 'lawyer');
+        $staff = $staff->fresh();
+        $staff->forceFill([
+            'totp_enabled' => true,
+            'totp_secret' => 'ABCDEFGHIJKLMNOP',
+            'totp_recovery_codes' => [Hash::make('AAAA-BBBB-CCCC')],
+            'locked_until' => now()->addMinutes(15),
+        ])->save();
+
+        $this->actingAsUser($admin)
+            ->post("/admin/users/{$staff->id}/reset-two-factor")
+            ->assertRedirect();
+
+        $fresh = $staff->fresh();
+        $this->assertFalse((bool) $fresh->totp_enabled);
+        $this->assertNull($fresh->totp_secret);
+        $this->assertNull($fresh->totp_recovery_codes);
+        $this->assertNull($fresh->locked_until);
+
+        $this->assertDatabaseHas('activity_log', [
+            'description' => 'totp_reset_by_admin',
+            'subject_id' => $staff->id,
+        ]);
+    }
+
+    public function test_2fa_reset_is_admin_only_and_never_self_or_admin_targets(): void
+    {
+        [$firm, $admin] = $this->createFirmAndAdmin();
+        [$f, $staff] = $this->createFirmAndUser();
+        $staff->forceFill(['firm_id' => $firm->id])->save();
+        $staff = $staff->fresh();
+        $staff->forceFill(['totp_enabled' => true, 'totp_secret' => 'ABCDEFGHIJKLMNOP'])->save();
+
+        // Delegated user-manager: every other user power, but not this one.
+        $manager = \App\Models\User::factory()->forFirm($firm)->create(['role' => 'lawyer']);
+        $this->assignFirmRole($manager, 'lawyer');
+        $manager->givePermissionTo('manage_users');
+
+        $this->actingAsUser($manager->fresh())
+            ->post("/admin/users/{$staff->id}/reset-two-factor")
+            ->assertForbidden();
+        $this->assertTrue((bool) $staff->fresh()->totp_enabled);
+
+        // Self-reset would bypass the disable guards (password + live code).
+        $admin->forceFill(['totp_enabled' => true, 'totp_secret' => 'ABCDEFGHIJKLMNOP'])->save();
+        $this->actingAsUser($admin)
+            ->post("/admin/users/{$admin->id}/reset-two-factor")
+            ->assertForbidden();
+        $this->assertTrue((bool) $admin->fresh()->totp_enabled);
+
+        // Another admin's second factor is untouchable.
+        [$firm2, $admin2] = $this->createFirmAndAdmin();
+        $this->actingAsUser($admin)
+            ->post("/admin/users/{$admin2->id}/reset-two-factor")
+            ->assertForbidden();
+    }
+
+    public function test_password_change_kills_other_sessions(): void
+    {
+        [$firm, $user] = $this->createFirmAndUser();
+
+        // Establish a session (stores the current password hash in it).
+        $this->actingAs($user)->get('/dashboard')->assertOk();
+
+        // Password changes behind this session's back (admin reset, reset link).
+        $user->forceFill(['password' => Hash::make('ChangedPassword123!')])->save();
+
+        // The stale session no longer verifies: signed out on next request.
+        $this->get('/dashboard')->assertRedirect(route('login'));
     }
 }

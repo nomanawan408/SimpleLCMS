@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
@@ -157,11 +158,18 @@ class SettingsController extends Controller
         ]);
 
         $user = $request->user();
+
+        // Any other session holding this account (a forgotten office login, a
+        // stolen cookie) dies with the old password: logoutOtherDevices must
+        // run while the current password still verifies, i.e. before the save.
+        // The auth.session middleware enforces the kill on next request.
+        Auth::guard('web')->logoutOtherDevices($validated['current_password']);
+
         $user->forceFill(['password' => Hash::make($validated['password'])])->save();
 
         activity()->causedBy($user)->log('password_changed');
 
-        return back()->with('success', 'Password changed.');
+        return back()->with('success', 'Password changed. Other devices have been signed out.');
     }
 
 }

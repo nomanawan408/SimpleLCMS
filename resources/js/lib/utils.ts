@@ -247,3 +247,67 @@ export function matterComboboxOptions(
         description: m.matter_number,
     }));
 }
+
+/**
+ * Weekdays (Mon–Fri) from start through end, inclusive. Courts sit only on
+ * weekdays, so a multi-day hearing is measured in court days — weekends are
+ * ignored. Returns 0 when the range is empty or invalid.
+ */
+export function countWeekdays(start: string | null | undefined, end: string | null | undefined): number {
+    if (!start || !end) return 0;
+    const s = new Date(`${start.slice(0, 10)}T12:00:00Z`);
+    const e = new Date(`${end.slice(0, 10)}T12:00:00Z`);
+    if (Number.isNaN(s.getTime()) || Number.isNaN(e.getTime()) || e < s) return 0;
+    let n = 0;
+    for (let d = new Date(s); d <= e; d.setUTCDate(d.getUTCDate() + 1)) {
+        const day = d.getUTCDay();
+        if (day !== 0 && day !== 6) n++;
+    }
+    return n;
+}
+
+export interface HearingRange {
+    multiDay: boolean;
+    /** Short form for badges/table cells, e.g. "16–26 Oct 2026". */
+    compact: string;
+    /** Full sentence, e.g. "From 16 Oct 2026, 09:00 to 26 Oct 2026, 17:30". */
+    full: string;
+    /** Weekday count for multi-day hearings, else null. */
+    courtDays: number | null;
+}
+
+/**
+ * Human rendering of a hearing start/end pair. Same calendar day (or no
+ * end) behaves exactly like a single date; a longer hearing states the
+ * date range plus the weekday count, e.g. "16–26 Oct 2026 · 18 court days".
+ */
+export function formatHearingRange(
+    startAt: string | null | undefined,
+    endAt: string | null | undefined,
+): HearingRange {
+    const fallback: HearingRange = { multiDay: false, compact: formatDate(startAt), full: formatDate(startAt), courtDays: null };
+    if (!startAt || !endAt) return fallback;
+    const sDay = startAt.slice(0, 10);
+    const eDay = endAt.slice(0, 10);
+    if (!sDay || !eDay || eDay <= sDay) return fallback;
+
+    const [, sTime] = splitDateTime(startAt);
+    const [, eTime] = splitDateTime(endAt);
+    const sDate = formatDate(startAt);
+    const eDate = formatDate(endAt);
+
+    // Same month and year: "16–26 Oct 2026". Otherwise the full pair.
+    let compact: string;
+    const sParts = sDate.split(' ');
+    const eParts = eDate.split(' ');
+    if (sParts.length === 3 && eParts.length === 3 && sParts[1] === eParts[1] && sParts[2] === eParts[2]) {
+        compact = `${sParts[0]}–${eParts[0]} ${eParts[1]} ${eParts[2]}`;
+    } else {
+        compact = `${sDate} → ${eDate}`;
+    }
+
+    const full = `From ${sDate}${sTime ? `, ${sTime}` : ''} to ${eDate}${eTime ? `, ${eTime}` : ''}`;
+    const courtDays = countWeekdays(startAt, endAt);
+
+    return { multiDay: true, compact, full, courtDays };
+}

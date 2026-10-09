@@ -112,6 +112,86 @@ class MatterTest extends TestCase
         $this->assertSame('16:30', $second->end_at->format('H:i'));
     }
 
+    public function test_hearing_end_append_exposes_multi_day_range(): void
+    {
+        [$firm, $admin] = $this->createFirmAndAdmin();
+        $matter = Matter::factory()->forFirm($firm, $admin)->create();
+        $event = \App\Models\CalendarEvent::factory()->forFirm($firm, $admin)->create([
+            'matter_id' => $matter->id, 'is_court_date' => true,
+            'start_at' => now()->addDays(7)->setTime(9, 0),
+            'end_at' => now()->addDays(12)->setTime(17, 30),
+        ]);
+
+        $this->actingAsUser($admin)->get("/matters/{$matter->id}")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('matter.hearing_end', $event->end_at->format('Y-m-d H:i:s'))
+                ->where('matter.next_hearing.id', $event->id));
+
+        $this->actingAsUser($admin)->get('/matters')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('matters.data.0.hearing_end', $event->end_at->format('Y-m-d H:i:s')));
+    }
+
+    public function test_next_hearing_eager_load_picks_the_earliest_per_matter(): void
+    {
+        [$firm, $admin] = $this->createFirmAndAdmin();
+        $make = function (string $name, int $startDay, int $endDay) use ($firm, $admin) {
+            $matter = Matter::factory()->forFirm($firm, $admin)->create(['name' => $name]);
+            \App\Models\CalendarEvent::factory()->forFirm($firm, $admin)->create([
+                'matter_id' => $matter->id, 'is_court_date' => true,
+                'start_at' => now()->addDays($startDay)->setTime(9, 0),
+                'end_at' => now()->addDays($endDay)->setTime(17, 30),
+            ]);
+
+            return $matter;
+        };
+        $make('Later first', 20, 22);
+        $second = $make('Earlier second', 5, 9);
+        // A second, later hearing on the same matter: eager loading must
+        // still match the earliest per parent.
+        \App\Models\CalendarEvent::factory()->forFirm($firm, $admin)->create([
+            'matter_id' => $second->id, 'is_court_date' => true,
+            'start_at' => now()->addDays(15)->setTime(9, 0),
+            'end_at' => now()->addDays(16)->setTime(17, 30),
+        ]);
+
+        $matters = Matter::where('firm_id', $firm->id)->with('nextHearing')->orderBy('name')->get();
+        $this->assertSame('Earlier second', $matters[0]->name);
+        $this->assertSame(now()->addDays(5)->toDateString(), $matters[0]->nextHearing->start_at->toDateString());
+        $this->assertSame(now()->addDays(9)->toDateString(), $matters[0]->nextHearing->end_at->toDateString());
+        $this->assertSame(now()->addDays(20)->toDateString(), $matters[1]->nextHearing->start_at->toDateString());
+        $this->assertSame(now()->addDays(22)->toDateString(), $matters[1]->nextHearing->end_at->toDateString());
+    }
+
+    public function test_show_exposes_upcoming_hearings_count_and_list(): void
+    {
+        [$firm, $admin] = $this->createFirmAndAdmin();
+        $matter = Matter::factory()->forFirm($firm, $admin)->create();
+        foreach ([3, 10] as $days) {
+            \App\Models\CalendarEvent::factory()->forFirm($firm, $admin)->create([
+                'matter_id' => $matter->id, 'is_court_date' => true,
+                'start_at' => now()->addDays($days)->setTime(10, 0),
+                'end_at' => now()->addDays($days)->setTime(11, 0),
+            ]);
+        }
+        // A past hearing is not upcoming and must not be counted or listed.
+        \App\Models\CalendarEvent::factory()->forFirm($firm, $admin)->create([
+            'matter_id' => $matter->id, 'is_court_date' => true,
+            'start_at' => now()->subDays(2)->setTime(10, 0),
+            'end_at' => now()->subDays(2)->setTime(11, 0),
+        ]);
+
+        $this->actingAsUser($admin)->get("/matters/{$matter->id}")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('matter.upcoming_hearings_count', 2));
+
+        $this->actingAsUser($admin)->getJson("/matters/{$matter->id}/hearing-dates")
+            ->assertOk()
+            ->assertJsonCount(2, 'hearings');
+    }
+
     public function test_hearing_end_before_start_is_rejected(): void
     {
         [$firm, $admin] = $this->createFirmAndAdmin();

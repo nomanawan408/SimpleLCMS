@@ -260,7 +260,9 @@ Route::middleware(['auth', 'verified', 'set.tenant', 'requires.two.factor', 'red
         Route::put('/users/{user}', [UserController::class, 'update'])->name('users.update');
         Route::delete('/users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
         Route::put('/users/{user}/reset-password', [UserController::class, 'resetPassword'])->name('users.reset-password');
-
+        Route::post('/users/{user}/reset-two-factor', [UserController::class, 'resetTwoFactor'])
+            ->middleware('throttle:10,1')
+            ->name('users.reset-two-factor');
         // Firm admins manage their own roles: create, set permissions per
         // role, and assign them to users. Built-ins (super_admin, firm_admin,
         // lawyer) are protected inside the controller.

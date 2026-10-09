@@ -30,7 +30,7 @@ class LoginController extends Controller
 
         if ($user->isLocked()) {
             Auth::logout();
-            return back()->withErrors(['email' => 'Account is locked. Check your email to unlock.']);
+            return back()->withErrors(['email' => 'Account is locked. Contact your firm administrator to unlock it.']);
         }
 
         if (! $user->is_active) {

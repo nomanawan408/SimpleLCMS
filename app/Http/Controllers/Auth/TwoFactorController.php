@@ -103,12 +103,23 @@ class TwoFactorController extends Controller
      */
     private function verifyRecoveryCode(Request $request, User $user): RedirectResponse
     {
+        // Users retype codes from paper: accept them with or without the
+        // dashes (and any stray spaces), so a formatting slip does not burn
+        // lockout budget. Stored codes are always the dashed form.
+        $compact = strtoupper((string) preg_replace('/[^A-Z0-9]/i', '', $request->code));
+        $candidates = [$request->code];
+        if (strlen($compact) === 12) {
+            $candidates[] = substr($compact, 0, 4) . '-' . substr($compact, 4, 4) . '-' . substr($compact, 8, 4);
+        }
+
         $hashes = $user->totp_recovery_codes ?? [];
         $matched = null;
         foreach ($hashes as $index => $hash) {
-            if (\Illuminate\Support\Facades\Hash::check($request->code, $hash)) {
-                $matched = $index;
-                break;
+            foreach ($candidates as $candidate) {
+                if (\Illuminate\Support\Facades\Hash::check($candidate, $hash)) {
+                    $matched = $index;
+                    break 2;
+                }
             }
         }
 
@@ -184,7 +195,13 @@ class TwoFactorController extends Controller
 
     public function enable(Request $request): RedirectResponse
     {
-        $request->validate(['code' => ['required', 'string', 'digits:6']]);
+        // Enrolling an authenticator hands the account to whoever holds the
+        // device, so the password alone is not enough to start it and a code
+        // alone is not enough to finish it: both, like disable/regenerate.
+        $request->validate([
+            'password' => ['required', 'current_password'],
+            'code' => ['required', 'string', 'digits:6'],
+        ]);
 
         $user = $request->user();
 

@@ -59,7 +59,7 @@ function csrfToken(): string | undefined {
 export function useUploadQueue({
     url,
     maxConcurrent = 3,
-    maxFileSizeBytes = 20 * 1024 * 1024,
+    maxFileSizeBytes = 100 * 1024 * 1024,
     buildFormData,
     onItemSuccess,
     onAllSettled,

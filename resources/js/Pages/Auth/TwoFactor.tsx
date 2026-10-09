@@ -1,4 +1,4 @@
-import { Head, useForm } from '@inertiajs/react';
+import { Head, router, useForm } from '@inertiajs/react';
 import AuthLayout from '@/Layouts/AuthLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,10 +7,12 @@ import { Label } from '@/components/ui/label';
 export default function TwoFactor() {
     const { data, setData, post, processing, errors } = useForm({ code: '' });
 
-    // Six digits: authenticator app. Fourteen characters (XXXX-XXXX-XXXX):
-    // a single-use recovery code for a lost device. The backend consumes
-    // recovery codes on first use and counts misses toward lockout.
-    const looksComplete = data.code.length === 6 || data.code.length === 14;
+    // Six digits: authenticator app. Fourteen characters (XXXX-XXXX-XXXX)
+    // or twelve (dashes omitted): a single-use recovery code for a lost
+    // device. The backend consumes recovery codes on first use and counts
+    // misses toward lockout.
+    const compactLen = data.code.replace(/[^A-Z0-9]/gi, '').length;
+    const looksComplete = data.code.length === 6 || compactLen === 12;
 
     const submit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -48,6 +50,16 @@ export default function TwoFactor() {
                 Open your authenticator app and enter the current 6-digit code. Lost your device? Enter one of your
                 single-use recovery codes instead (each works exactly once).
             </p>
+
+            <div className="mt-3 text-center">
+                <button
+                    type="button"
+                    onClick={() => router.post('/logout')}
+                    className="text-xs font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                >
+                    Sign in as a different user
+                </button>
+            </div>
         </AuthLayout>
     );
 }

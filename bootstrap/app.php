@@ -18,6 +18,13 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\SecurityHeaders::class,
             \App\Http\Middleware\HandleInertiaRequests::class,
             \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
+            // Binds every session to the current password hash: changing the
+            // password (settings, admin reset, recovery link) kills all other
+            // sessions on their next request, so a stolen session does not
+            // survive a legitimate password change. Mismatches throw
+            // AuthenticationException, which the handlers below already turn
+            // into the 409 login flow (Inertia) or 401 (JSON).
+            \Illuminate\Session\Middleware\AuthenticateSession::class,
         ]);
 
         $middleware->alias([

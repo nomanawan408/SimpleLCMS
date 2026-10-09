@@ -528,7 +528,7 @@ export default function DocumentsIndex({ documents, matters, filters }: Props) {
                         </label>
                         <div className="space-y-2">
                             <Label>
-                                Files * <span className="text-muted-foreground font-normal">(max 20 MB each)</span>
+                                Files * <span className="text-muted-foreground font-normal">(max 100 MB each)</span>
                             </Label>
                             <label
                                 className={cn(

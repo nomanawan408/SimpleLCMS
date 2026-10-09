@@ -325,13 +325,25 @@ class TimeController extends Controller
             if (!session($key)) {
                 $this->restoreSessionFromDb($user);
             }
-            return response()->json(['error' => 'Already checked in. Check out first.'], 409);
+            // Name the matter holding the timer: the client shows "already
+            // tracking on X" with a link instead of a dead button. Without
+            // this the check-in form fails silently on other matter pages.
+            $active = TimeSession::where('user_id', $user->id)->first();
+            return response()->json([
+                'error' => 'Already checked in. Check out first.',
+                'active_timer' => $active ? [
+                    'matter_id' => $active->matter_id,
+                    'matter_name' => $active->matter_name,
+                    'matter_number' => $active->matter_number,
+                ] : null,
+            ], 409);
         }
 
         $validated = $request->validate([
             'matter_id'     => ['required', 'uuid', Rule::exists('matters', 'id')->where(fn ($q) => $q->where('firm_id', $request->user()->firm_id))],
             'activity_type' => ['nullable', 'in:advising,drafting,research,court_attendance,travel,telephone,correspondence,meeting,other'],
             'description'   => ['nullable', 'string', 'max:500'],
+            'rate'          => ['nullable', 'numeric', 'min:0', 'max:100000'],
         ]);
 
         // Staff may only start timers on matters they can see — and never
@@ -355,7 +367,9 @@ class TimeController extends Controller
 
         $matterRate      = is_array($matter->custom_fields) ? ($matter->custom_fields['hourly_rate'] ?? null) : null;
         $defaultRate     = ($matterRate !== null && $matterRate !== '') ? (float) $matterRate : (float) ($user->rate_per_hour ?? $user->firm->default_hourly_rate ?? 0);
-        $session['rate'] = $defaultRate;
+        // A rate typed into the tracker wins; the client used to send one
+        // that validation silently dropped, so custom rates never applied.
+        $session['rate'] = isset($validated['rate']) ? (float) $validated['rate'] : $defaultRate;
 
         session([$key => $session]);
 
@@ -369,7 +383,7 @@ class TimeController extends Controller
                 'matter_number'        => $matter->matter_number,
                 'activity_type'        => $session['activity_type'],
                 'description'          => $session['description'],
-                'rate'                 => $defaultRate,
+                'rate'                 => $session['rate'],
                 'started_at'           => now(),
                 'paused_at'            => null,
                 'total_paused_seconds' => 0,
@@ -433,7 +447,10 @@ class TimeController extends Controller
         $matterRateField = is_array($matter->custom_fields) ? ($matter->custom_fields['hourly_rate'] ?? null) : null;
         $matterRate      = ($matterRateField !== null && $matterRateField !== '') ? (float) $matterRateField : null;
         $fallbackRate    = $matterRate ?? (float) ($user->rate_per_hour ?? $user->firm->default_hourly_rate ?? 0);
-        $rate   = array_key_exists('rate', $validated) && $validated['rate'] !== null ? (float) $validated['rate'] : $fallbackRate;
+        // Explicit checkout rate wins, then the rate captured at check-in,
+        // then the defaults — so a rate typed at Start never silently
+        // reverts when the checkout form leaves it empty.
+        $rate   = array_key_exists('rate', $validated) && $validated['rate'] !== null ? (float) $validated['rate'] : (float) ($sess['rate'] ?? $fallbackRate);
         $amount = round(((float) $rate) * ($durationMinutes / 60), 2);
 
         $entry = TimeEntry::create([

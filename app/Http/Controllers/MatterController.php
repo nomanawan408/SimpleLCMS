@@ -25,7 +25,7 @@ class MatterController extends Controller
 
         $query = Matter::where('firm_id', $request->user()->firm_id)
             ->visibleTo($request->user())
-            ->with(['responsibleUser', 'originatingUser:id,full_name,avatar_url', 'contacts', 'tasks' => fn ($q) => $q->whereIn('status', ['todo', 'in_progress'])->whereNull('completed_at')->orderBy('due_date')->with('assignee'), 'calendarEvents' => fn ($q) => $q->where('is_court_date', true)->where('start_at', '>=', now())->orderBy('start_at')]);
+            ->with(['responsibleUser', 'originatingUser:id,full_name,avatar_url', 'contacts', 'nextHearing', 'tasks' => fn ($q) => $q->whereIn('status', ['todo', 'in_progress'])->whereNull('completed_at')->orderBy('due_date')->with('assignee'), 'calendarEvents' => fn ($q) => $q->where('is_court_date', true)->where('start_at', '>=', now())->orderBy('start_at')]);
 
         // Column sorting is strictly allowlisted below: the key selects the
         // expression, the direction is validated to asc/desc, and everything
@@ -234,7 +234,7 @@ class MatterController extends Controller
         $viewFinancial = $request->user()->canAccessFinancials();
 
         $matter->load([
-            'responsibleUser', 'originatingUser', 'contacts',
+            'responsibleUser', 'originatingUser', 'contacts', 'nextHearing',
             'notes' => fn ($q) => $q->latest()->take(10),
             'notes.user',
             'tasks' => fn ($q) => $q->where('status', '!=', 'done')->orderBy('due_date'),
@@ -243,6 +243,12 @@ class MatterController extends Controller
             'documents' => fn ($q) => $q->latest()->take(10),
             'documents.uploadedBy',
         ]);
+
+        // Drives the "View all N hearings" link: how many upcoming court
+        // dates exist beyond the headline next hearing shown in the sidebar.
+        $matter->loadCount(['calendarEvents as upcoming_hearings_count' => fn ($q) => $q
+            ->where('is_court_date', true)
+            ->where('start_at', '>=', now())]);
 
         // Financial relations (invoices, expenses, trust entries) are only
         // loaded for roles that can view financials (firm_admin, accounts).

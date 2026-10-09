@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\Support\LogOptions;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
@@ -111,7 +112,7 @@ class Matter extends Model
         ];
     }
 
-    protected $appends = ['next_step', 'next_deadline', 'client_names', 'hearing_date'];
+    protected $appends = ['next_step', 'next_deadline', 'client_names', 'hearing_date', 'hearing_end'];
 
     public function getActivitylogOptions(): LogOptions
     {
@@ -226,6 +227,43 @@ class Matter extends Model
         return $this->hasMany(CalendarEvent::class);
     }
 
+    /**
+     * The single next upcoming court hearing. Plain ordered HasOne (not
+     * ofMany: the aggregate uses MAX(id), which Postgres rejects on UUID
+     * keys). Lazy first() is limit-1 ordered, correct; eager loading groups
+     * rows per parent in query order and matches the first, so the
+     * earliest hearing wins there too (covered by test).
+     */
+    public function nextHearing(): HasOne
+    {
+        return $this->hasOne(CalendarEvent::class, 'matter_id')
+            ->where('is_court_date', true)
+            ->where('start_at', '>=', now())
+            ->orderBy('start_at');
+    }
+
+    /**
+     * Memoized next-hearing lookup shared by the hearing_date/hearing_end
+     * appends, so serializing a matter never costs more than the single
+     * lookup hearing_date always performed. Prefers the eager-loaded
+     * nextHearing relation (index/show load it: zero queries there).
+     */
+    private ?CalendarEvent $nextHearingMemo = null;
+    private bool $nextHearingMemoDone = false;
+
+    public function resolveNextHearing(): ?CalendarEvent
+    {
+        if ($this->relationLoaded('nextHearing')) {
+            return $this->nextHearing;
+        }
+        if (! $this->nextHearingMemoDone) {
+            $this->nextHearingMemo = $this->nextHearing()->first();
+            $this->nextHearingMemoDone = true;
+        }
+
+        return $this->nextHearingMemo;
+    }
+
     public function notes(): HasMany
     {
         return $this->hasMany(Note::class);
@@ -283,11 +321,11 @@ class Matter extends Model
 
     public function getHearingDateAttribute(): ?string
     {
-        $event = $this->calendarEvents()
-            ->where('is_court_date', true)
-            ->where('start_at', '>=', now())
-            ->orderBy('start_at')
-            ->first();
-        return $event?->start_at?->format('Y-m-d H:i:s');
+        return $this->resolveNextHearing()?->start_at?->format('Y-m-d H:i:s');
+    }
+
+    public function getHearingEndAttribute(): ?string
+    {
+        return $this->resolveNextHearing()?->end_at?->format('Y-m-d H:i:s');
     }
 }

@@ -53,12 +53,21 @@ class DocumentTest extends TestCase
         [$firm, $user] = $this->createFirmAndUser();
         $matter = Matter::factory()->forFirm($firm, $user)->create();
 
-        $oversized = UploadedFile::fake()->create('huge.pdf', 25000, 'application/pdf');
+        // Over the 100 MB limit: rejected.
+        $oversized = UploadedFile::fake()->create('huge.pdf', 150 * 1024, 'application/pdf');
 
         $this->actingAsUser($user)->post('/documents', [
             'file'      => $oversized,
             'matter_id' => $matter->id,
         ])->assertSessionHasErrors('file');
+
+        // A 43 MB bundle (previously rejected at 20 MB) now uploads.
+        $bundle = UploadedFile::fake()->create('bundle.pdf', 43 * 1024, 'application/pdf');
+
+        $this->actingAsUser($user)->post('/documents', [
+            'file'      => $bundle,
+            'matter_id' => $matter->id,
+        ])->assertSessionHasNoErrors();
     }
 
     public function test_can_delete_document(): void

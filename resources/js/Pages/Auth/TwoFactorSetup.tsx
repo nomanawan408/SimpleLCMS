@@ -23,7 +23,7 @@ export default function TwoFactorSetup({ qrCodeUrl, secret }: Props) {
     const enabled = !!auth.user?.totp_enabled;
     const [copied, setCopied] = useState(false);
 
-    const enableForm = useForm({ code: '' });
+    const enableForm = useForm({ password: '', code: '' });
     const disableForm = useForm({ password: '', code: '' });
     const regenForm = useForm({ password: '', code: '' });
 
@@ -62,9 +62,18 @@ export default function TwoFactorSetup({ qrCodeUrl, secret }: Props) {
                                 className="space-y-3"
                             >
                                 <div className="space-y-1.5">
-                                    <Label htmlFor="code">2. Confirm with a 6-digit code</Label>
+                                    <Label htmlFor="enable-password">2. Confirm your password</Label>
                                     <Input
-                                        id="code" type="text" inputMode="numeric" maxLength={6} autoFocus autoComplete="one-time-code"
+                                        id="enable-password" type="password" autoComplete="current-password"
+                                        value={enableForm.data.password}
+                                        onChange={(e) => enableForm.setData('password', e.target.value)}
+                                    />
+                                    {enableForm.errors.password && <p className="text-xs text-destructive">{enableForm.errors.password}</p>}
+                                </div>
+                                <div className="space-y-1.5">
+                                    <Label htmlFor="code">3. Confirm with a 6-digit code</Label>
+                                    <Input
+                                        id="code" type="text" inputMode="numeric" maxLength={6} autoComplete="one-time-code"
                                         value={enableForm.data.code}
                                         onChange={(e) => enableForm.setData('code', e.target.value)}
                                         placeholder="000000"
@@ -72,7 +81,7 @@ export default function TwoFactorSetup({ qrCodeUrl, secret }: Props) {
                                     />
                                     {enableForm.errors.code && <p className="text-xs text-destructive">{enableForm.errors.code}</p>}
                                 </div>
-                                <Button type="submit" className="w-full" disabled={enableForm.processing || enableForm.data.code.length !== 6}>
+                                <Button type="submit" className="w-full" disabled={enableForm.processing || enableForm.data.code.length !== 6 || !enableForm.data.password}>
                                     {enableForm.processing ? 'Confirming…' : 'Enable 2FA'}
                                 </Button>
                             </form>
