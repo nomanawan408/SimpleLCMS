@@ -15,13 +15,13 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
-import { cn, daysUntilDate, formatCurrency, formatDate, formatTime, formatHearingRange, hasPermission, hasAnyPermission, isOverdueDate, splitDateTime, MATTER_STATUS_LABELS, MATTER_PRIORITY_LABELS, MATTER_PRIORITY_STYLES, PRACTICE_AREA_LABELS, shortName } from '@/lib/utils';
+import { cn, daysUntilDate, formatCurrency, formatDate, formatTime, formatHearingRange, hasPermission, hasAnyPermission, isOverdueDate, splitDateTime, sanitizeUploadFilename, MATTER_STATUS_LABELS, MATTER_PRIORITY_LABELS, MATTER_PRIORITY_STYLES, PRACTICE_AREA_LABELS, shortName } from '@/lib/utils';
 import { UserAvatar } from '@/components/ui/user-avatar';
 import {
     ArrowLeft, Clock, Receipt, Wallet, FileText, CheckSquare, Users, Edit, Plus, Download,
     Gavel, Calendar, TrendingUp, AlertTriangle, ChevronRight, ChevronDown, MessageSquare, Timer,
     Paperclip, ExternalLink, PoundSterling, Eye, X, Pencil, Trash2, Upload, Search,
-    Landmark, CalendarClock, Flag, Folder, FolderOpen, CircleCheck, RotateCcw, BookOpenText, Lock,
+    Landmark, CalendarClock, Flag, Folder, FolderOpen, CircleCheck, RotateCcw, BookOpenText, Lock, Copy, Check,
 } from 'lucide-react';
 import type { Matter, Expense, Document, TrustEntry, User, PageProps } from '@/types';
 import { useUploadQueue } from '@/hooks/useUploadQueue';
@@ -416,6 +416,23 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
         assignee_id: '',
     });
 
+    // Fee reminder: one-click shortcut on the Billing tab that creates a
+    // matter-linked follow-up Task via the existing POST /tasks endpoint
+    // (no new tables/queues/schedulers). The task then flows through the
+    // existing machinery: dashboard widget, calendar deadline, and the
+    // daily TaskDueNotification (due-tomorrow + overdue). Gated by
+    // canAddTask, mirroring the backend closed-file freeze exactly, so on
+    // a closed matter only a firm admin ever sees the button.
+    const defaultFeeReminderDate = () => {
+        const d = new Date();
+        d.setDate(d.getDate() + 28);
+        return d.toISOString().slice(0, 10);
+    };
+    const [feeReminderOpen, setFeeReminderOpen] = useState(false);
+    const [feeReminderDate, setFeeReminderDate] = useState('');
+    const [feeReminderSaving, setFeeReminderSaving] = useState(false);
+    const [feeReminderError, setFeeReminderError] = useState<string | null>(null);
+
     const [docModalOpen, setDocModalOpen] = useState(false);
     const [docClientVisible, setDocClientVisible] = useState(false);
     const [docFolder, setDocFolder] = useState(matter.name || matter.matter_number);
@@ -438,7 +455,9 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
         url: '/documents',
         buildFormData: (file) => {
             const fd = new FormData();
-            fd.append('file', file);
+            // Third arg overrides the multipart filename: straight quotes in
+            // the raw name trip hosting WAF rules (generic "Upload failed").
+            fd.append('file', file, sanitizeUploadFilename(file.name));
             fd.append('matter_id', matter.id);
             const baseFolder = (matter.name || matter.matter_number).trim();
             const userFolder = docFolder.trim();
@@ -509,6 +528,122 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
         url.searchParams.set('tab', next);
         window.history.pushState({}, '', url);
     };
+
+    // ── Header badge actions ──
+    // Every mutation below reuses an existing endpoint behind the page's
+    // existing flags (canEditMatter / matterLocked mirror MatterPolicy::update
+    // + ensureMutableBy exactly: open-state required unless firm admin).
+    // Read-only badges only navigate or copy — never mutate.
+    const [statusModalOpen, setStatusModalOpen] = useState(false);
+    const [statusValue, setStatusValue] = useState<string>(matter.status);
+    const [statusModalSaving, setStatusModalSaving] = useState(false);
+    const [statusError, setStatusError] = useState<string | null>(null);
+    const [priorityOpen, setPriorityOpen] = useState(false);
+    const [prioritySaving, setPrioritySaving] = useState(false);
+    const [priorityError, setPriorityError] = useState<string | null>(null);
+    const priorityRef = useRef<HTMLDivElement>(null);
+    const [copiedNumber, setCopiedNumber] = useState(false);
+    const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    // Status pill mirrors the header Close/Reopen buttons exactly: reopening
+    // a closed file needs the admin bypass (!matterLocked), otherwise the
+    // same matter-edit right as closing.
+    const canChangeStatus = isClosed ? !matterLocked : canEditMatter;
+    const currentPriority = (matter as any).priority ?? 'medium';
+
+    // Dismiss the priority menu on outside click / Escape.
+    useEffect(() => {
+        if (!priorityOpen) return;
+        const onPointerDown = (e: PointerEvent) => {
+            if (priorityRef.current && !priorityRef.current.contains(e.target as Node)) {
+                setPriorityOpen(false);
+            }
+        };
+        const onKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') setPriorityOpen(false);
+        };
+        document.addEventListener('pointerdown', onPointerDown);
+        document.addEventListener('keydown', onKeyDown);
+        return () => {
+            document.removeEventListener('pointerdown', onPointerDown);
+            document.removeEventListener('keydown', onKeyDown);
+        };
+    }, [priorityOpen]);
+
+    useEffect(() => () => {
+        if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+    }, []);
+
+    // Status modal: same pattern as Matters/Index (PUT /matters/{id}/status).
+    function openStatusModal() {
+        setStatusValue(matter.status);
+        setStatusError(null);
+        setStatusModalOpen(true);
+    }
+
+    function saveStatus() {
+        if (!statusValue) return;
+        setStatusModalSaving(true);
+        setStatusError(null);
+        router.put(`/matters/${matter.id}/status`, {
+            status: statusValue,
+        }, {
+            preserveScroll: true,
+            onSuccess: () => setStatusModalOpen(false),
+            onError: (errors) => setStatusError(Object.values(errors).flat().join(' ') || 'Could not save.'),
+            onFinish: () => setStatusModalSaving(false),
+        });
+    }
+
+    // Priority saves through the existing matter update endpoint
+    // (PATCH /matters/{id} accepts `priority` per UpdateMatterRequest).
+    // Priority-only body: assignment keys absent, so the assignment gate
+    // stays untouched and no new write path is introduced.
+    function savePriority(next: string) {
+        if (next === currentPriority || prioritySaving) {
+            setPriorityOpen(false);
+            return;
+        }
+        setPrioritySaving(true);
+        setPriorityError(null);
+        router.patch(`/matters/${matter.id}`, { priority: next }, {
+            preserveScroll: true,
+            onSuccess: () => setPriorityOpen(false),
+            onError: (errors) => setPriorityError(Object.values(errors).flat().join(' ') || 'Could not save priority.'),
+            onFinish: () => setPrioritySaving(false),
+        });
+    }
+
+    // Balances are computed aggregates — navigation only, never editable.
+    // The Account tab exists only for financial viewers; everyone else who
+    // can see the pills gets the standalone ledger page (same target as the
+    // header Ledger button).
+    function goToLedger() {
+        if (viewFinancial) {
+            setTab('account');
+        } else {
+            router.visit(`/ledger/matters/${matter.id}`);
+        }
+    }
+
+    function copyMatterNumber() {
+        const text = matter.matter_number;
+        const done = () => {
+            setCopiedNumber(true);
+            if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+            copyTimerRef.current = setTimeout(() => setCopiedNumber(false), 1500);
+        };
+        if (navigator.clipboard?.writeText) {
+            navigator.clipboard.writeText(text).then(done).catch(done);
+        } else {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            document.body.appendChild(ta);
+            ta.select();
+            try { document.execCommand('copy'); } catch {}
+            document.body.removeChild(ta);
+            done();
+        }
+    }
 
     const sendJson = async (method: string, url: string, body?: Record<string, unknown>) => {
         const token = (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement | null)?.content;
@@ -843,6 +978,66 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
         } catch {}
     };
 
+    const openFeeReminder = () => {
+        setFeeReminderError(null);
+        setFeeReminderDate(defaultFeeReminderDate());
+        setFeeReminderOpen(true);
+    };
+
+    const saveFeeReminder = async () => {
+        if (!feeReminderDate) {
+            setFeeReminderError('Pick a reminder date.');
+            return;
+        }
+        setFeeReminderSaving(true);
+        setFeeReminderError(null);
+        try {
+            const billingInvoices = (matter.invoices ?? []).filter((i: any) => i.status !== 'cancelled');
+            const outstanding = billingInvoices.reduce(
+                (s: number, i: any) => s + Math.max(0, Number(i.total || 0) - Number(i.amount_paid || 0)),
+                0,
+            );
+            const body: Record<string, unknown> = {
+                title: `Chase outstanding fees — ${matter.matter_number || matter.name}`,
+                description: outstanding > 0
+                    ? `Fee reminder for ${matter.name}: ${formatCurrency(outstanding)} outstanding across ${billingInvoices.length} invoice(s). Client has been invoiced — chase payment.`
+                    : `Fee reminder for ${matter.name}: check fees are settled.`,
+                matter_id: matter.id,
+                status: 'todo',
+                priority: 'medium',
+                due_date: feeReminderDate,
+            };
+            const assignee = (matter as any).responsible_user_id ?? (matter.responsible_user as any)?.id;
+            if (assignee) body.assignee_id = assignee;
+            const token = (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement | null)?.content;
+            const res = await fetch('/tasks', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                    ...(token ? { 'X-CSRF-TOKEN': token } : {}),
+                },
+                body: JSON.stringify(body),
+            });
+            const payload = await res.json().catch(() => null);
+            if (!res.ok) {
+                const msg = payload?.errors
+                    ? Object.values(payload.errors as Record<string, string[]>)?.[0]?.[0]
+                    : null;
+                setFeeReminderError(msg || payload?.message || 'Unable to set fee reminder.');
+                return;
+            }
+            if (payload?.task) {
+                setTasks((prev) => [payload.task, ...prev]);
+            }
+            setFeeReminderOpen(false);
+        } catch {
+            setFeeReminderError('Unable to set fee reminder.');
+        } finally {
+            setFeeReminderSaving(false);
+        }
+    };
+
     const openDocModal = (folder?: string) => {
         docUploadQueue.clearAll();
         setDocClientVisible(false);
@@ -1080,43 +1275,164 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                 </DialogContent>
             </Dialog>
 
+            {/* Status editor — same pattern as Matters/Index (PUT /matters/{id}/status).
+                Opened from the header status pill; the backend authorize +
+                ensureMutableBy locks still apply on top of canChangeStatus. */}
+            <Dialog open={statusModalOpen} onOpenChange={(open) => { if (!open) setStatusModalOpen(false); }}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Status</DialogTitle>
+                        <DialogDescription>
+                            {matter.matter_number} — {matter.name}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-2 py-2">
+                        <Select value={statusValue} onValueChange={setStatusValue}>
+                            <SelectTrigger className="h-11">
+                                <SelectValue placeholder="Select status…" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {Object.keys(MATTER_STATUS_LABELS).map((st) => (
+                                    <SelectItem key={st} value={st}>{MATTER_STATUS_LABELS[st]}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        {(statusValue === 'closed' || statusValue === 'archived') && (
+                            <p className="text-xs text-amber-700">Closing makes the file read-only for lawyers. Only a firm admin can reopen it.</p>
+                        )}
+                        {statusError && <p className="text-xs text-destructive">{statusError}</p>}
+                    </div>
+                    <DialogFooter className="gap-2">
+                        <Button variant="outline" onClick={() => setStatusModalOpen(false)} disabled={statusModalSaving}>
+                            Cancel
+                        </Button>
+                        <Button disabled={!statusValue || statusModalSaving} onClick={saveStatus}>
+                            {statusModalSaving ? 'Saving…' : 'Save'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
             {/* Matter Header — slim, clean professional (adjustable: rounded 12px, average-shade accent, compact) */}
             <Card className="rounded-[12px] border border-border/60 bg-card shadow-sm overflow-hidden mb-4 hover:shadow-md transition-shadow">
-                <div className={cn('h-[3px] w-full', statusAccent[matter.status] ?? 'bg-[#017c61]')} />
+                <div className={cn('h-[3px] w-full', statusAccent[matter.status] ?? 'bg-[#007A78]')} />
                 <CardContent className="p-4">
-                    {/* Top row: badges */}
+                    {/* Top row: badges — every pill is actionable (buttons keep
+                        the exact badge styling; hover/focus is the only
+                        affordance). Mutations reuse existing endpoints behind
+                        the existing canEditMatter/matterLocked flags. */}
                     <div className="flex flex-wrap items-center gap-1.5">
-                        <span className={cn('inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-bold uppercase tracking-wider leading-none shadow-sm', statusBadgeStyles[matter.status] ?? 'bg-muted text-muted-foreground border-border')}>
-                            <span className="h-1.5 w-1.5 rounded-full bg-current shrink-0" aria-hidden />
-                            {MATTER_STATUS_LABELS[matter.status] ?? matter.status.replace(/_/g, ' ')}
-                        </span>
-                        <span className={cn('inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold leading-none shadow-sm', MATTER_PRIORITY_STYLES[(matter as any).priority ?? 'medium'])}>
-                            <Flag className="h-3 w-3 shrink-0" />
-                            {MATTER_PRIORITY_LABELS[(matter as any).priority ?? 'medium']}
-                        </span>
-                        <span className="inline-flex items-center rounded-full border border-border bg-muted/50 px-2.5 py-1 font-mono text-xs font-semibold tabular-nums tracking-wide text-foreground">
-                            {matter.matter_number}
-                        </span>
+                        {canChangeStatus ? (
+                            <button
+                                type="button"
+                                onClick={openStatusModal}
+                                title="Change status"
+                                aria-label={`Change status (currently ${MATTER_STATUS_LABELS[matter.status] ?? matter.status.replace(/_/g, ' ')})`}
+                                className={cn('inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-bold uppercase tracking-wider leading-none shadow-sm cursor-pointer transition-all hover:shadow-md hover:brightness-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40', statusBadgeStyles[matter.status] ?? 'bg-muted text-muted-foreground border-border')}
+                            >
+                                <span className="h-1.5 w-1.5 rounded-full bg-current shrink-0" aria-hidden />
+                                {MATTER_STATUS_LABELS[matter.status] ?? matter.status.replace(/_/g, ' ')}
+                            </button>
+                        ) : (
+                            <span className={cn('inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-bold uppercase tracking-wider leading-none shadow-sm', statusBadgeStyles[matter.status] ?? 'bg-muted text-muted-foreground border-border')}>
+                                <span className="h-1.5 w-1.5 rounded-full bg-current shrink-0" aria-hidden />
+                                {MATTER_STATUS_LABELS[matter.status] ?? matter.status.replace(/_/g, ' ')}
+                            </span>
+                        )}
+                        {canEditMatter ? (
+                            <div className="relative inline-flex" ref={priorityRef}>
+                                <button
+                                    type="button"
+                                    onClick={() => { setPriorityError(null); setPriorityOpen((v) => !v); }}
+                                    title="Change priority"
+                                    aria-haspopup="listbox"
+                                    aria-expanded={priorityOpen}
+                                    aria-label={`Change priority (currently ${MATTER_PRIORITY_LABELS[currentPriority]})`}
+                                    className={cn('inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold leading-none shadow-sm cursor-pointer transition-all hover:shadow-md hover:brightness-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40', MATTER_PRIORITY_STYLES[currentPriority])}
+                                >
+                                    <Flag className="h-3 w-3 shrink-0" />
+                                    {prioritySaving ? 'Saving…' : MATTER_PRIORITY_LABELS[currentPriority]}
+                                </button>
+                                {priorityOpen && (
+                                    <div role="listbox" aria-label="Matter priority" className="absolute left-0 top-full z-50 mt-1 min-w-[140px] rounded-lg border bg-popover p-1 shadow-md">
+                                        {(['low', 'medium', 'high'] as const).map((p) => (
+                                            <button
+                                                key={p}
+                                                type="button"
+                                                role="option"
+                                                aria-selected={p === currentPriority}
+                                                disabled={prioritySaving}
+                                                onClick={() => savePriority(p)}
+                                                className={cn(
+                                                    'flex w-full items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50',
+                                                    p === currentPriority ? 'text-foreground' : 'text-muted-foreground',
+                                                )}
+                                            >
+                                                <span className="inline-flex items-center gap-1.5">
+                                                    <Flag className="h-3 w-3 shrink-0" />
+                                                    {MATTER_PRIORITY_LABELS[p]}
+                                                </span>
+                                                {p === currentPriority && <Check className="h-3 w-3 shrink-0" />}
+                                            </button>
+                                        ))}
+                                        {priorityError && <p className="px-2.5 py-1 text-xs text-destructive">{priorityError}</p>}
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            <span className={cn('inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold leading-none shadow-sm', MATTER_PRIORITY_STYLES[currentPriority])}>
+                                <Flag className="h-3 w-3 shrink-0" />
+                                {MATTER_PRIORITY_LABELS[currentPriority]}
+                            </span>
+                        )}
+                        <button
+                            type="button"
+                            onClick={copyMatterNumber}
+                            title="Click to copy matter number"
+                            aria-label={`Copy matter number ${matter.matter_number}`}
+                            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/50 px-2.5 py-1 font-mono text-xs font-semibold tabular-nums tracking-wide text-foreground cursor-pointer transition-all hover:bg-muted hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                        >
+                            {copiedNumber ? <Check className="h-3 w-3 shrink-0 text-emerald-600" /> : <Copy className="h-3 w-3 shrink-0 opacity-50" />}
+                            {copiedNumber ? 'Copied' : matter.matter_number}
+                        </button>
                         {ledgerBalances && (
                             <>
-                                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold tabular-nums text-emerald-700">
+                                <button
+                                    type="button"
+                                    onClick={goToLedger}
+                                    title={viewFinancial ? 'View the Account tab' : 'Open the ledger'}
+                                    aria-label={`View ledger balances (client ${ledgerBalances.client}, office ${ledgerBalances.office})`}
+                                    className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold tabular-nums text-emerald-700 cursor-pointer transition-all hover:shadow-md hover:brightness-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                                >
                                     Client {formatCurrency(parseFloat(ledgerBalances.client))} {parseFloat(ledgerBalances.client) < 0 ? 'DR' : 'CR'}
-                                </span>
-                                <span className={cn(
-                                    'inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold tabular-nums',
-                                    parseFloat(ledgerBalances.office) < 0
-                                        ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                                        : 'border-amber-200 bg-amber-50 text-amber-800',
-                                )}>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={goToLedger}
+                                    title={viewFinancial ? 'View the Account tab' : 'Open the ledger'}
+                                    aria-label={`View ledger balances (client ${ledgerBalances.client}, office ${ledgerBalances.office})`}
+                                    className={cn(
+                                        'inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold tabular-nums cursor-pointer transition-all hover:shadow-md hover:brightness-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
+                                        parseFloat(ledgerBalances.office) < 0
+                                            ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                            : 'border-amber-200 bg-amber-50 text-amber-800',
+                                    )}
+                                >
                                     Office {formatCurrency(Math.abs(parseFloat(ledgerBalances.office)))} {parseFloat(ledgerBalances.office) < 0 ? 'CR' : 'DR'}
-                                </span>
+                                </button>
                             </>
                         )}
                         {daysUntil !== null && daysUntil <= 14 && (
-                            <span className={cn('inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold leading-none shadow-sm', daysUntil < 0 || deadlinePassed ? 'bg-[#ff5757]/10 text-[#ff5757] border-[#ff5757]/20' : daysUntil === 0 ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-amber-50 text-amber-700 border-amber-200')}>
+                            <button
+                                type="button"
+                                onClick={() => setTab('tasks')}
+                                title="View tasks"
+                                aria-label="View tasks"
+                                className={cn('inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold leading-none shadow-sm cursor-pointer transition-all hover:shadow-md hover:brightness-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40', daysUntil < 0 || deadlinePassed ? 'bg-[#ff5757]/10 text-[#ff5757] border-[#ff5757]/20' : daysUntil === 0 ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-amber-50 text-amber-700 border-amber-200')}
+                            >
                                 <AlertTriangle className="h-3 w-3 shrink-0" />
                                 {daysUntil < 0 ? `Overdue ${Math.abs(daysUntil)}d` : deadlinePassed ? 'Overdue' : daysUntil === 0 ? 'Due today' : `Due in ${daysUntil}d`}
-                            </span>
+                            </button>
                         )}
                     </div>
 
@@ -1136,7 +1452,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                         </div>
                         {viewFinancial && matter.fee_arrangement && (
                             <div className="shrink-0 flex items-center gap-1.5 rounded-full border border-border/60 bg-muted/30 px-2.5 py-1.5 self-start">
-                                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#016452] text-white"><PoundSterling className="h-3 w-3" /></span>
+                                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#007A78] text-white"><PoundSterling className="h-3 w-3" /></span>
                                 <span className="text-xs font-semibold text-foreground capitalize">{matter.fee_arrangement.replace(/_/g, ' ')}</span>
                                 {feeSummary && <span className="text-xs font-medium text-muted-foreground">· {feeSummary}</span>}
                             </div>
@@ -1176,7 +1492,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                             })()}
                             {(matter.court || matter.court_reference) && (
                                 <div className="flex items-center gap-2 rounded-full border border-border/60 bg-muted/20 px-3 py-1 text-xs">
-                                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#016452]/10 shrink-0"><Landmark className="h-3 w-3 text-[#016452]" /></span>
+                                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#007A78]/10 shrink-0"><Landmark className="h-3 w-3 text-[#007A78]" /></span>
                                     <span className="font-medium text-foreground">{matter.court || '—'}</span>
                                     {matter.court_reference && <span className="text-muted-foreground font-mono text-xs">Ref: {matter.court_reference}</span>}
                                 </div>
@@ -2187,14 +2503,22 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                 </p>
                             )}
                         </div>
-                        {canManageFinances && !matterLocked && (
-                            <Button size="sm" asChild>
-                                <Link href={`/billing/create?matter_id=${matter.id}`}>
-                                    <Plus className="h-3.5 w-3.5 mr-1" />
-                                    New Invoice
-                                </Link>
-                            </Button>
-                        )}
+                        <div className="flex items-center gap-2">
+                            {canAddTask && (
+                                <Button size="sm" variant="outline" type="button" onClick={openFeeReminder} title="Create a follow-up task to chase outstanding fees">
+                                    <CalendarClock className="h-3.5 w-3.5 mr-1" />
+                                    Set fee reminder
+                                </Button>
+                            )}
+                            {canManageFinances && !matterLocked && (
+                                <Button size="sm" asChild>
+                                    <Link href={`/billing/create?matter_id=${matter.id}`}>
+                                        <Plus className="h-3.5 w-3.5 mr-1" />
+                                        New Invoice
+                                    </Link>
+                                </Button>
+                            )}
+                        </div>
                     </CardHeader>
                     <CardContent className="p-0">
                         {matter.invoices?.length ? (
@@ -2252,6 +2576,40 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                     </CardContent>
                 </Card>
             )}
+
+            <Dialog open={feeReminderOpen} onOpenChange={setFeeReminderOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="text-base">Set fee reminder</DialogTitle>
+                        <DialogDescription className="text-sm">
+                            Creates a follow-up task “Chase outstanding fees” linked to this matter,
+                            assigned to {(matter.responsible_user as any)?.full_name ?? 'the responsible user'}.
+                            It appears on the dashboard, calendar and Tasks page, with the usual
+                            due-tomorrow and overdue notifications — no extra setup.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-2 py-2">
+                        <Label htmlFor="fee-reminder-date" className="text-xs">Remind me on</Label>
+                        <Input
+                            id="fee-reminder-date"
+                            type="date"
+                            value={feeReminderDate}
+                            min={new Date().toISOString().slice(0, 10)}
+                            onChange={(e) => setFeeReminderDate(e.target.value)}
+                        />
+                        <p className="text-xs text-muted-foreground">Defaults to 28 days from today — adjust as needed.</p>
+                        {feeReminderError && <p className="text-xs text-destructive">{feeReminderError}</p>}
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" type="button" onClick={() => setFeeReminderOpen(false)} disabled={feeReminderSaving}>
+                            Cancel
+                        </Button>
+                        <Button type="button" onClick={saveFeeReminder} disabled={feeReminderSaving || !feeReminderDate}>
+                            {feeReminderSaving ? 'Setting…' : 'Set reminder'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             {tab === 'account' && (
                 <Card className="surface-card">
@@ -2317,7 +2675,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                     {/* Matter Details */}
                     <Card className="rounded-[12px] border border-border/60 bg-card shadow-sm overflow-hidden">
                         <div className="px-5 py-3.5 border-b border-border/60 bg-muted/[0.12] flex items-center gap-2">
-                            <span className="flex h-7 w-7 items-center justify-center rounded-[8px] bg-[#016452] text-white shrink-0"><FileText className="h-3.5 w-3.5" /></span>
+                            <span className="flex h-7 w-7 items-center justify-center rounded-[8px] bg-[#007A78] text-white shrink-0"><FileText className="h-3.5 w-3.5" /></span>
                             <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Matter Details</h3>
                         </div>
                         <div className="p-5">
@@ -2462,7 +2820,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                     {viewFinancial && (
                         <Card className="rounded-[12px] border border-border/60 bg-card shadow-sm overflow-hidden">
                             <div className="px-5 py-3.5 border-b border-border/60 bg-muted/[0.12] flex items-center gap-2">
-                                <span className="flex h-7 w-7 items-center justify-center rounded-[8px] bg-[#016452] text-white shrink-0"><Wallet className="h-3.5 w-3.5" /></span>
+                                <span className="flex h-7 w-7 items-center justify-center rounded-[8px] bg-[#007A78] text-white shrink-0"><Wallet className="h-3.5 w-3.5" /></span>
                                 <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Financial</h3>
                             </div>
                             <div className="p-2">
@@ -2490,7 +2848,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                     {/* People */}
                     <Card className="rounded-[12px] border border-border/60 bg-card shadow-sm overflow-hidden">
                         <div className="px-5 py-3.5 border-b border-border/60 bg-muted/[0.12] flex items-center gap-2">
-                            <span className="flex h-7 w-7 items-center justify-center rounded-[8px] bg-[#016452] text-white shrink-0"><Users className="h-3.5 w-3.5" /></span>
+                            <span className="flex h-7 w-7 items-center justify-center rounded-[8px] bg-[#007A78] text-white shrink-0"><Users className="h-3.5 w-3.5" /></span>
                             <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">People</h3>
                         </div>
                         <CardContent className="p-5 space-y-4">
@@ -2498,7 +2856,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                 <div>
                                     <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground mb-2">Responsible User</p>
                                     <div className="flex items-center gap-3">
-                                        <UserAvatar user={matter.responsible_user} className="h-9 w-9" fallbackClassName="bg-[#016452] text-white text-sm font-bold" />
+                                        <UserAvatar user={matter.responsible_user} className="h-9 w-9" fallbackClassName="bg-[#007A78] text-white text-sm font-bold" />
                                         <div className="min-w-0">
                                             <p className="text-sm font-semibold text-foreground truncate">{shortName(matter.responsible_user.full_name)}</p>
                                             <p className="text-xs text-muted-foreground truncate">{matter.responsible_user.email}</p>
@@ -2515,16 +2873,16 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                             {matter.contacts.map((contact: any) => (
                                                 <Link key={contact.id} href={`/contacts/${contact.id}`}
                                                     className="flex items-center gap-3 group p-2 -mx-2 rounded-[10px] hover:bg-muted/40 transition-colors">
-                                                    <span className="h-8 w-8 rounded-full bg-muted text-muted-foreground text-xs font-bold flex items-center justify-center shrink-0 group-hover:bg-[#016452] group-hover:text-white transition-colors">
+                                                    <span className="h-8 w-8 rounded-full bg-muted text-muted-foreground text-xs font-bold flex items-center justify-center shrink-0 group-hover:bg-[#007A78] group-hover:text-white transition-colors">
                                                         {(contact.full_name || contact.name)[0].toUpperCase()}
                                                     </span>
                                                     <div className="min-w-0 flex-1">
-                                                        <p className="text-sm font-semibold group-hover:text-[#016452] transition-colors truncate">{contact.full_name || contact.name}</p>
+                                                        <p className="text-sm font-semibold group-hover:text-[#007A78] transition-colors truncate">{contact.full_name || contact.name}</p>
                                                         <p className="text-xs text-muted-foreground capitalize">
                                                             {(contact.pivot?.role || 'client').replace(/_/g, ' ')}
                                                         </p>
                                                     </div>
-                                                    <ExternalLink className="h-3.5 w-3.5 text-muted-foreground/30 group-hover:text-[#016452] transition-colors shrink-0" />
+                                                    <ExternalLink className="h-3.5 w-3.5 text-muted-foreground/30 group-hover:text-[#007A78] transition-colors shrink-0" />
                                                 </Link>
                                             ))}
                                         </div>
@@ -2541,10 +2899,10 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                     <Card className="rounded-[12px] border border-border/60 bg-card shadow-sm overflow-hidden">
                         <div className="px-5 py-3.5 border-b border-border/60 bg-muted/[0.12] flex items-center justify-between">
                             <div className="flex items-center gap-2">
-                                <span className="flex h-7 w-7 items-center justify-center rounded-[8px] bg-[#016452] text-white shrink-0"><Receipt className="h-3.5 w-3.5" /></span>
+                                <span className="flex h-7 w-7 items-center justify-center rounded-[8px] bg-[#007A78] text-white shrink-0"><Receipt className="h-3.5 w-3.5" /></span>
                                 <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Recent Invoices</h3>
                             </div>
-                            <Link href={`/billing/create?matter_id=${matter.id}`} className="text-xs font-semibold text-[#016452] hover:underline">
+                            <Link href={`/billing/create?matter_id=${matter.id}`} className="text-xs font-semibold text-[#007A78] hover:underline">
                                 + New
                             </Link>
                         </div>
@@ -2561,7 +2919,7 @@ export default function ShowMatter({ matter, users, viewFinancial, activeTimer: 
                                         <Link key={inv.id} href={`/billing/${inv.id}`}
                                             className="px-5 py-3.5 flex items-center justify-between hover:bg-muted/20 transition-colors group">
                                             <div className="min-w-0">
-                                                <p className="text-sm font-semibold group-hover:text-[#016452] transition-colors truncate">{inv.invoice_number}</p>
+                                                <p className="text-sm font-semibold group-hover:text-[#007A78] transition-colors truncate">{inv.invoice_number}</p>
                                                 <p className="text-xs text-muted-foreground mt-0.5">{formatDate(inv.created_at)}</p>
                                             </div>
                                             <div className="text-right shrink-0 ml-3">

@@ -148,7 +148,7 @@ export default function AppLayout({ children, title }: AppLayoutProps) {
             {/* Logo */}
             <div className="flex h-20 items-center px-6">
                 <Link href={isSuperAdmin ? '/superadmin/dashboard' : '/dashboard'} className="flex items-center gap-3">
-                    <img src="/New%20Logos/13.png" alt="SIMPLE Case Management" className="h-12 w-12 shrink-0 object-contain" />
+                    <img src="/images/brand/logo-mark.png" alt="SIMPLE Case Management" className="h-12 w-12 shrink-0 object-contain" />
                     <div className="leading-none min-w-0 flex-1 font-system">
                         <p className="text-[26px] font-semibold text-white tracking-[0.1em] whitespace-nowrap">SIMPLE</p>
                         <p className="mt-0.5 truncate text-[11px] uppercase tracking-[0.18em] text-white/60 font-medium">Case Management</p>
@@ -334,7 +334,7 @@ export default function AppLayout({ children, title }: AppLayoutProps) {
     return (
         <div className="flex h-screen h-[100dvh] overflow-hidden bg-background">
             {/* Desktop sidebar - ink surface with a warm accent at the base */}
-            <aside className="hidden shrink-0 overflow-hidden lg:flex lg:w-60 lg:flex-col" style={{background: '#0F172A', borderRight: '1px solid #1E293B'}}>
+            <aside className="hidden shrink-0 overflow-hidden lg:flex lg:w-60 lg:flex-col" style={{background: '#142D3A', borderRight: '1px solid #2A4356'}}>
                 <SidebarContent />
             </aside>
 
@@ -342,7 +342,7 @@ export default function AppLayout({ children, title }: AppLayoutProps) {
             {sidebarOpen && (
                 <div className="fixed inset-0 z-50 lg:hidden">
                     <div className="fixed inset-0 bg-foreground/20 backdrop-blur-[2px]" onClick={() => setSidebarOpen(false)} />
-                    <aside className="fixed inset-y-0 left-0 flex w-60 flex-col overflow-hidden shadow-2xl" style={{background: '#0F172A', borderRight: '1px solid #1E293B'}}>
+                    <aside className="fixed inset-y-0 left-0 flex w-60 flex-col overflow-hidden shadow-2xl" style={{background: '#142D3A', borderRight: '1px solid #2A4356'}}>
                         <SidebarContent />
                     </aside>
                 </div>

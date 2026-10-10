@@ -124,6 +124,25 @@ export function formatDuration(minutes: number): string {
     return `${h}h ${m.toString().padStart(2, '0')}m`;
 }
 
+/**
+ * Transport-safe filename for multipart uploads. A raw straight quote in the
+ * multipart filename trips some hosting WAF/SQLi rules, which answer with a
+ * non-JSON block page -- the upload then fails with a generic "Upload
+ * failed" and no server message. Folding straight quotes to their
+ * typographic lookalikes (and stripping newlines/backslashes/controls)
+ * keeps the name human-readable while the request passes through untouched.
+ * Only the listed characters change, so normal filenames (and always the
+ * extension) pass through byte-identical.
+ */
+export function sanitizeUploadFilename(name: string): string {
+    if (!name) return 'upload';
+    let safe = name.replace(/[\r\n]+/g, ' ');
+    safe = safe.replace(/'/g, '’').replace(/"/g, '”');
+    safe = safe.replace(/\\/g, '').replace(/[\x00-\x1F\x7F]/g, '');
+    safe = safe.trim().replace(/[.\s]+$/, '');
+    return safe || 'upload';
+}
+
 export function initials(name: string): string {
     return name
         .split(' ')

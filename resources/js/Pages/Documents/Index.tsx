@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Combobox } from '@/components/ui/combobox';
-import { formatDate, cn, matterComboboxOptions, hasAnyPermission, shortName } from '@/lib/utils';
+import { formatDate, cn, matterComboboxOptions, hasAnyPermission, shortName, sanitizeUploadFilename } from '@/lib/utils';
 import { ArrowLeft, ChevronDown, Download, Eye, FileText, Folder, FolderOpen, Paperclip, Search, Trash2, Upload, X } from 'lucide-react';
 import type { Document, PaginatedData, PageProps } from '@/types';
 import { useUploadQueue } from '@/hooks/useUploadQueue';
@@ -61,7 +61,9 @@ export default function DocumentsIndex({ documents, matters, filters }: Props) {
         url: '/documents',
         buildFormData: (file) => {
             const fd = new FormData();
-            fd.append('file', file);
+            // Third arg overrides the multipart filename: straight quotes in
+            // the raw name trip hosting WAF rules (generic "Upload failed").
+            fd.append('file', file, sanitizeUploadFilename(file.name));
             fd.append('matter_id', uploadMatterId);
             const baseFromMatter = matters.find((m) => m.id === uploadMatterId)?.name?.trim() || '';
             const userFolder = uploadFolder.trim();

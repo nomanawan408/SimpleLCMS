@@ -29,10 +29,37 @@ class DocumentTest extends TestCase
         ])->assertRedirect();
 
         $this->assertDatabaseHas('documents', [
-            'firm_id'   => $firm->id,
-            'matter_id' => $matter->id,
-            'folder'    => 'Contracts',
+            'firm_id'       => $firm->id,
+            'matter_id'     => $matter->id,
+            'folder'        => 'Contracts',
+            // Normal filenames pass through byte-identical.
+            'name'          => 'contract.pdf',
+            'original_name' => 'contract.pdf',
         ]);
+    }
+
+    public function test_can_upload_document_with_apostrophe_in_filename(): void
+    {
+        Storage::fake('local');
+        [$firm, $user] = $this->createFirmAndUser();
+        $matter = Matter::factory()->forFirm($firm, $user)->create();
+
+        $file = UploadedFile::fake()->create("Adviser's Certificate.pdf", 444, 'application/pdf');
+
+        $this->actingAsUser($user)->post('/documents', [
+            'file'      => $file,
+            'matter_id' => $matter->id,
+        ])->assertSessionHasNoErrors();
+
+        // Upload succeeds; the stored display name folds the straight
+        // apostrophe to a typographic lookalike (still human-readable,
+        // transport-safe), while the extension and size are untouched.
+        $document = Document::where('matter_id', $matter->id)->firstOrFail();
+        $this->assertSame('Adviser’s Certificate.pdf', $document->original_name);
+        $this->assertSame('Adviser’s Certificate.pdf', $document->name);
+        $this->assertSame('application/pdf', $document->mime_type);
+        $this->assertStringEndsWith('.pdf', $document->original_name);
+        Storage::disk('local')->assertExists($document->s3_key);
     }
 
     public function test_matter_id_is_required_for_upload(): void

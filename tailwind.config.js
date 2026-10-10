@@ -20,20 +20,20 @@ export default {
                 ring: 'hsl(var(--ring))',
                 background: 'hsl(var(--background))',
                 foreground: 'hsl(var(--foreground))',
-                /* SIMPLE-CM palette: Vivid #02b88e, Dark #016452 (lighter than #014034), Mid #0097b2, Grey #545454, Coral #ff5757 */
+                /* Firm palette: Muted Teal #007A78 scale, deepening into Ink Navy #142D3A. */
                 brand: {
-                    50:  '#E6FBF7',
-                    100: '#C7F5EA',
-                    200: '#8FEBD8',
-                    300: '#54DCC2',
-                    400: '#02b88e',
-                    500: '#02b88e',
-                    600: '#0097b2',
-                    700: '#007a91',
-                    800: '#016452',
-                    900: '#016452',
-                    950: '#014034',
-                    DEFAULT: '#02b88e',
+                    50:  '#EDF6F5',
+                    100: '#D7EBE9',
+                    200: '#B0D7D4',
+                    300: '#7FBFBB',
+                    400: '#3DA5A0',
+                    500: '#007A78',
+                    600: '#006B69',
+                    700: '#005755',
+                    800: '#1E3A45',
+                    900: '#142D3A',
+                    950: '#0C1F28',
+                    DEFAULT: '#007A78',
                 },
                 /* Warm magenta accent that pairs with the "Dark Blue" scale. */
                 magenta: {

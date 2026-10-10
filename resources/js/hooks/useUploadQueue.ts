@@ -116,7 +116,17 @@ export function useUploadQueue({
             if (axios.isCancel(err) || err?.code === 'ERR_CANCELED') {
                 patchItem(item.id, { status: 'cancelled' });
             } else {
-                const message = firstValidationError(err?.response?.data) || err?.response?.data?.message || 'Upload failed.';
+                // Prefer the server's own reason (validation message), then
+                // the transport reason (e.g. "Request failed with status
+                // code 403" when an edge/WAF answers with a non-JSON block
+                // page), so a failure never degrades to a bare "Upload
+                // failed." while a reason is available.
+                const serverMessage =
+                    typeof err?.response?.data?.message === 'string' ? err.response.data.message : null;
+                const transportMessage =
+                    typeof err?.message === 'string' && err.message ? err.message : null;
+                const message =
+                    firstValidationError(err?.response?.data) || serverMessage || transportMessage || 'Upload failed.';
                 patchItem(item.id, { status: 'error', error: message });
             }
         } finally {

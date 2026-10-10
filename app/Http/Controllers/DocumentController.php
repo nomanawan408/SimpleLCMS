@@ -110,6 +110,16 @@ class DocumentController extends Controller
 
         $path = $file->store("documents/{$firmId}/{$matterId}", 'local');
 
+        // The stored bytes live under a random hash (s3_key), but the
+        // human-readable name is echoed into headers, logs, notifications
+        // and search results -- and a raw straight quote in the multipart
+        // filename trips some hosting WAF rules before the request ever
+        // reaches here. Fold straight quotes to typographic lookalikes so
+        // "Adviser's Certificate.pdf" stays readable and transport-safe.
+        // Mirrors sanitizeUploadFilename() in resources/js/lib/utils.ts; the
+        // extension is never altered, so the allowlist above still rules.
+        $originalName = self::sanitizeDocumentName($file->getClientOriginalName());
+
         // Folders are named for the matter title; the tree matcher still
         // recognises legacy number-based folders so nothing ever hides.
         $defaultFolder = $matter->name ?: $matter->matter_number;
@@ -117,8 +127,8 @@ class DocumentController extends Controller
             'firm_id'          => $firmId,
             'matter_id'        => $request->input('matter_id'),
             'uploaded_by_id'   => $request->user()->id,
-            'name'             => $file->getClientOriginalName(),
-            'original_name'    => $file->getClientOriginalName(),
+            'name'             => $originalName,
+            'original_name'    => $originalName,
             's3_key'           => $path,
             'folder'           => $request->input('folder', $defaultFolder) ?: $defaultFolder,
             'mime_type'        => $sniffed,
@@ -143,6 +153,25 @@ class DocumentController extends Controller
         }
 
         return back()->with('success', 'Document uploaded.');
+    }
+
+    /**
+     * Fold transport-hostile characters out of a client-supplied filename
+     * while keeping it human-readable: straight quotes become typographic
+     * lookalikes, newlines become spaces, backslashes/controls are dropped.
+     * Mirrors sanitizeUploadFilename() in resources/js/lib/utils.ts (both
+     * are idempotent, so applying twice is harmless). Only the listed
+     * characters change -- normal filenames pass through byte-identical and
+     * the extension is never altered.
+     */
+    private static function sanitizeDocumentName(string $name): string
+    {
+        $safe = preg_replace('/[\r\n]+/', ' ', $name) ?? '';
+        $safe = str_replace(["'", '"', '\\'], ['’', '”', ''], $safe);
+        $safe = preg_replace('/[\x00-\x1F\x7F]/', '', $safe) ?? '';
+        $safe = preg_replace('/[\s.]+$/u', '', trim($safe)) ?? '';
+
+        return $safe !== '' ? $safe : 'upload';
     }
 
     /**

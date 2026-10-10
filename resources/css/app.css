@@ -13,40 +13,40 @@
 @layer base {
 
     :root {
-        /* SIMPLE-CM palette — from colorscheme.jpeg:
-           #0097b2 Dark turquoise, #545454 Dark grey, #ff5757 Coral Red,
-           #02b88e Vivid turquoise, #014034 Dark turquoise.
-           Combo: Deep #014034 (primary/ink) + Vivid #02b88e (accent) + Coral #ff5757 (destructive).
-           Sidebar kept navy #0F172A per user request. */
-        --background: 0 0% 97%;
-        --foreground: 0 0% 7%;
+        /* Firm palette (user-supplied):
+           Ink Navy #142D3A (primary) + Muted Teal #007A78 (monogram/accent)
+           + Slate #475569 (supporting text) + Warm Ivory #F4F1EA (background).
+           Semantic hues stay semantic: coral destructive, amber warning,
+           green success, sky info. Sidebar is Ink Navy. */
+        --background: 42 31% 94%;
+        --foreground: 201 45% 12%;
 
         --card: 0 0% 100%;
-        --card-foreground: 0 0% 7%;
+        --card-foreground: 201 45% 12%;
 
         --popover: 0 0% 100%;
-        --popover-foreground: 0 0% 7%;
+        --popover-foreground: 201 45% 12%;
 
-        --primary: 169 97% 20%; /* #016452 — lighter than #014034 (13%) */
+        --primary: 201 49% 15%; /* #142D3A Ink Navy */
         --primary-foreground: 0 0% 100%;
-        --primary-hover: 169 97% 26%;
+        --primary-hover: 201 49% 21%;
 
-        --secondary: 189 75% 92%; /* tint of #0097b2 */
-        --secondary-foreground: 189 100% 22%;
+        --secondary: 179 45% 90%; /* muted-teal tint */
+        --secondary-foreground: 179 100% 20%;
 
-        --muted: 0 0% 95%;
-        --muted-foreground: 0 0% 33%; /* #545454 */
+        --muted: 40 15% 89%;
+        --muted-foreground: 215 19% 35%; /* #475569 Slate */
 
-        --accent: 166 98% 36%; /* #02b88e */
-        --accent-foreground: 169 97% 13%;
-        --accent-muted: 0 0% 94%;
+        --accent: 179 100% 24%; /* #007A78 Muted Teal */
+        --accent-foreground: 0 0% 100%;
+        --accent-muted: 42 25% 90%;
 
         --destructive: 0 100% 67%; /* #ff5757 Coral Red */
         --destructive-foreground: 0 0% 100%;
 
-        --border: 0 0% 88%;
-        --input: 0 0% 88%;
-        --ring: 166 98% 36%;
+        --border: 35 12% 85%;
+        --input: 35 12% 85%;
+        --ring: 179 100% 24%;
         --radius: 0.75rem;
 
         --warning: 43 100% 48%;
@@ -60,40 +60,39 @@
     }
 
     .dark {
-        /* Navy surfaces (matching the #0F172A sidebar) with Legl teal accents. */
-        --background: 222 47% 7%;
-        --foreground: 0 0% 96%;
+        /* Ink-navy surfaces with muted-teal accents — same brand, dark side. */
+        --background: 201 50% 8%;
+        --foreground: 42 25% 94%;
 
-        --card: 222 44% 11%;
-        --card-foreground: 0 0% 96%;
+        --card: 201 45% 11%;
+        --card-foreground: 42 25% 94%;
 
-        --popover: 222 44% 11%;
-        --popover-foreground: 0 0% 96%;
+        --popover: 201 45% 11%;
+        --popover-foreground: 42 25% 94%;
 
         /* On dark surfaces the relationship inverts: the teal can be bright
-           because it carries dark text, so contrast comes for free. Hues match
-           the light palette so the brand reads as one colour across themes. */
-        --primary: 170 95% 45%;
-        --primary-foreground: 222 47% 8%;
-        --primary-hover: 170 95% 52%;
+           because it carries dark text, so contrast comes for free. */
+        --primary: 179 85% 45%;
+        --primary-foreground: 201 50% 8%;
+        --primary-hover: 179 85% 52%;
 
-        --secondary: 170 40% 16%;
-        --secondary-foreground: 170 90% 78%;
+        --secondary: 179 40% 16%;
+        --secondary-foreground: 179 85% 78%;
 
-        --muted: 222 25% 14%;
-        --muted-foreground: 0 0% 65%;
+        --muted: 201 30% 14%;
+        --muted-foreground: 215 15% 70%;
 
-        --accent: 167 98% 50%;
-        --accent-foreground: 222 47% 8%;
+        --accent: 179 85% 50%;
+        --accent-foreground: 201 50% 8%;
         /* Neutral hover surface for transparent controls, as in light mode. */
-        --accent-muted: 222 25% 18%;
+        --accent-muted: 201 30% 18%;
 
         --destructive: 357 85% 55%;
         --destructive-foreground: 0 0% 100%;
 
-        --border: 222 30% 20%;
-        --input: 222 30% 20%;
-        --ring: 170 95% 45%;
+        --border: 201 30% 20%;
+        --input: 201 30% 20%;
+        --ring: 179 85% 45%;
 
         --warning: 43 100% 55%;
         --warning-foreground: 40 90% 8%;

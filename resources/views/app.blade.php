@@ -4,9 +4,9 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <link rel="icon" type="image/png" href="{{ asset('New Logos/13.png') }}">
-    <link rel="apple-touch-icon" href="{{ asset('New Logos/13.png') }}">
-    <meta name="theme-color" content="#01B88E">
+    <link rel="icon" type="image/png" href="{{ asset('images/brand/logo-mark.png') }}">
+    <link rel="apple-touch-icon" href="{{ asset('images/brand/logo-mark.png') }}">
+    <meta name="theme-color" content="#142D3A">
     <title inertia>{{ config('app.name', 'Simple Lawyer') }}</title>
     {{-- Same nonce the SecurityHeaders middleware put in the CSP. --}}
     @routes(null, Vite::cspNonce())

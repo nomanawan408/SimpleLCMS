@@ -31,7 +31,7 @@ export default function AuthLayout({ children, title, description, split = false
 
     const logo = (
         <div className="flex items-center justify-center">
-            <img src="/New%20Logos/5.png" alt="SIMPLE Case Management" className="h-16 w-auto object-contain" />
+            <img src="/images/brand/logo-lockup.png" alt="SIMPLE Case Management" className="h-16 w-auto object-contain" />
         </div>
     );
 
@@ -64,7 +64,7 @@ export default function AuthLayout({ children, title, description, split = false
         return (
             <div className="relative flex min-h-screen overflow-hidden bg-background">
                 {/* Left branding panel — solicitor / law office slideshow - images prominent */}
-                <div className="relative hidden w-1/2 flex-col overflow-hidden bg-slate-900 lg:flex">
+                <div className="relative hidden w-1/2 flex-col overflow-hidden bg-[#142D3A] lg:flex">
                     {/* Slideshow — legal1/2/3.jpg - fully visible */}
                     <div className="absolute inset-0">
                         {slides.map((src, i) => (
@@ -83,7 +83,7 @@ export default function AuthLayout({ children, title, description, split = false
                     {/* Top bar with logo — kept in original colors */}
                     <div className="relative z-10 flex w-full px-8 pt-8">
                         <div className="flex items-center rounded-xl bg-white/95 px-5 py-2.5 shadow-lg backdrop-blur ring-1 ring-black/5">
-                            <img src="/New%20Logos/5.png" alt="SIMPLE Case Management" className="h-14 w-auto object-contain" />
+                            <img src="/images/brand/logo-lockup.png" alt="SIMPLE Case Management" className="h-14 w-auto object-contain" />
                         </div>
                     </div>
 
